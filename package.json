@@ -1,0 +1,24 @@
+{
+  "name": "thunder-uno-plus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Monorepo scaffold for the WeChat mini game 雷霆UNOplus.",
+  "packageManager": "pnpm@10.10.0",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=10.10.0"
+  },
+  "scripts": {
+    "typecheck": "corepack pnpm -r --if-present typecheck",
+    "build": "corepack pnpm -r --if-present build",
+    "test": "corepack pnpm --filter @thunder-uno/protocol test && corepack pnpm --filter @thunder-uno/uno-core test && corepack pnpm --filter @thunder-uno/simulator test && corepack pnpm --filter @thunder-uno/game-server test && corepack pnpm --filter @thunder-uno/client-wechat test",
+    "test:protocol": "corepack pnpm --filter @thunder-uno/protocol test",
+    "test:simulator": "corepack pnpm --filter @thunder-uno/simulator test",
+    "test:game-server": "corepack pnpm --filter @thunder-uno/game-server test",
+    "test:client-wechat": "corepack pnpm --filter @thunder-uno/client-wechat test"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

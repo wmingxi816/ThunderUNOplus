@@ -1,0 +1,28 @@
+{
+  "name": "@thunder-uno/game-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/protocol build && corepack pnpm --filter @thunder-uno/uno-core build && tsc -p tsconfig.build.json",
+    "typecheck": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/protocol build && corepack pnpm --filter @thunder-uno/uno-core build && tsc -p tsconfig.json --noEmit",
+    "test": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/protocol build && corepack pnpm --filter @thunder-uno/uno-core build && vitest run",
+    "dev": "tsx src/dev/runLocalServer.ts",
+    "dev:client": "tsx src/dev/devClient.ts",
+    "dev:scenario": "tsx src/dev/multiClientScenario.ts"
+  },
+  "dependencies": {
+    "@thunder-uno/protocol": "workspace:*",
+    "@thunder-uno/shared-types": "workspace:*",
+    "@thunder-uno/uno-core": "workspace:*",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.6"
+  }
+}

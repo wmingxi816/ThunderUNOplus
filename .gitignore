@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+packages/*/dist/
+tools/simulator/dist/
+*.tsbuildinfo
+
+# Logs and temporary runtime output
+*.log
+.tmp-*.log
+
+# Editor/system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Cocos generated folders
+apps/NewProject/library/
+apps/NewProject/temp/
+apps/NewProject/local/
+apps/NewProject/build/
+apps/NewProject/profiles/
+apps/NewProject/native/

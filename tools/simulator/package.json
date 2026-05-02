@@ -1,0 +1,24 @@
+{
+  "name": "@thunder-uno/simulator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/uno-core build && tsc -p tsconfig.build.json",
+    "typecheck": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/uno-core build && tsc -p tsconfig.json --noEmit",
+    "test": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/uno-core build && vitest run",
+    "simulate": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/uno-core build && tsx src/cli.ts simulate",
+    "batch": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/uno-core build && tsx src/cli.ts batch"
+  },
+  "dependencies": {
+    "@thunder-uno/shared-types": "workspace:*",
+    "@thunder-uno/uno-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "tsx": "^4.20.6"
+  }
+}

@@ -1,0 +1,163 @@
+import type { CardColor } from "./card";
+import type { PlayerId } from "./common";
+import type { GameState } from "./game";
+import type { GameCommandType } from "./command";
+import type { ErrorCode } from "./errors";
+
+export const GAME_EVENT_TYPES = [
+  "command-rejected",
+  "cards-played",
+  "cards-drawn",
+  "turn-advanced",
+  "draw-stack-updated",
+  "draw-stack-cleared",
+  "draw-until-color-started",
+  "draw-until-color-resolved",
+  "challenge-window-opened",
+  "challenge-resolved",
+  "uno-pending",
+  "uno-called",
+  "uno-penalty-applied",
+  "player-eliminated",
+  "game-finished",
+  "deck-reshuffled",
+  "draw-pile-exhausted"
+] as const;
+export type GameEventType = (typeof GAME_EVENT_TYPES)[number];
+
+export interface CommandRejectedEvent {
+  type: "command-rejected";
+  commandType: GameCommandType;
+  playerId: PlayerId;
+  code: ErrorCode;
+  message: string;
+}
+
+export interface CardsPlayedEvent {
+  type: "cards-played";
+  playerId: PlayerId;
+  cardIds: string[];
+  topCardId: string;
+  declaredColor?: CardColor;
+}
+
+export interface CardsDrawnEvent {
+  type: "cards-drawn";
+  playerId: PlayerId;
+  count: number;
+  reason:
+    | "normal-draw"
+    | "draw-stack"
+    | "draw-until-color"
+    | "challenge-penalty"
+    | "uno-penalty";
+}
+
+export interface TurnAdvancedEvent {
+  type: "turn-advanced";
+  previousPlayerId: PlayerId;
+  currentPlayerId: PlayerId;
+}
+
+export interface DrawStackUpdatedEvent {
+  type: "draw-stack-updated";
+  amount: number;
+  targetPlayerId: PlayerId | null;
+}
+
+export interface DrawStackClearedEvent {
+  type: "draw-stack-cleared";
+  reason: "resolved" | "canceled-by-draw-ten";
+}
+
+export interface DrawUntilColorStartedEvent {
+  type: "draw-until-color-started";
+  targetPlayerId: PlayerId;
+  color: CardColor;
+}
+
+export interface DrawUntilColorResolvedEvent {
+  type: "draw-until-color-resolved";
+  targetPlayerId: PlayerId;
+  color: CardColor;
+  drawnCount: number;
+}
+
+export interface ChallengeWindowOpenedEvent {
+  type: "challenge-window-opened";
+  targetPlayerId: PlayerId;
+}
+
+export interface ChallengeResolvedEvent {
+  type: "challenge-resolved";
+  challengerPlayerId: PlayerId;
+  targetPlayerId: PlayerId;
+  success: boolean;
+  penaltyPlayerId: PlayerId;
+  drawCount: number;
+}
+
+export interface UnoPendingEvent {
+  type: "uno-pending";
+  playerId: PlayerId;
+}
+
+export interface UnoCalledEvent {
+  type: "uno-called";
+  playerId: PlayerId;
+}
+
+export interface UnoPenaltyAppliedEvent {
+  type: "uno-penalty-applied";
+  targetPlayerId: PlayerId;
+  reporterPlayerId: PlayerId;
+  drawCount: number;
+}
+
+export interface PlayerEliminatedEvent {
+  type: "player-eliminated";
+  playerId: PlayerId;
+  reason: "hand-limit";
+}
+
+export interface GameFinishedEvent {
+  type: "game-finished";
+  winnerPlayerIds: PlayerId[];
+}
+
+export interface DeckReshuffledEvent {
+  type: "deck-reshuffled";
+  recycledCardCount: number;
+  newDrawPileCount: number;
+  shuffleCounter: number;
+}
+
+export interface DrawPileExhaustedEvent {
+  type: "draw-pile-exhausted";
+  requestedCount: number;
+  drawnCount: number;
+}
+
+export type GameEvent =
+  | CommandRejectedEvent
+  | CardsPlayedEvent
+  | CardsDrawnEvent
+  | TurnAdvancedEvent
+  | DrawStackUpdatedEvent
+  | DrawStackClearedEvent
+  | DrawUntilColorStartedEvent
+  | DrawUntilColorResolvedEvent
+  | ChallengeWindowOpenedEvent
+  | ChallengeResolvedEvent
+  | UnoPendingEvent
+  | UnoCalledEvent
+  | UnoPenaltyAppliedEvent
+  | PlayerEliminatedEvent
+  | GameFinishedEvent
+  | DeckReshuffledEvent
+  | DrawPileExhaustedEvent;
+
+export interface ApplyCommandResult {
+  state: GameState;
+  events: GameEvent[];
+}
