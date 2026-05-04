@@ -34,16 +34,23 @@ export interface PlayerGameSnapshot {
   currentColor: CardColor;
   direction: TurnDirection;
   topCard: Card;
+  discardPile: Card[];
   drawPileCount: number;
   drawStack: {
     active: boolean;
     amount: number;
+    previousDrawValue: number | null;
     targetPlayerId: PlayerId | null;
   };
   drawUntilColor: {
     active: boolean;
     color: CardColor | null;
     targetPlayerId: PlayerId | null;
+  };
+  normalDrawOffer: {
+    active: boolean;
+    playerId: PlayerId | null;
+    cardId: string | null;
   };
   challengeWindow: {
     active: boolean;

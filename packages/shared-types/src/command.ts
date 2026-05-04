@@ -7,6 +7,7 @@ export const GAME_COMMAND_TYPES = [
   "play-multiple-number",
   "play-discard-same-color",
   "draw-card",
+  "keep-drawn-card",
   "resolve-draw-stack",
   "resolve-draw-until-color",
   "say-uno",
@@ -43,6 +44,8 @@ export interface PlayDiscardSameColorCommand
 
 export interface DrawCardCommand extends CommandBase<"draw-card"> {}
 
+export interface KeepDrawnCardCommand extends CommandBase<"keep-drawn-card"> {}
+
 export interface ResolveDrawStackCommand
   extends CommandBase<"resolve-draw-stack"> {}
 
@@ -65,6 +68,7 @@ export type GameCommand =
   | PlayMultipleNumberCommand
   | PlayDiscardSameColorCommand
   | DrawCardCommand
+  | KeepDrawnCardCommand
   | ResolveDrawStackCommand
   | ResolveDrawUntilColorCommand
   | SayUnoCommand

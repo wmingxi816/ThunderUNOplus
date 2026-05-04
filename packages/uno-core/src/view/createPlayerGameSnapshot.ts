@@ -28,16 +28,26 @@ export function createPlayerGameSnapshot(
     currentColor: state.currentColor,
     direction: state.direction,
     topCard: state.topCard,
+    discardPile: state.discardPile.slice(-12),
     drawPileCount: state.drawPile.length,
     drawStack: {
       active: state.drawStack.active,
       amount: state.drawStack.amount,
+      previousDrawValue: state.drawStack.previousDrawValue,
       targetPlayerId: state.drawStack.targetPlayerId
     },
     drawUntilColor: {
       active: state.drawUntilColor.active,
       color: state.drawUntilColor.color,
       targetPlayerId: state.drawUntilColor.targetPlayerId
+    },
+    normalDrawOffer: {
+      active: state.normalDrawOffer.active,
+      playerId: state.normalDrawOffer.playerId,
+      cardId:
+        state.normalDrawOffer.playerId === viewerPlayerId
+          ? state.normalDrawOffer.cardId
+          : null
     },
     challengeWindow: {
       active: state.challengeWindow.active,

@@ -10,7 +10,7 @@ import { validateSequencePlay } from "../rules/sequence";
 import { isDrawCard } from "../rules/cardGuards";
 import {
   cardRequiresDeclaredColor,
-  clearDrawStack,
+  clearNormalDrawOffer,
   cloneGameState,
   findCardsInHand,
   findPlayer,
@@ -53,6 +53,19 @@ export function applyPlayCardCommand(
       command,
       ERROR_CODES.cardNotFound,
       "Player does not hold the requested card."
+    );
+  }
+
+  if (
+    state.normalDrawOffer.active &&
+    (state.normalDrawOffer.playerId !== command.playerId ||
+      state.normalDrawOffer.cardId !== command.cardId)
+  ) {
+    return rejectCommand(
+      state,
+      command,
+      ERROR_CODES.normalDrawDecisionRequired,
+      "Only the just-drawn card can be played before choosing to keep it."
     );
   }
 
@@ -134,6 +147,15 @@ export function applyPlaySequenceCommand(
       command,
       player.message as typeof ERROR_CODES.playerNotFound,
       player.cause as string
+    );
+  }
+
+  if (state.normalDrawOffer.active) {
+    return rejectCommand(
+      state,
+      command,
+      ERROR_CODES.normalDrawDecisionRequired,
+      "Choose whether to play or keep the drawn card before playing a combination."
     );
   }
 
@@ -220,6 +242,15 @@ export function applyPlayMultipleNumberCommand(
     );
   }
 
+  if (state.normalDrawOffer.active) {
+    return rejectCommand(
+      state,
+      command,
+      ERROR_CODES.normalDrawDecisionRequired,
+      "Choose whether to play or keep the drawn card before playing a combination."
+    );
+  }
+
   if (state.drawStack.active) {
     return rejectCommand(
       state,
@@ -301,6 +332,15 @@ export function applyPlayDiscardSameColorCommand(
       command,
       player.message as typeof ERROR_CODES.playerNotFound,
       player.cause as string
+    );
+  }
+
+  if (state.normalDrawOffer.active) {
+    return rejectCommand(
+      state,
+      command,
+      ERROR_CODES.normalDrawDecisionRequired,
+      "Choose whether to play or keep the drawn card before playing a combination."
     );
   }
 
@@ -423,6 +463,14 @@ function playResolvedCards({
   }
 
   nextState.now = now;
+  if (
+    nextState.normalDrawOffer.active &&
+    nextState.normalDrawOffer.playerId === playerId &&
+    cardsToRemoveIds.includes(nextState.normalDrawOffer.cardId ?? "")
+  ) {
+    clearNormalDrawOffer(nextState);
+  }
+
   const previousHandCount = player.handCount;
   removeCardsFromHand(player, cardsToRemoveIds);
   syncPlayerHandState(player, previousHandCount, now, events);
@@ -556,21 +604,6 @@ function resolveDrawCardEffect(
   const targetPlayerId = getNextActivePlayerId(state, playerId, 1);
 
   if (targetPlayerId === null) {
-    return;
-  }
-
-  if (card.kind === "wild-draw-ten" && state.drawStack.active) {
-    clearDrawStack(state);
-    events.push({
-      type: "draw-stack-cleared",
-      reason: "canceled-by-draw-ten"
-    });
-    state.currentPlayerId = targetPlayerId;
-    events.push({
-      type: "turn-advanced",
-      previousPlayerId: playerId,
-      currentPlayerId: targetPlayerId
-    });
     return;
   }
 

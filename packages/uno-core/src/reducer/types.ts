@@ -9,6 +9,7 @@ export {
   type GameCommandType,
   type GameEvent,
   type GameEventType,
+  type KeepDrawnCardCommand,
   type PlayCardCommand,
   type PlayDiscardSameColorCommand,
   type PlayMultipleNumberCommand,

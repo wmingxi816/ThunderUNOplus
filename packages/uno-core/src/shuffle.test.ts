@@ -4,6 +4,7 @@
  * - 洗牌不能污染调用方传入的原数组
  */
 import { describe, expect, it } from "vitest";
+import { createBlackCard, createNumberCard } from "./card";
 import { shuffleDeck } from "./shuffle";
 
 describe("shuffleDeck", () => {
@@ -26,5 +27,27 @@ describe("shuffleDeck", () => {
     expect(source).toEqual(originalSnapshot);
     expect(shuffled).not.toBe(source);
     expect(shuffled).toHaveLength(source.length);
+  });
+
+  it("keeps card decks deterministic on the soft shuffle path", () => {
+    const source = [
+      createNumberCard("red-1-a", "red", 1),
+      createNumberCard("red-1-b", "red", 1),
+      createNumberCard("blue-2-a", "blue", 2),
+      createBlackCard("wild-a", "wild")
+    ];
+
+    const shuffledA = shuffleDeck(source, "soft-path-seed");
+    const shuffledB = shuffleDeck(source, "soft-path-seed");
+
+    expect(shuffledA.map((card) => card.id)).toEqual(
+      shuffledB.map((card) => card.id)
+    );
+    expect(source.map((card) => card.id)).toEqual([
+      "red-1-a",
+      "red-1-b",
+      "blue-2-a",
+      "wild-a"
+    ]);
   });
 });

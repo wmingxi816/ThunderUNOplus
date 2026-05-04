@@ -15,6 +15,7 @@ import type {
   GameMode,
   GamePlayerState,
   GameState,
+  NormalDrawOfferState,
   TurnDirection
 } from "../gameState";
 
@@ -73,6 +74,7 @@ interface CreateGameStateParams {
   now?: number;
   drawStack?: DrawStackState;
   drawUntilColor?: DrawUntilColorState;
+  normalDrawOffer?: NormalDrawOfferState;
   challengeWindow?: ChallengeWindowState;
   status?: GameState["status"];
   winnerPlayerIds?: string[];
@@ -117,6 +119,11 @@ export function createGameState(
       active: false,
       color: null,
       targetPlayerId: null
+    },
+    normalDrawOffer: params.normalDrawOffer ?? {
+      active: false,
+      playerId: null,
+      cardId: null
     },
     challengeWindow: params.challengeWindow ?? {
       active: false,

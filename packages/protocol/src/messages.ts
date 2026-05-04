@@ -97,6 +97,7 @@ export interface ServerRoomStateMessage {
   type: "room-state";
   requestId?: RequestId;
   roomId: RoomId;
+  playerId: PlayerId;
   room: PlayerRoomSnapshot;
   snapshotVersion: number;
 }

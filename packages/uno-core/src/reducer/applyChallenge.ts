@@ -1,6 +1,7 @@
 import type { GameState } from "../gameState";
 import {
-  CHALLENGE_PENALTY_DRAW_COUNT,
+  CHALLENGE_FAILURE_CHALLENGER_DRAW_COUNT,
+  CHALLENGE_SUCCESS_TARGET_DRAW_COUNT,
   clearChallengeWindow,
   cloneGameState,
   findPlayer,
@@ -96,7 +97,10 @@ export function applyChallengeDrawCommand(
 
   const success = state.challengeWindow.hadBlackCardBeforeDraw;
   const penaltyPlayer = success ? nextTarget : nextChallenger;
-  const drawResult = drawCardsFromState(nextState, CHALLENGE_PENALTY_DRAW_COUNT);
+  const penaltyDrawCount = success
+    ? CHALLENGE_SUCCESS_TARGET_DRAW_COUNT
+    : CHALLENGE_FAILURE_CHALLENGER_DRAW_COUNT;
+  const drawResult = drawCardsFromState(nextState, penaltyDrawCount);
   nextState = drawResult.state;
   const penaltyCards = drawResult.cards;
   const events: GameEvent[] = [...drawResult.events];
@@ -126,7 +130,7 @@ export function applyChallengeDrawCommand(
     targetPlayerId: command.targetPlayerId,
     success,
     penaltyPlayerId: refreshedPenaltyPlayer.id,
-    drawCount: CHALLENGE_PENALTY_DRAW_COUNT
+    drawCount: penaltyDrawCount
   });
 
   return {

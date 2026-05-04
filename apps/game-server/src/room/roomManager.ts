@@ -28,6 +28,10 @@ interface RoomManagerOptions {
 
 const MIN_ROOM_PLAYER_COUNT = 3;
 const MAX_ROOM_PLAYER_COUNT = 8;
+const ROOM_AVATAR_POOL = Array.from(
+  { length: MAX_ROOM_PLAYER_COUNT },
+  (_, index) => `/avatars/avatar-${String(index + 1)}.png`
+);
 
 /**
  * RoomManager 是 Phase 3A 的服务端核心。
@@ -58,7 +62,7 @@ export class RoomManager {
       connectionId: params.connectionId,
       seatIndex: 0,
       nickname: params.nickname,
-      avatarUrl: params.avatarUrl ?? null,
+      avatarUrl: this.resolveAvatarUrl([], params.avatarUrl ?? null),
       joinedAt: createdAt
     });
 
@@ -138,7 +142,7 @@ export class RoomManager {
       connectionId: params.connectionId,
       seatIndex: room.players.length,
       nickname: params.nickname,
-      avatarUrl: params.avatarUrl ?? null,
+      avatarUrl: this.resolveAvatarUrl(room.players, params.avatarUrl ?? null),
       joinedAt: this.now()
     });
 
@@ -363,6 +367,35 @@ export class RoomManager {
       connected: true,
       joinedAt: params.joinedAt
     };
+  }
+
+  private resolveAvatarUrl(
+    players: readonly ServerRoomPlayer[],
+    requestedAvatarUrl: string | null
+  ): string | null {
+    const usedAvatarUrls = new Set(
+      players
+        .map((player) => player.avatarUrl)
+        .filter((avatarUrl): avatarUrl is string => avatarUrl !== null)
+    );
+
+    if (
+      requestedAvatarUrl !== null &&
+      ROOM_AVATAR_POOL.includes(requestedAvatarUrl) &&
+      !usedAvatarUrls.has(requestedAvatarUrl)
+    ) {
+      return requestedAvatarUrl;
+    }
+
+    const availableAvatarUrls = ROOM_AVATAR_POOL.filter(
+      (avatarUrl) => !usedAvatarUrls.has(avatarUrl)
+    );
+
+    if (availableAvatarUrls.length === 0) {
+      return null;
+    }
+
+    return availableAvatarUrls[Math.floor(Math.random() * availableAvatarUrls.length)]!;
   }
 
   private getPlayersInSeatOrder(players: readonly ServerRoomPlayer[]): ServerRoomPlayer[] {

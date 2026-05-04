@@ -8,7 +8,11 @@ import type {
 } from "@thunder-uno/protocol";
 import type { RawData } from "ws";
 import { broadcastRoomState, createRoomClosedMessage, sendRoomStateToPlayer } from "../broadcast/broadcastRoomState";
-import { sendSnapshotToPlayer, sendSnapshotsToRoom } from "../broadcast/sendSnapshotsToRoom";
+import {
+  createGameSnapshotEnvelope,
+  sendSnapshotToPlayer,
+  sendSnapshotsToRoom
+} from "../broadcast/sendSnapshotsToRoom";
 import { ConnectionRegistry } from "../connection/connectionRegistry";
 import type { ServerConnection } from "../connection/connectionTypes";
 import { dispatchCommand } from "../dispatch/dispatchCommand";
@@ -120,6 +124,7 @@ function handleJoinRoom(params: {
 }
 
 function handleStartGame(params: {
+  connection: ServerConnection;
   message: ClientStartGameMessage;
   roomManager: RoomManager;
   connectionRegistry: ConnectionRegistry;
@@ -130,12 +135,27 @@ function handleStartGame(params: {
     ...(params.message.seed === undefined ? {} : { seed: params.message.seed })
   });
 
+  params.connectionRegistry.bindPlayer(
+    params.connection.connectionId,
+    result.room.roomId,
+    params.message.playerId,
+    params.connection.userId
+  );
+
   broadcastRoomState(
     result.room,
     params.connectionRegistry,
     params.message.requestId
   );
   sendSnapshotsToRoom(result.room, params.connectionRegistry);
+
+  const registeredHostConnection = params.connectionRegistry.getConnectionByPlayerId(
+    params.message.playerId
+  );
+
+  if (registeredHostConnection !== params.connection) {
+    params.connection.send(createGameSnapshotEnvelope(result.room, params.message.playerId));
+  }
 }
 
 function handleLeaveRoom(params: {

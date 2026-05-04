@@ -58,6 +58,7 @@ export function createRoomStateEnvelope(
     protocolVersion: PROTOCOL_VERSION,
     type: "room-state",
     roomId: room.roomId,
+    playerId: viewerPlayerId,
     room: createRoomSnapshot(room, viewerPlayerId),
     snapshotVersion: room.snapshotVersion,
     ...(requestId === undefined ? {} : { requestId })

@@ -33,4 +33,18 @@ describe("canPlayCard", () => {
 
     expect(canPlayCard({ card: nextCard, topCard })).toBe(true);
   });
+
+  it("allows same action kinds to connect across colors", () => {
+    const topCard = createColoredActionCard("top", "red", "discard-same-color");
+    const nextCard = createColoredActionCard("next", "green", "discard-same-color");
+
+    expect(canPlayCard({ card: nextCard, topCard })).toBe(true);
+  });
+
+  it("allows swap-hands to connect to swap-hands across colors", () => {
+    const topCard = createColoredActionCard("top", "green", "swap-hands");
+    const nextCard = createColoredActionCard("next", "yellow", "swap-hands");
+
+    expect(canPlayCard({ card: nextCard, topCard })).toBe(true);
+  });
 });

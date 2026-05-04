@@ -25,6 +25,7 @@ export function formatCommandSummary(command: GameCommand): string {
     case "play-discard-same-color":
       return `${command.type}:${command.mainCardId}+${command.attachedCardIds.join(",")}`;
     case "draw-card":
+    case "keep-drawn-card":
     case "resolve-draw-stack":
     case "resolve-draw-until-color":
     case "say-uno":

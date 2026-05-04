@@ -140,13 +140,39 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
       type: "report-uno",
       playerId: "p2",
       targetPlayerId: "p1",
-      timestampMs: 4000
+      timestampMs: 2500
     });
 
     expect(result.events[0]).toMatchObject({
       type: "command-rejected",
       code: "UNO_REPORT_FAILED"
     });
+  });
+
+  it("UNO 保护期结束后可以正常揭发", () => {
+    const drawPile = Array.from({ length: 6 }, (_, index) =>
+      numberCard(`penalty-${index}`, "green", 1)
+    );
+    const state = createGameState({
+      now: 1000,
+      players: [
+        createPlayerState("p1", [numberCard("blue-2", "blue", 2)], {
+          unoPendingSinceMs: 1000
+        }),
+        createPlayerState("p2", []),
+        createPlayerState("p3", [])
+      ],
+      drawPile
+    });
+
+    const result = applyCommand(state, {
+      type: "report-uno",
+      playerId: "p2",
+      targetPlayerId: "p1",
+      timestampMs: 4200
+    });
+
+    expect(getPlayer(result.state, "p1").handCount).toBe(7);
   });
 
   it("玩家手牌超过 25 张会被淘汰", () => {

@@ -80,6 +80,7 @@ describe("protocol - messages", () => {
       type: "room-state",
       requestId: "req-room-1",
       roomId: "room-1",
+      playerId: "player-1",
       snapshotVersion: 1,
       room: {
         roomId: "room-1",
@@ -127,16 +128,32 @@ describe("protocol - messages", () => {
           isBlack: false,
           displayName: "红1"
         },
+        discardPile: [
+          {
+            id: "card-1",
+            kind: "number",
+            color: "red",
+            number: 1,
+            isBlack: false,
+            displayName: "红1"
+          }
+        ],
         drawPileCount: 20,
         drawStack: {
           active: false,
           amount: 0,
+          previousDrawValue: null,
           targetPlayerId: null
         },
         drawUntilColor: {
           active: false,
           color: null,
           targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
         },
         challengeWindow: {
           active: false,

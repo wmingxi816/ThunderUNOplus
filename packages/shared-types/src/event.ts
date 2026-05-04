@@ -8,6 +8,8 @@ export const GAME_EVENT_TYPES = [
   "command-rejected",
   "cards-played",
   "cards-drawn",
+  "normal-draw-offer-opened",
+  "normal-draw-offer-kept",
   "turn-advanced",
   "draw-stack-updated",
   "draw-stack-cleared",
@@ -51,6 +53,18 @@ export interface CardsDrawnEvent {
     | "draw-until-color"
     | "challenge-penalty"
     | "uno-penalty";
+}
+
+export interface NormalDrawOfferOpenedEvent {
+  type: "normal-draw-offer-opened";
+  playerId: PlayerId;
+  cardId: string;
+}
+
+export interface NormalDrawOfferKeptEvent {
+  type: "normal-draw-offer-kept";
+  playerId: PlayerId;
+  cardId: string;
 }
 
 export interface TurnAdvancedEvent {
@@ -142,6 +156,8 @@ export type GameEvent =
   | CommandRejectedEvent
   | CardsPlayedEvent
   | CardsDrawnEvent
+  | NormalDrawOfferOpenedEvent
+  | NormalDrawOfferKeptEvent
   | TurnAdvancedEvent
   | DrawStackUpdatedEvent
   | DrawStackClearedEvent

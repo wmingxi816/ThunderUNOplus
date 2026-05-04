@@ -49,6 +49,7 @@ describe("createInitialGame", () => {
     expect(game.status).toBe("in-progress");
     expect(game.drawStack.active).toBe(false);
     expect(game.drawUntilColor.active).toBe(false);
+    expect(game.normalDrawOffer.active).toBe(false);
     expect(game.challengeWindow.active).toBe(false);
   });
 });

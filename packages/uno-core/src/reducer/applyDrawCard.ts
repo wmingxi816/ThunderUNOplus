@@ -1,15 +1,14 @@
 import type { GameState } from "../gameState";
 import { canPlayCard } from "../rules/canPlayCard";
 import {
-  cardRequiresDeclaredColor,
   cloneGameState,
   findPlayer,
   giveCardsToPlayer,
   hasBlackCardInHand,
+  openNormalDrawOffer,
   openChallengeWindow
 } from "./effects";
 import { ERROR_CODES, rejectCommand } from "./errors";
-import { applyPlayCardCommand } from "./applyPlayCard";
 import { drawCardsFromState } from "./drawCardsFromState";
 import { getNextActivePlayerId } from "./turn";
 import type { ApplyCommandResult, DrawCardCommand, GameEvent } from "./types";
@@ -74,6 +73,15 @@ export function applyDrawCardCommand(
     );
   }
 
+  if (state.normalDrawOffer.active) {
+    return rejectCommand(
+      state,
+      command,
+      ERROR_CODES.normalDrawDecisionRequired,
+      "Choose whether to play or keep the drawn card before drawing again."
+    );
+  }
+
   const now = command.timestampMs ?? state.now;
   const hadBlackCardBeforeDraw =
     state.mode === "with-challenge" ? hasBlackCardInHand(player) : false;
@@ -111,55 +119,6 @@ export function applyDrawCardCommand(
     };
   }
 
-  const canAutoPlay =
-    !cardRequiresDeclaredColor(drawnCard) &&
-    canPlayCard({
-      card: drawnCard,
-      topCard: nextState.topCard,
-      currentColor: nextState.currentColor
-    });
-
-  if (canAutoPlay) {
-    nextPlayer.hand.push(drawnCard);
-    nextPlayer.handCount = nextPlayer.hand.length;
-
-    const playResult = applyPlayCardCommand(nextState, {
-      type: "play-card",
-      playerId: command.playerId,
-      cardId: drawnCard.id,
-      timestampMs: now
-    });
-
-    if (playResult.events.some((event) => event.type === "command-rejected")) {
-      return playResult;
-    }
-
-    const combinedEvents: GameEvent[] = [
-      ...events,
-      {
-        type: "cards-drawn",
-        playerId: command.playerId,
-        count: 1,
-        reason: "normal-draw"
-      },
-      ...playResult.events
-    ];
-
-    if (playResult.state.mode === "with-challenge") {
-      openChallengeWindow(
-        playResult.state,
-        command.playerId,
-        hadBlackCardBeforeDraw,
-        combinedEvents
-      );
-    }
-
-    return {
-      state: playResult.state,
-      events: combinedEvents
-    };
-  }
-
   giveCardsToPlayer(
     nextState,
     nextPlayer,
@@ -168,6 +127,30 @@ export function applyDrawCardCommand(
     events,
     "normal-draw"
   );
+
+  const canPlayDrawnCard = canPlayCard({
+    card: drawnCard,
+    topCard: nextState.topCard,
+    currentColor: nextState.currentColor
+  });
+
+  if (canPlayDrawnCard && nextState.status !== "finished" && !nextPlayer.isEliminated) {
+    openNormalDrawOffer(nextState, command.playerId, drawnCard.id, events);
+
+    if (nextState.mode === "with-challenge") {
+      openChallengeWindow(
+        nextState,
+        command.playerId,
+        hadBlackCardBeforeDraw,
+        events
+      );
+    }
+
+    return {
+      state: nextState,
+      events
+    };
+  }
 
   if (nextState.status === "finished") {
     return {

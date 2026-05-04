@@ -39,6 +39,12 @@ export interface ChallengeWindowState {
   expiresWhenNextPlayerCompletesAction: boolean;
 }
 
+export interface NormalDrawOfferState {
+  active: boolean;
+  playerId: PlayerId | null;
+  cardId: string | null;
+}
+
 export interface PublicChallengeWindowState {
   active: boolean;
   targetPlayerId: PlayerId | null;
@@ -62,6 +68,7 @@ export interface GameState {
   skippedOpeningBlackCards: Card[];
   drawStack: DrawStackState;
   drawUntilColor: DrawUntilColorState;
+  normalDrawOffer: NormalDrawOfferState;
   challengeWindow: ChallengeWindowState;
   winnerPlayerIds: PlayerId[];
   seed?: ShuffleSeed;

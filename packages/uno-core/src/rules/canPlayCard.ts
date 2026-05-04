@@ -40,9 +40,13 @@ export function canPlayCard({
     return true;
   }
 
-  // 只有数字牌支持按数字接；当前阶段的技能牌只靠颜色接。
+  // 只有数字牌支持按数字接；技能牌还可以按相同牌型跨颜色接。
   if (isNumberCard(card) && isNumberCard(topCard)) {
     return card.number === topCard.number;
+  }
+
+  if (!isNumberCard(card) && !isNumberCard(topCard)) {
+    return card.kind === topCard.kind;
   }
 
   return false;

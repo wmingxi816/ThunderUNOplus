@@ -109,6 +109,11 @@ export function createInitialGame(
       color: null,
       targetPlayerId: null
     },
+    normalDrawOffer: {
+      active: false,
+      playerId: null,
+      cardId: null
+    },
     challengeWindow: {
       active: false,
       targetPlayerId: null,

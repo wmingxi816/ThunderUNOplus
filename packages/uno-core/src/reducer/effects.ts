@@ -8,9 +8,10 @@ import { isBlackCard } from "../rules/cardGuards";
 import { getActivePlayerCount } from "./turn";
 import type { GameEvent } from "./types";
 
-export const UNO_PROTECTION_WINDOW_MS = 5_000;
+export const UNO_PROTECTION_WINDOW_MS = 3_000;
 export const UNO_PENALTY_DRAW_COUNT = 6;
-export const CHALLENGE_PENALTY_DRAW_COUNT = 8;
+export const CHALLENGE_SUCCESS_TARGET_DRAW_COUNT = 2;
+export const CHALLENGE_FAILURE_CHALLENGER_DRAW_COUNT = 6;
 export const HAND_ELIMINATION_LIMIT = 25;
 
 /** 深拷贝 GameState，保证 reducer 的无副作用边界清晰。 */
@@ -29,6 +30,7 @@ export function cloneGameState(state: GameState): GameState {
     skippedOpeningBlackCards: [...state.skippedOpeningBlackCards],
     drawStack: { ...state.drawStack },
     drawUntilColor: { ...state.drawUntilColor },
+    normalDrawOffer: { ...state.normalDrawOffer },
     challengeWindow: { ...state.challengeWindow },
     winnerPlayerIds: [...state.winnerPlayerIds]
   };
@@ -167,6 +169,32 @@ export function clearDrawUntilColor(state: GameState): void {
     active: false,
     color: null,
     targetPlayerId: null
+  };
+}
+
+export function openNormalDrawOffer(
+  state: GameState,
+  playerId: string,
+  cardId: string,
+  events: GameEvent[]
+): void {
+  state.normalDrawOffer = {
+    active: true,
+    playerId,
+    cardId
+  };
+  events.push({
+    type: "normal-draw-offer-opened",
+    playerId,
+    cardId
+  });
+}
+
+export function clearNormalDrawOffer(state: GameState): void {
+  state.normalDrawOffer = {
+    active: false,
+    playerId: null,
+    cardId: null
   };
 }
 

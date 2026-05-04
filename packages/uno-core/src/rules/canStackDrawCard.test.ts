@@ -48,6 +48,18 @@ describe("canStackDrawCard", () => {
     ).toBe(false);
   });
 
+  it("allows red +2 to be followed by red +4 by current color", () => {
+    const nextCard = createColoredActionCard("next", "red", "draw-four");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "red",
+        previousDrawValue: 2
+      })
+    ).toBe(true);
+  });
+
   // 黑色加牌牌是通用续链牌，不受前一张具体加牌值限制。
   it("always allows a black draw card to continue the draw chain", () => {
     const nextCard = createBlackCard("next", "wild-draw-six");
@@ -57,6 +69,18 @@ describe("canStackDrawCard", () => {
         nextCard,
         currentColor: "yellow",
         previousDrawValue: 2
+      })
+    ).toBe(true);
+  });
+
+  it("allows black reverse +4 to stack after another reverse +4", () => {
+    const nextCard = createBlackCard("next", "wild-reverse-draw-four");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "green",
+        previousDrawValue: 4
       })
     ).toBe(true);
   });

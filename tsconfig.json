@@ -4,7 +4,7 @@
     { "path": "./packages/shared-types" },
     { "path": "./packages/protocol" },
     { "path": "./packages/uno-core" },
-    { "path": "./apps/client-wechat" },
+    { "path": "./apps/client-web" },
     { "path": "./apps/game-server" }
   ]
 }

@@ -2,6 +2,7 @@ import type { GameState } from "../gameState";
 import { clearChallengeWindow } from "./effects";
 import { applyChallengeDrawCommand } from "./applyChallenge";
 import { applyDrawCardCommand } from "./applyDrawCard";
+import { applyKeepDrawnCardCommand } from "./applyKeepDrawnCard";
 import { applyResolveDrawStackCommand } from "./applyDrawStack";
 import { applyResolveDrawUntilColorCommand } from "./applyDrawUntilColor";
 import {
@@ -19,6 +20,7 @@ const TURN_COMPLETING_COMMANDS = new Set<GameCommand["type"]>([
   "play-multiple-number",
   "play-discard-same-color",
   "draw-card",
+  "keep-drawn-card",
   "resolve-draw-stack",
   "resolve-draw-until-color"
 ]);
@@ -55,6 +57,8 @@ function dispatchCommand(
       return applyPlayDiscardSameColorCommand(state, command);
     case "draw-card":
       return applyDrawCardCommand(state, command);
+    case "keep-drawn-card":
+      return applyKeepDrawnCardCommand(state, command);
     case "resolve-draw-stack":
       return applyResolveDrawStackCommand(state, command);
     case "resolve-draw-until-color":
@@ -87,6 +91,7 @@ function maybeExpirePreviousChallengeWindow(
     !previousState.challengeWindow.active ||
     !previousState.challengeWindow.expiresWhenNextPlayerCompletesAction ||
     previousState.currentPlayerId !== command.playerId ||
+    previousState.challengeWindow.targetPlayerId === command.playerId ||
     !TURN_COMPLETING_COMMANDS.has(command.type)
   ) {
     return;

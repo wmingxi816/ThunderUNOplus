@@ -93,6 +93,37 @@ describe("applyCommand - 基础出牌与回合推进", () => {
     expect(result.state.currentPlayerId).toBe("p3");
   });
 
+  it("交换手牌会按出牌方向轮转所有玩家的手牌", () => {
+    const swapHands = coloredCard("red-swap", "red", "swap-hands");
+    const p1Hand = [swapHands, numberCard("p1-blue", "blue", 2)];
+    const p2Hand = [numberCard("p2-green", "green", 3)];
+    const p3Hand = [numberCard("p3-yellow", "yellow", 4)];
+    const state = createGameState({
+      players: [
+        createPlayerState("p1", p1Hand),
+        createPlayerState("p2", p2Hand),
+        createPlayerState("p3", p3Hand)
+      ]
+    });
+
+    const result = applyCommand(state, {
+      type: "play-card",
+      playerId: "p1",
+      cardId: swapHands.id
+    });
+
+    expect(getPlayer(result.state, "p1").hand.map((card) => card.id)).toEqual([
+      "p3-yellow"
+    ]);
+    expect(getPlayer(result.state, "p2").hand.map((card) => card.id)).toEqual([
+      "p1-blue"
+    ]);
+    expect(getPlayer(result.state, "p3").hand.map((card) => card.id)).toEqual([
+      "p2-green"
+    ]);
+    expect(result.state.currentPlayerId).toBe("p2");
+  });
+
   it("普通 +2 会创建加牌链", () => {
     const drawTwo = coloredCard("red-draw-two", "red", "draw-two");
     const state = createGameState({
@@ -244,7 +275,12 @@ describe("applyCommand - 基础出牌与回合推进", () => {
       declaredColor: "green"
     });
 
-    expect(result.state.drawStack.active).toBe(false);
+    expect(result.state.drawStack).toMatchObject({
+      active: true,
+      amount: 16,
+      previousDrawValue: 10,
+      targetPlayerId: "p3"
+    });
     expect(result.state.currentPlayerId).toBe("p3");
     expect(result.state.currentColor).toBe("green");
   });

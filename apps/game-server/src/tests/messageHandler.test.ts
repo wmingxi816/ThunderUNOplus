@@ -188,6 +188,40 @@ describe("messageHandler", () => {
     }
   });
 
+  it("start-game 会兜底给发起连接直接发送房主 snapshot", () => {
+    const fixture = createWaitingRoomFixture(3);
+    const ownerPlayerId = fixture.room.ownerPlayerId;
+    const ownerConnection = fixture.connections[0]!;
+    const shadowConnection = createMockConnection({
+      connectionId: "conn-shadow-owner",
+      userId: ownerConnection.userId
+    });
+    fixture.connectionRegistry.registerConnection(shadowConnection);
+    fixture.connectionRegistry.bindPlayer(
+      shadowConnection.connectionId,
+      fixture.room.roomId,
+      ownerPlayerId,
+      shadowConnection.userId
+    );
+    ownerConnection.sentMessages.length = 0;
+
+    handleClientMessage({
+      connection: ownerConnection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "start-game",
+        requestId: "req-start-shadowed-owner",
+        roomId: fixture.room.roomId,
+        playerId: ownerPlayerId,
+        timestampMs: 1000
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    expect(ownerConnection.sentMessages.some((message) => message.type === "snapshot")).toBe(true);
+  });
+
   it("command 会走 dispatchCommand", () => {
     const fixture = createStartedRoomFixture(3);
     const currentPlayerId = fixture.room.gameState!.currentPlayerId;
