@@ -14,8 +14,9 @@ import { readInitialConfig } from "./app/config";
 import {
   buildDiscardSameColorPayload,
   canPlayMultipleNumberSelection,
-  canPlaySequenceSelection,
-  getSelectedCards
+  getSequenceCandidateCardIds,
+  getSelectedCards,
+  isValidSequenceSelection
 } from "./battle/selection";
 import { getCardAssetPath, getCardBackAssetPath } from "./cards/cardAssets";
 import { WsClient, type ConnectionStatus } from "./network/wsClient";
@@ -44,9 +45,11 @@ interface AppState {
   lastError: string | null;
   log: string[];
   selectedCardIds: string[];
+  recentDrawnCardIds: string[];
   colorPickerCardId: string | null;
   latestCardsPlayedEvent: CardsPlayedAnimationEvent | null;
   flyingCard: FlyingCardAnimation | null;
+  drawFlyingCard: DrawFlyingCardAnimation | null;
   challengePrompt: ChallengePromptState | null;
   uiToast: UiToastState | null;
   snapshotRecoveryRoomId: RoomId | null;
@@ -65,6 +68,13 @@ interface FlyingCardAnimation {
   seatClass: string;
 }
 
+interface DrawFlyingCardAnimation {
+  key: string;
+  playerId: PlayerId;
+  seatClass: string;
+  count: number;
+}
+
 interface ChallengePromptState {
   targetPlayerId: PlayerId;
   openedAt: number;
@@ -80,6 +90,18 @@ interface UiToastState {
 interface CardHint {
   className: "playable" | "unplayable" | "neutral";
   label: string;
+}
+
+type HandCardBaseState = "playable" | "combo-candidate" | "disabled";
+
+type HandCardRelationState = "selected" | "compatible" | "incompatible" | null;
+
+interface HandCardPresentation {
+  baseState: HandCardBaseState;
+  relationState: HandCardRelationState;
+  reason: string;
+  canSelect: boolean;
+  sequenceCandidate: boolean;
 }
 
 const LAST_ROOM_STORAGE_KEY = "thunder-uno.lastRoomId";
@@ -115,9 +137,11 @@ const state: AppState = {
   lastError: null,
   log: [],
   selectedCardIds: [],
+  recentDrawnCardIds: [],
   colorPickerCardId: null,
   latestCardsPlayedEvent: null,
   flyingCard: null,
+  drawFlyingCard: null,
   challengePrompt: null,
   uiToast: null,
   snapshotRecoveryRoomId: null
@@ -172,10 +196,13 @@ function handleServerMessage(message: ServerMessage): void {
       recoverMissingPlayingSnapshot(message.room);
       return;
     case "snapshot":
-      syncFlyingCardAnimation(message.snapshot as PlayerGameSnapshot);
+      const previousSnapshot = state.snapshot;
+      const snapshot = normalizePlayerGameSnapshot(message.snapshot);
+      syncRecentDrawnCards(previousSnapshot, snapshot);
+      syncFlyingCardAnimation(snapshot);
       state.roomId = message.roomId;
       state.playerId = message.playerId;
-      state.snapshot = message.snapshot as PlayerGameSnapshot;
+      state.snapshot = snapshot;
       state.snapshotRecoveryRoomId = null;
       state.lastError = null;
       clearSelectedCards();
@@ -380,6 +407,9 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
   const isConnected = state.connectionStatus === "open";
   const canTakeTurnAction = isConnected && isMyTurn && !isGameFinished;
   const canUseOpponentAction = isConnected && !isGameFinished;
+  const hand = snapshot.self.hand;
+  const selectedCards = getSelectedCards(hand, state.selectedCardIds);
+  const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand);
   const challengePrompt = getVisibleChallengePrompt(snapshot, isConnected, isGameFinished);
 
   return `
@@ -408,6 +438,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
               .join("")}
           </div>
           ${renderFlyingCard(snapshot)}
+          ${renderDrawFlyingCard()}
           <div class="center-table">
             <div class="draw-pile">
               <img src="${getCardBackAssetPath()}" alt="牌堆" />
@@ -434,7 +465,17 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
         </div>
         ${renderActionGuide(snapshot, canTakeTurnAction, isGameFinished, isConnected)}
         <div class="cards" data-testid="hand-area">
-          ${snapshot.self.hand.map((card) => renderCardButton(card, snapshot, canTakeTurnAction)).join("")}
+          ${hand
+            .map((card) =>
+              renderCardButtonV2(
+                card,
+                snapshot,
+                canTakeTurnAction,
+                selectedCards,
+                sequenceCandidateCardIds
+              )
+            )
+            .join("")}
         </div>
         ${renderSelectionPanel(snapshot, canTakeTurnAction, isGameFinished, isMyTurn, isConnected)}
       </div>
@@ -562,6 +603,24 @@ function renderFlyingCard(snapshot: PlayerGameSnapshot): string {
   `;
 }
 
+function renderDrawFlyingCard(): string {
+  const animation = state.drawFlyingCard;
+
+  if (animation === null) {
+    return "";
+  }
+
+  return `
+    <img
+      class="draw-flying-card ${animation.seatClass}"
+      key="${escapeHtml(animation.key)}"
+      src="${getCardBackAssetPath()}"
+      alt="摸牌动画"
+      data-draw-count="${String(animation.count)}"
+    />
+  `;
+}
+
 function renderChallengePrompt(
   snapshot: PlayerGameSnapshot,
   prompt: ChallengePromptState
@@ -638,9 +697,11 @@ function getDrawActionState(snapshot: PlayerGameSnapshot, enabled: boolean): Dra
   }
 
   if (snapshot.drawUntilColor.active && snapshot.drawUntilColor.targetPlayerId === state.playerId) {
+    const targetColor = snapshot.drawUntilColor.color;
+
     return {
       actionType: "resolve-draw-until-color",
-      label: "结算罚抽",
+      label: targetColor === null ? "继续罚摸" : `罚摸${getColorDisplayName(targetColor)}：摸 1 张`,
       enabled: true
     };
   }
@@ -841,6 +902,386 @@ function canPlaySingleCardLike(card: Card, snapshot: PlayerGameSnapshot): boolea
   return card.color === snapshot.currentColor;
 }
 
+function renderCardButtonV2(
+  card: Card,
+  snapshot: PlayerGameSnapshot,
+  canTakeTurnAction: boolean,
+  selectedCards: readonly Card[],
+  sequenceCandidateCardIds: ReadonlySet<string>
+): string {
+  const info = getHandCardPresentation(
+    card,
+    snapshot,
+    canTakeTurnAction,
+    selectedCards,
+    sequenceCandidateCardIds
+  );
+  const classes = ["card-button", info.baseState];
+
+  if (info.sequenceCandidate) {
+    classes.push("combo-candidate");
+  }
+
+  if (info.relationState !== null) {
+    classes.push(info.relationState);
+  }
+
+  if (state.recentDrawnCardIds.includes(card.id)) {
+    classes.push("recent-drawn");
+  }
+
+  return `
+    <button
+      class="${classes.join(" ")}"
+      data-card-id="${escapeHtml(card.id)}"
+      data-card-state="${escapeHtml(info.baseState)}"
+      data-card-relation="${escapeHtml(info.relationState ?? "")}"
+      aria-pressed="${info.relationState === "selected" ? "true" : "false"}"
+      aria-disabled="${info.canSelect ? "false" : "true"}"
+      aria-label="${escapeHtml(`${card.displayName} · ${info.reason}`)}"
+      title="${escapeHtml(info.reason)}"
+    >
+      <img src="${getCardAssetPath(card)}" alt="${escapeHtml(card.displayName)}" />
+    </button>
+  `;
+}
+
+function getHandCardPresentation(
+  card: Card,
+  snapshot: PlayerGameSnapshot,
+  canTakeTurnAction: boolean,
+  selectedCards: readonly Card[],
+  sequenceCandidateCardIds: ReadonlySet<string>
+): HandCardPresentation {
+  const isSelected = selectedCards.some((selectedCard) => selectedCard.id === card.id);
+  const sequenceCandidate = sequenceCandidateCardIds.has(card.id);
+  const base = getBaseHandCardPresentation(card, snapshot, sequenceCandidate, canTakeTurnAction);
+
+  if (!canTakeTurnAction) {
+    return {
+      ...base,
+      relationState: isSelected ? "selected" : null,
+      reason: "当前不能操作",
+      canSelect: false
+    };
+  }
+
+  if (isSelected) {
+    return {
+      ...base,
+      relationState: "selected",
+      reason: "再次点击可取消选择",
+      canSelect: true
+    };
+  }
+
+  if (selectedCards.length === 0) {
+    return {
+      ...base,
+      relationState: null
+    };
+  }
+
+  const tentativeSelection = [...selectedCards, card];
+  const compatibleKinds = getSelectionPotentialKinds(tentativeSelection, snapshot.self.hand);
+
+  if (compatibleKinds.length > 0) {
+    return {
+      ...base,
+      relationState: "compatible",
+      reason: getSelectionPotentialMessage(compatibleKinds),
+      canSelect: true
+    };
+  }
+
+  return {
+    ...base,
+    relationState: "incompatible",
+    reason: describeSelectionMismatch(card, selectedCards, snapshot),
+    canSelect: false
+  };
+}
+
+function getBaseHandCardPresentation(
+  card: Card,
+  snapshot: PlayerGameSnapshot,
+  sequenceCandidate: boolean,
+  canTakeTurnAction: boolean
+): Pick<HandCardPresentation, "baseState" | "reason" | "canSelect" | "sequenceCandidate"> {
+  if (!canTakeTurnAction) {
+    return {
+      baseState: "disabled",
+      reason: "当前不能操作",
+      canSelect: false,
+      sequenceCandidate
+    };
+  }
+
+  if (
+    snapshot.normalDrawOffer.active &&
+    snapshot.normalDrawOffer.playerId === state.playerId &&
+    card.id !== snapshot.normalDrawOffer.cardId
+  ) {
+    return {
+      baseState: "disabled",
+      reason: "请先处理刚摸到的牌",
+      canSelect: false,
+      sequenceCandidate
+    };
+  }
+
+  if (snapshot.drawUntilColor.active) {
+    if (card.kind === "penalty-draw") {
+      return {
+        baseState: "playable",
+        reason: "可回应罚抽",
+        canSelect: true,
+        sequenceCandidate
+      };
+    }
+
+    return {
+      baseState: "disabled",
+      reason: "当前处于罚抽状态，只能打罚抽牌或结算罚抽",
+      canSelect: false,
+      sequenceCandidate
+    };
+  }
+
+  if (snapshot.drawStack.active) {
+    if (canContinueDrawStack(card, snapshot)) {
+      return {
+        baseState: "playable",
+        reason: "可继续叠加加牌",
+        canSelect: true,
+        sequenceCandidate
+      };
+    }
+
+    return {
+      baseState: "disabled",
+      reason: "当前有加牌链，只能叠加加牌牌或结算摸牌",
+      canSelect: false,
+      sequenceCandidate
+    };
+  }
+
+  if (canPlaySingleCardLike(card, snapshot)) {
+    return {
+      baseState: "playable",
+      reason: card.isBlack ? "黑牌可先选颜色" : "可直接出牌",
+      canSelect: true,
+      sequenceCandidate
+    };
+  }
+
+  if (canCardJoinAnyCombo(card, snapshot.self.hand)) {
+    return {
+      baseState: "combo-candidate",
+      reason: "可作为组合候选",
+      canSelect: true,
+      sequenceCandidate
+    };
+  }
+
+  return {
+    baseState: "disabled",
+    reason: describeSingleCardMismatch(card, snapshot),
+    canSelect: false,
+    sequenceCandidate
+  };
+}
+
+type ComboKind = "sequence" | "multiple-number" | "discard-same-color";
+
+function getSelectionPotentialKinds(
+  cards: readonly Card[],
+  hand: readonly Card[]
+): ComboKind[] {
+  const kinds: ComboKind[] = [];
+
+  if (canSelectionPotentiallyBeSequence(cards, hand)) {
+    kinds.push("sequence");
+  }
+
+  if (canSelectionPotentiallyBeMultipleNumber(cards, hand)) {
+    kinds.push("multiple-number");
+  }
+
+  if (canSelectionPotentiallyBeDiscardSameColor(cards, hand)) {
+    kinds.push("discard-same-color");
+  }
+
+  return kinds;
+}
+
+function canCardJoinAnyCombo(card: Card, hand: readonly Card[]): boolean {
+  return getSelectionPotentialKinds([card], hand).length > 0;
+}
+
+function canSelectionPotentiallyBeSequence(
+  cards: readonly Card[],
+  hand: readonly Card[]
+): boolean {
+  if (
+    cards.length === 0 ||
+    !cards.every((card) => card.kind === "number" && card.number !== undefined)
+  ) {
+    return false;
+  }
+
+  const selectedNumbers = cards.map((card) => card.number as number);
+  const uniqueNumbers = new Set(selectedNumbers);
+
+  if (uniqueNumbers.size !== selectedNumbers.length) {
+    return false;
+  }
+
+  const numberCounts = new Map<number, number>();
+
+  for (const card of hand) {
+    if (card.kind !== "number" || card.number === undefined) {
+      continue;
+    }
+
+    numberCounts.set(card.number, (numberCounts.get(card.number) ?? 0) + 1);
+  }
+
+  for (let start = 0; start <= 5; start += 1) {
+    for (let end = start + 4; end <= 9; end += 1) {
+      if (!selectedNumbers.every((number) => number >= start && number <= end)) {
+        continue;
+      }
+
+      let valid = true;
+
+      for (let value = start; value <= end; value += 1) {
+        if ((numberCounts.get(value) ?? 0) === 0) {
+          valid = false;
+          break;
+        }
+      }
+
+      if (valid) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function canSelectionPotentiallyBeMultipleNumber(
+  cards: readonly Card[],
+  hand: readonly Card[]
+): boolean {
+  if (cards.length === 0 || !cards.every((card) => card.kind === "number")) {
+    return false;
+  }
+
+  const referenceCard = cards[0];
+
+  if (referenceCard === undefined) {
+    return false;
+  }
+
+  if (
+    !cards.every(
+      (card) => card.color === referenceCard.color && card.number === referenceCard.number
+    )
+  ) {
+    return false;
+  }
+
+  const sameCards = hand.filter((card) => {
+    return (
+      card.kind === "number" &&
+      card.color === referenceCard.color &&
+      card.number === referenceCard.number
+    );
+  });
+
+  return sameCards.length >= Math.max(2, cards.length);
+}
+
+function canSelectionPotentiallyBeDiscardSameColor(
+  cards: readonly Card[],
+  hand: readonly Card[]
+): boolean {
+  if (cards.length === 0) {
+    return false;
+  }
+
+  const colors = new Set<Card["color"]>();
+
+  for (const card of cards) {
+    if (card.isBlack || card.color === undefined) {
+      return false;
+    }
+
+    colors.add(card.color);
+  }
+
+  if (colors.size !== 1) {
+    return false;
+  }
+
+  const [color] = colors;
+
+  if (color === undefined) {
+    return false;
+  }
+
+  const sameColorCards = hand.filter((card) => card.color === color && !card.isBlack);
+  const sameColorMainCards = hand.filter(
+    (card) => card.kind === "discard-same-color" && card.color === color
+  );
+
+  return sameColorCards.length >= Math.max(2, cards.length) && sameColorMainCards.length > 0;
+}
+
+function getSelectionPotentialMessage(kinds: readonly ComboKind[]): string {
+  if (kinds.includes("sequence")) {
+    return "可继续选择组成顺子";
+  }
+
+  if (kinds.includes("multiple-number")) {
+    return "可继续选择组成连对";
+  }
+
+  if (kinds.includes("discard-same-color")) {
+    return "可继续选择组成同色丢弃";
+  }
+
+  return "可继续选择组成组合";
+}
+
+function describeSelectionMismatch(
+  card: Card,
+  selectedCards: readonly Card[],
+  snapshot: PlayerGameSnapshot
+): string {
+  const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand);
+
+  if (potentialKinds.includes("sequence")) {
+    return "这张牌不能和已选牌组成顺子";
+  }
+
+  if (potentialKinds.includes("multiple-number")) {
+    return "连对必须是相同颜色和相同数字";
+  }
+
+  if (potentialKinds.includes("discard-same-color")) {
+    return card.isBlack
+      ? "同色丢弃不能包含黑牌"
+      : "这张牌不能和已选牌组成同色丢弃";
+  }
+
+  return selectedCards.length > 0
+    ? "这张牌不能和当前已选牌组合"
+    : describeSingleCardMismatch(card, snapshot);
+}
+
 interface PlaySelectionPreview {
   canPlay: boolean;
   label: string;
@@ -890,7 +1331,7 @@ function getPlaySelectionPreview(
     return {
       canPlay: false,
       label: "出牌",
-      message: "当前不可操作。"
+      message: "当前不能操作。"
     };
   }
 
@@ -971,6 +1412,16 @@ function getPlaySelectionPreview(
       };
     }
 
+    const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand);
+
+    if (potentialKinds.length > 0) {
+      return {
+        canPlay: false,
+        label: "出牌",
+        message: getSelectionPotentialMessage(potentialKinds)
+      };
+    }
+
     return {
       canPlay: false,
       label: "出牌",
@@ -978,7 +1429,7 @@ function getPlaySelectionPreview(
     };
   }
 
-  if (canPlaySequenceSelection(selectedCards)) {
+  if (isValidSequenceSelection(selectedCards)) {
     return {
       canPlay: true,
       label: "出牌",
@@ -991,6 +1442,16 @@ function getPlaySelectionPreview(
       canPlay: true,
       label: "出牌",
       message: "已选中可出的连对。"
+    };
+  }
+
+  const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand);
+
+  if (potentialKinds.length > 0) {
+    return {
+      canPlay: false,
+      label: "出牌",
+      message: getSelectionPotentialMessage(potentialKinds)
     };
   }
 
@@ -1364,6 +1825,29 @@ function getPileOffset(index: number, total: number): { x: number; y: number; ro
   return { x, y, rotate };
 }
 
+function syncRecentDrawnCards(
+  previousSnapshot: PlayerGameSnapshot | null,
+  nextSnapshot: PlayerGameSnapshot
+): void {
+  if (
+    previousSnapshot === null ||
+    previousSnapshot.self.playerId !== nextSnapshot.self.playerId
+  ) {
+    state.recentDrawnCardIds = [];
+    return;
+  }
+
+  const previousCardIds = new Set(previousSnapshot.self.hand.map((card) => card.id));
+  const addedCardIds = nextSnapshot.self.hand
+    .filter((card) => !previousCardIds.has(card.id))
+    .map((card) => card.id);
+  const currentCardIds = new Set(nextSnapshot.self.hand.map((card) => card.id));
+
+  state.recentDrawnCardIds = [...new Set([...state.recentDrawnCardIds, ...addedCardIds])].filter(
+    (cardId) => currentCardIds.has(cardId)
+  );
+}
+
 function syncFlyingCardAnimation(snapshot: PlayerGameSnapshot): void {
   const event = state.latestCardsPlayedEvent;
 
@@ -1387,6 +1871,24 @@ function syncFlyingCardAnimation(snapshot: PlayerGameSnapshot): void {
       render();
     }
   }, 700);
+}
+
+function startDrawCardAnimation(playerId: PlayerId, count: number): void {
+  const key = `${playerId}-draw-${String(Date.now())}-${String(Math.random())}`;
+
+  state.drawFlyingCard = {
+    key,
+    playerId,
+    seatClass: state.snapshot === null ? "from-top" : getPlayerSeatClass(state.snapshot, playerId),
+    count
+  };
+
+  window.setTimeout(() => {
+    if (state.drawFlyingCard?.key === key) {
+      state.drawFlyingCard = null;
+      render();
+    }
+  }, 720);
 }
 
 function syncChallengePrompt(snapshot: PlayerGameSnapshot): void {
@@ -1469,6 +1971,7 @@ function handleGameEvents(events: readonly GameEvent[]): void {
 
   for (const event of events) {
     if (event.type === "cards-played") {
+      state.recentDrawnCardIds = [];
       state.latestCardsPlayedEvent = {
         playerId: event.playerId,
         topCardId: event.topCardId,
@@ -1478,7 +1981,25 @@ function handleGameEvents(events: readonly GameEvent[]): void {
     }
 
     if (event.type === "cards-drawn") {
-      showToast(`${lookupNameFromKnownState(event.playerId)} \u62bd ${String(event.count)} \u5f20`, "info");
+      if (event.count > 0) {
+        startDrawCardAnimation(event.playerId, event.count);
+      }
+
+      if (event.drawUntilColor !== undefined) {
+        const targetColor = getColorDisplayName(event.drawUntilColor.targetColor);
+        const revealedColor =
+          event.drawUntilColor.revealedColor === null
+            ? "黑色"
+            : getColorDisplayName(event.drawUntilColor.revealedColor);
+        const suffix = event.drawUntilColor.matched ? "罚抽结束。" : "请继续摸。";
+
+        showToast(
+          `罚摸${targetColor}，摸到的是${revealedColor}，${suffix}`,
+          event.drawUntilColor.matched ? "success" : "warning"
+        );
+      } else {
+        showToast(`${lookupNameFromKnownState(event.playerId)} \u62bd ${String(event.count)} \u5f20`, "info");
+      }
     }
 
     if (event.type === "challenge-resolved") {
@@ -1657,8 +2178,7 @@ function bindBattlePanel(): void {
         return;
       }
 
-      toggleSelectedCard(cardId);
-      render();
+      handleHandCardClick(cardId);
     });
   });
 
@@ -1857,7 +2377,7 @@ function playSelectedSequence(): void {
 
   const selectedCards = getSelectedCards(state.snapshot.self.hand, state.selectedCardIds);
 
-  if (!canPlaySequenceSelection(selectedCards)) {
+  if (!isValidSequenceSelection(selectedCards)) {
     state.lastError = "顺子至少需要 5 张数字牌。";
     pushLog(state.lastError);
     render();
@@ -1955,7 +2475,7 @@ function playSelectedCards(): void {
     return;
   }
 
-  if (canPlaySequenceSelection(selectedCards)) {
+  if (isValidSequenceSelection(selectedCards)) {
     sendCommand({
       type: "play-sequence",
       cardIds: selectedCards.map((card) => card.id)
@@ -2016,6 +2536,49 @@ function toggleSelectedCard(cardId: string): void {
   }
 }
 
+function handleHandCardClick(cardId: string): void {
+  if (state.snapshot === null) {
+    return;
+  }
+
+  const hand = state.snapshot.self.hand;
+  const card = hand.find((candidate) => candidate.id === cardId);
+
+  if (card === undefined) {
+    return;
+  }
+
+  const selectedCards = getSelectedCards(hand, state.selectedCardIds);
+  const canTakeTurnAction =
+    state.connectionStatus === "open" &&
+    state.playerId === state.snapshot.currentPlayerId &&
+    state.snapshot.status !== "finished";
+  const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand);
+  const info = getHandCardPresentation(
+    card,
+    state.snapshot,
+    canTakeTurnAction,
+    selectedCards,
+    sequenceCandidateCardIds
+  );
+
+  if (info.relationState === "selected") {
+    toggleSelectedCard(cardId);
+    render();
+    return;
+  }
+
+  if (!info.canSelect) {
+    showToast(info.reason, "warning");
+    pushLog(info.reason);
+    render();
+    return;
+  }
+
+  toggleSelectedCard(cardId);
+  render();
+}
+
 function clearSelectedCards(): void {
   state.selectedCardIds = [];
   state.colorPickerCardId = null;
@@ -2028,8 +2591,62 @@ function resetRoomContext(): void {
   state.playerId = null;
   state.uiToast = null;
   state.snapshotRecoveryRoomId = null;
+  state.recentDrawnCardIds = [];
+  state.flyingCard = null;
+  state.drawFlyingCard = null;
   clearSelectedCards();
   removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);
+}
+
+function normalizePlayerGameSnapshot(snapshot: unknown): PlayerGameSnapshot {
+  const partial = snapshot as Partial<PlayerGameSnapshot>;
+  const self = partial.self ?? ({} as Partial<PlayerGameSnapshot["self"]>);
+
+  return {
+    ...partial,
+    discardPile: Array.isArray(partial.discardPile) ? partial.discardPile : [],
+    drawStack: {
+      active: false,
+      amount: 0,
+      previousDrawValue: null,
+      targetPlayerId: null,
+      ...partial.drawStack
+    },
+    drawUntilColor: {
+      active: false,
+      color: null,
+      targetPlayerId: null,
+      ...partial.drawUntilColor
+    },
+    normalDrawOffer: {
+      active: false,
+      playerId: null,
+      cardId: null,
+      ...partial.normalDrawOffer
+    },
+    challengeWindow: {
+      active: false,
+      targetPlayerId: null,
+      ...partial.challengeWindow
+    },
+    winnerPlayerIds: Array.isArray(partial.winnerPlayerIds)
+      ? partial.winnerPlayerIds
+      : [],
+    opponents: Array.isArray(partial.opponents) ? partial.opponents : [],
+    self: {
+      ...self,
+      hand: Array.isArray(self.hand) ? self.hand : [],
+      handCount:
+        typeof self.handCount === "number"
+          ? self.handCount
+          : Array.isArray(self.hand)
+            ? self.hand.length
+            : 0,
+      hasCalledUno: self.hasCalledUno ?? false,
+      isEliminated: self.isEliminated ?? false,
+      isCurrentPlayer: self.isCurrentPlayer ?? false
+    }
+  } as PlayerGameSnapshot;
 }
 
 function recoverMissingPlayingSnapshot(room: PlayerRoomSnapshot): void {

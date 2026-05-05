@@ -28,23 +28,31 @@ describe("getCardAssetPath", () => {
     expect(getCardAssetPath(card)).toBe("/cards/67_black_plus10.png");
   });
 
-  it("keeps reverse and swap-hands action artwork separate", () => {
-    const reverse: Card = {
-      id: "reverse",
-      kind: "reverse",
-      color: "red",
-      isBlack: false,
-      displayName: "red reverse"
-    };
-    const swapHands: Card = {
-      id: "swap",
-      kind: "swap-hands",
-      color: "red",
-      isBlack: false,
-      displayName: "red swap"
-    };
+  it.each([
+    ["red", "/cards/45_red_reverse.png", "/cards/43_red_swap.png"],
+    ["yellow", "/cards/51_yellow_reverse.png", "/cards/49_yellow_swap.png"],
+    ["blue", "/cards/57_blue_reverse.png", "/cards/55_blue_swap.png"],
+    ["green", "/cards/63_green_reverse.png", "/cards/61_green_swap.png"]
+  ] as const)(
+    "keeps reverse and swap-hands artwork separate for %s",
+    (color, reverseAsset, swapAsset) => {
+      const reverse: Card = {
+        id: `${color}-reverse`,
+        kind: "reverse",
+        color,
+        isBlack: false,
+        displayName: `${color} reverse`
+      };
+      const swapHands: Card = {
+        id: `${color}-swap`,
+        kind: "swap-hands",
+        color,
+        isBlack: false,
+        displayName: `${color} swap`
+      };
 
-    expect(getCardAssetPath(reverse)).toBe("/cards/45_red_reverse.png");
-    expect(getCardAssetPath(swapHands)).toBe("/cards/43_red_swap.png");
-  });
+      expect(getCardAssetPath(reverse)).toBe(reverseAsset);
+      expect(getCardAssetPath(swapHands)).toBe(swapAsset);
+    }
+  );
 });

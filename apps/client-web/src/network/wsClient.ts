@@ -11,26 +11,37 @@ export interface WsClientHandlers {
 export class WsClient {
   private socket: WebSocket | null = null;
   private status: ConnectionStatus = "idle";
+  private connectionGeneration = 0;
 
   constructor(private readonly handlers: WsClientHandlers = {}) {}
 
   connect(url: string): void {
-    this.close();
+    const previousSocket = this.socket;
+    const generation = this.connectionGeneration + 1;
+    this.connectionGeneration = generation;
     this.setStatus("connecting");
 
     const socket = new WebSocket(url);
     this.socket = socket;
 
     socket.addEventListener("open", () => {
-      if (this.socket !== socket) {
+      if (this.socket !== socket || this.connectionGeneration !== generation) {
         return;
       }
 
       this.setStatus("open");
+
+      if (previousSocket !== null && previousSocket !== socket) {
+        try {
+          previousSocket.close();
+        } catch {
+          // Ignore handoff close failures.
+        }
+      }
     });
 
     socket.addEventListener("message", (event) => {
-      if (this.socket !== socket) {
+      if (this.socket !== socket || this.connectionGeneration !== generation) {
         return;
       }
 
@@ -42,7 +53,7 @@ export class WsClient {
     });
 
     socket.addEventListener("close", () => {
-      if (this.socket !== socket) {
+      if (this.socket !== socket || this.connectionGeneration !== generation) {
         return;
       }
 
@@ -51,7 +62,7 @@ export class WsClient {
     });
 
     socket.addEventListener("error", (event) => {
-      if (this.socket !== socket) {
+      if (this.socket !== socket || this.connectionGeneration !== generation) {
         return;
       }
 
@@ -69,9 +80,16 @@ export class WsClient {
   }
 
   close(): void {
+    this.connectionGeneration += 1;
+
     if (this.socket !== null) {
-      this.socket.close();
+      const socket = this.socket;
       this.socket = null;
+      try {
+        socket.close();
+      } catch {
+        // Ignore close errors so the UI can still update.
+      }
       this.setStatus("closed");
     }
   }

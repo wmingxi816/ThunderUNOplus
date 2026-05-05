@@ -60,6 +60,83 @@ export function buildDiscardSameColorPayload(cards: readonly Card[]): {
   };
 }
 
+export function getSequenceCandidateCardIds(hand: readonly Card[]): Set<string> {
+  const numberCounts = new Map<number, number>();
+
+  for (const card of hand) {
+    if (!isNumberCard(card)) {
+      continue;
+    }
+
+    numberCounts.set(card.number, (numberCounts.get(card.number) ?? 0) + 1);
+  }
+
+  const candidateIds = new Set<string>();
+
+  for (const card of hand) {
+    if (!isNumberCard(card)) {
+      continue;
+    }
+
+    if (canParticipateInSequence(card.number, numberCounts)) {
+      candidateIds.add(card.id);
+    }
+  }
+
+  return candidateIds;
+}
+
+export function isValidSequenceSelection(cards: readonly Card[]): boolean {
+  if (cards.length < 5 || !cards.every(isNumberCard)) {
+    return false;
+  }
+
+  const sortedCards = [...cards].sort((left, right) => left.number - right.number);
+
+  for (let index = 1; index < sortedCards.length; index += 1) {
+    const previousCard = sortedCards[index - 1];
+    const currentCard = sortedCards[index];
+
+    if (previousCard === undefined || currentCard === undefined) {
+      return false;
+    }
+
+    if (currentCard.number !== previousCard.number + 1) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function isNumberCard(card: Card): card is NumberCard {
   return card.kind === "number";
+}
+
+function canParticipateInSequence(
+  number: number,
+  numberCounts: ReadonlyMap<number, number>
+): boolean {
+  for (let start = 0; start <= 5; start += 1) {
+    for (let end = start + 4; end <= 9; end += 1) {
+      if (number < start || number > end) {
+        continue;
+      }
+
+      let valid = true;
+
+      for (let value = start; value <= end; value += 1) {
+        if ((numberCounts.get(value) ?? 0) === 0) {
+          valid = false;
+          break;
+        }
+      }
+
+      if (valid) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }

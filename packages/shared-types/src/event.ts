@@ -53,6 +53,11 @@ export interface CardsDrawnEvent {
     | "draw-until-color"
     | "challenge-penalty"
     | "uno-penalty";
+  drawUntilColor?: {
+    targetColor: CardColor;
+    revealedColor: CardColor | null;
+    matched: boolean;
+  };
 }
 
 export interface NormalDrawOfferOpenedEvent {

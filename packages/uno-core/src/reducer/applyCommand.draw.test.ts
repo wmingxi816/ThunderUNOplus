@@ -496,9 +496,60 @@ describe("applyCommand - 摸牌、加牌链与质疑", () => {
       playerId: "p2"
     });
 
-    expect(getPlayer(result.state, "p2").handCount).toBe(4);
+    expect(getPlayer(result.state, "p2").handCount).toBe(2);
+    expect(result.state.drawUntilColor).toMatchObject({
+      active: true,
+      color: "blue",
+      targetPlayerId: "p2"
+    });
+    expect(result.state.currentPlayerId).toBe("p2");
+    expect(result.events).toContainEqual(
+      expect.objectContaining({
+        type: "cards-drawn",
+        playerId: "p2",
+        count: 1,
+        reason: "draw-until-color",
+        drawUntilColor: {
+          targetColor: "blue",
+          revealedColor: "green",
+          matched: false
+        }
+      })
+    );
+  });
+
+  it("draw-until-color resolves only after drawing the target color", () => {
+    const state = createGameState({
+      currentPlayerId: "p2",
+      players: [
+        createPlayerState("p1", []),
+        createPlayerState("p2", [numberCard("blue-1", "blue", 1)]),
+        createPlayerState("p3", [])
+      ],
+      drawPile: [numberCard("blue-9", "blue", 9)],
+      drawUntilColor: {
+        active: true,
+        color: "blue",
+        targetPlayerId: "p2"
+      }
+    });
+
+    const result = applyCommand(state, {
+      type: "resolve-draw-until-color",
+      playerId: "p2"
+    });
+
+    expect(getPlayer(result.state, "p2").handCount).toBe(2);
     expect(result.state.drawUntilColor.active).toBe(false);
     expect(result.state.currentPlayerId).toBe("p3");
+    expect(result.events).toContainEqual(
+      expect.objectContaining({
+        type: "draw-until-color-resolved",
+        targetPlayerId: "p2",
+        color: "blue",
+        drawnCount: 1
+      })
+    );
   });
 
   it("罚抽摸牌也支持回洗弃牌堆", () => {
@@ -534,7 +585,14 @@ describe("applyCommand - 摸牌、加牌链与质疑", () => {
     expect(result.events.some((event) => event.type === "deck-reshuffled")).toBe(
       true
     );
-    expect(getPlayer(result.state, "p2").handCount).toBeGreaterThan(1);
-    expect(result.state.drawUntilColor.active).toBe(false);
+    expect(getPlayer(result.state, "p2").handCount).toBe(2);
+    expect(result.events).toContainEqual(
+      expect.objectContaining({
+        type: "cards-drawn",
+        playerId: "p2",
+        count: 1,
+        reason: "draw-until-color"
+      })
+    );
   });
 });

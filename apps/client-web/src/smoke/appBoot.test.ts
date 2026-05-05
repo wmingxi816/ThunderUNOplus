@@ -292,11 +292,6 @@ describe("client-web smoke", () => {
           color: null,
           targetPlayerId: null
         },
-        normalDrawOffer: {
-          active: false,
-          playerId: null,
-          cardId: null
-        },
         challengeWindow: {
           active: false,
           targetPlayerId: null
@@ -337,6 +332,141 @@ describe("client-web smoke", () => {
 
     expect(document.querySelector("[data-testid='battle-view']")).not.toBeNull();
     expect(document.querySelector("[data-testid='lobby-view']")).toBeNull();
+  });
+
+  it("marks newly drawn self cards and renders a draw animation", async () => {
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+    const initialCard = {
+      id: "blue-2",
+      kind: "number",
+      color: "blue",
+      number: 2,
+      isBlack: false,
+      displayName: "blue 2"
+    };
+    const drawnCard = {
+      id: "red-3",
+      kind: "number",
+      color: "red",
+      number: 3,
+      isBlack: false,
+      displayName: "red 3"
+    };
+    const baseSnapshot = {
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      status: "in-progress",
+      mode: "no-challenge",
+      currentPlayerId: "player-1",
+      currentColor: "red",
+      direction: "clockwise",
+      topCard,
+      discardPile: [topCard],
+      drawPileCount: 80,
+      drawStack: {
+        active: false,
+        amount: 0,
+        previousDrawValue: null,
+        targetPlayerId: null
+      },
+      drawUntilColor: {
+        active: false,
+        color: null,
+        targetPlayerId: null
+      },
+      challengeWindow: {
+        active: false,
+        targetPlayerId: null
+      },
+      winnerPlayerIds: [],
+      self: {
+        playerId: "player-1",
+        displayName: "player-1",
+        avatarUrl: null,
+        hand: [initialCard],
+        handCount: 1,
+        hasCalledUno: false,
+        isEliminated: false,
+        isCurrentPlayer: true
+      },
+      opponents: []
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: baseSnapshot
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 2,
+      events: [
+        {
+          type: "cards-drawn",
+          playerId: "player-1",
+          count: 1,
+          reason: "normal-draw"
+        }
+      ]
+    });
+
+    expect(document.querySelector(".draw-flying-card")).not.toBeNull();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 2,
+      snapshot: {
+        ...baseSnapshot,
+        snapshotVersion: 2,
+        self: {
+          ...baseSnapshot.self,
+          hand: [initialCard, drawnCard],
+          handCount: 2
+        }
+      }
+    });
+
+    expect(document.querySelector(".card-button.recent-drawn")?.getAttribute("data-card-id")).toBe("red-3");
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 3,
+      events: [
+        {
+          type: "cards-played",
+          playerId: "player-1",
+          cardIds: ["red-3"],
+          topCardId: "red-3"
+        }
+      ]
+    });
+
+    expect(document.querySelector(".card-button.recent-drawn")).toBeNull();
   });
 });
 

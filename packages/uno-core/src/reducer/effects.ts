@@ -134,7 +134,8 @@ export function giveCardsToPlayer(
   cards: readonly Card[],
   now: number,
   events: GameEvent[],
-  reason: Extract<GameEvent, { type: "cards-drawn" }>["reason"]
+  reason: Extract<GameEvent, { type: "cards-drawn" }>["reason"],
+  drawUntilColor?: Extract<GameEvent, { type: "cards-drawn" }>["drawUntilColor"]
 ): void {
   const previousHandCount = player.handCount;
   player.hand.push(...cards);
@@ -143,7 +144,8 @@ export function giveCardsToPlayer(
     type: "cards-drawn",
     playerId: player.id,
     count: cards.length,
-    reason
+    reason,
+    ...(drawUntilColor === undefined ? {} : { drawUntilColor })
   });
   markPlayerEliminatedIfNeeded(state, player, events);
 }

@@ -1,4 +1,3 @@
-import type { Card } from "../card";
 import type { GameState } from "../gameState";
 import {
   clearDrawUntilColor,
@@ -72,25 +71,11 @@ export function applyResolveDrawUntilColorCommand(
 
   nextState.now = now;
   const events: GameEvent[] = [];
-  const drawnCards: Card[] = [];
+  const drawResult = drawCardsFromState(nextState, 1);
+  nextState = drawResult.state;
+  events.push(...drawResult.events);
 
-  for (;;) {
-    const drawResult = drawCardsFromState(nextState, 1);
-    nextState = drawResult.state;
-    events.push(...drawResult.events);
-
-    const [card] = drawResult.cards;
-
-    if (card === undefined) {
-      break;
-    }
-
-    drawnCards.push(card);
-
-    if (card.color === pressure.color) {
-      break;
-    }
-  }
+  const [drawnCard] = drawResult.cards;
 
   player = findPlayer(nextState, command.playerId);
 
@@ -103,20 +88,60 @@ export function applyResolveDrawUntilColorCommand(
     );
   }
 
-  giveCardsToPlayer(
-    nextState,
-    player,
-    drawnCards,
-    now,
-    events,
-    "draw-until-color"
-  );
+  if (drawnCard === undefined) {
+    clearDrawUntilColor(nextState);
+    events.push({
+      type: "draw-until-color-resolved",
+      targetPlayerId: command.playerId,
+      color: pressure.color,
+      drawnCount: 0
+    });
+
+    if (nextState.status === "finished") {
+      return {
+        state: nextState,
+        events
+      };
+    }
+
+    const nextPlayerId = getNextActivePlayerId(nextState, command.playerId, 1);
+
+    if (nextPlayerId !== null) {
+      nextState.currentPlayerId = nextPlayerId;
+      events.push({
+        type: "turn-advanced",
+        previousPlayerId: command.playerId,
+        currentPlayerId: nextPlayerId
+      });
+    }
+
+    return {
+      state: nextState,
+      events
+    };
+  }
+
+  const matched = drawnCard.color === pressure.color;
+
+  giveCardsToPlayer(nextState, player, [drawnCard], now, events, "draw-until-color", {
+    targetColor: pressure.color,
+    revealedColor: drawnCard.color ?? null,
+    matched
+  });
+
+  if (!matched && nextState.status !== "finished" && !player.isEliminated) {
+    return {
+      state: nextState,
+      events
+    };
+  }
+
   clearDrawUntilColor(nextState);
   events.push({
     type: "draw-until-color-resolved",
     targetPlayerId: command.playerId,
     color: pressure.color,
-    drawnCount: drawnCards.length
+    drawnCount: 1
   });
 
   if (nextState.status === "finished") {

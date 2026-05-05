@@ -105,4 +105,61 @@ describe("canStackDrawCard", () => {
       })
     ).toBe(false);
   });
+
+  it.each([2, 4, 6, 10] as const)(
+    "allows wild-reverse-draw-four after previous draw value %s",
+    (previousDrawValue) => {
+      const nextCard = createBlackCard("next", "wild-reverse-draw-four");
+
+      expect(
+        canStackDrawCard({
+          nextCard,
+          currentColor: "red",
+          previousDrawValue
+        })
+      ).toBe(true);
+    }
+  );
+
+  it.each([2, 4, 6, 10] as const)(
+    "allows wild-draw-six after previous draw value %s",
+    (previousDrawValue) => {
+      const nextCard = createBlackCard("next", "wild-draw-six");
+
+      expect(
+        canStackDrawCard({
+          nextCard,
+          currentColor: "yellow",
+          previousDrawValue
+        })
+      ).toBe(true);
+    }
+  );
+
+  it.each([2, 4, 6, 10] as const)(
+    "allows wild-draw-ten after previous draw value %s",
+    (previousDrawValue) => {
+      const nextCard = createBlackCard("next", "wild-draw-ten");
+
+      expect(
+        canStackDrawCard({
+          nextCard,
+          currentColor: "blue",
+          previousDrawValue
+        })
+      ).toBe(true);
+    }
+  );
+
+  it("rejects ordinary cards while a draw stack is active", () => {
+    const nextCard = createColoredActionCard("next", "green", "skip");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "green",
+        previousDrawValue: 2
+      })
+    ).toBe(false);
+  });
 });

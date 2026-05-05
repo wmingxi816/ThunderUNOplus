@@ -47,4 +47,18 @@ describe("canPlayCard", () => {
 
     expect(canPlayCard({ card: nextCard, topCard })).toBe(true);
   });
+
+  it.each([
+    "draw-two",
+    "draw-four",
+    "skip",
+    "reverse",
+    "discard-same-color",
+    "swap-hands"
+  ] as const)("allows %s to connect across colors by kind", (kind) => {
+    const topCard = createColoredActionCard("top", "red", kind);
+    const nextCard = createColoredActionCard("next", "blue", kind);
+
+    expect(canPlayCard({ card: nextCard, topCard })).toBe(true);
+  });
 });
