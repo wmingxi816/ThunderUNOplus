@@ -31,7 +31,11 @@ export function createRoomSnapshot(
           avatarUrl: player.avatarUrl,
           seatIndex: player.seatIndex,
           isHost: player.playerId === room.ownerPlayerId,
-          connectionStatus: player.connected ? "connected" : "disconnected"
+          connectionStatus: player.hasLeftRoom
+            ? "left"
+            : player.connected
+              ? "connected"
+              : "disconnected"
         };
       })
   };

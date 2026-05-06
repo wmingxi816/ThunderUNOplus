@@ -143,6 +143,7 @@ describe("protocol - messages", () => {
           active: false,
           amount: 0,
           previousDrawValue: null,
+          previousDrawKind: null,
           targetPlayerId: null
         },
         drawUntilColor: {
@@ -167,7 +168,11 @@ describe("protocol - messages", () => {
           hand: [],
           handCount: 0,
           hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
           isEliminated: false,
+          hasLeftRoom: false,
           isCurrentPlayer: true
         },
         opponents: []

@@ -2,7 +2,8 @@ import type { GameState } from "../gameState";
 import {
   clearNormalDrawOffer,
   cloneGameState,
-  findPlayer
+  findPlayer,
+  startUnoProtectionWindows
 } from "./effects";
 import { ERROR_CODES, rejectCommand } from "./errors";
 import { getNextActivePlayerId } from "./turn";
@@ -85,6 +86,7 @@ export function applyKeepDrawnCardCommand(
 
   if (nextPlayerId !== null) {
     nextState.currentPlayerId = nextPlayerId;
+    startUnoProtectionWindows(nextState, now);
     events.push({
       type: "turn-advanced",
       previousPlayerId: command.playerId,

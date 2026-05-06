@@ -45,7 +45,7 @@ export function isDiscardSameColorCard(
 }
 
 /** 判断一张牌是否会为加牌链贡献加牌值。 */
-export function isDrawCard(card: Card): boolean {
+export function isDrawCard(card: Card): card is Card & { kind: DrawCardKind } {
   return DRAW_CARD_KINDS.has(card.kind as DrawCardKind);
 }
 

@@ -373,7 +373,10 @@ function createSimulationPlayers(playerCount: number): GamePlayerState[] {
       handCount: 0,
       hasCalledUno: false,
       unoPendingSinceMs: null,
+      unoProtectionStartedAtMs: null,
+      unoProtectionEndsAtMs: null,
       isEliminated: false,
+      hasLeftRoom: false,
       eliminationReason: null
     };
   });

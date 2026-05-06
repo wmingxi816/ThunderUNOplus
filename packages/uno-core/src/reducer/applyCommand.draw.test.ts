@@ -384,6 +384,7 @@ describe("applyCommand - 摸牌、加牌链与质疑", () => {
         active: true,
         amount: 4,
         previousDrawValue: 2,
+        previousDrawKind: "draw-two",
         targetPlayerId: "p2"
       }
     });
@@ -417,6 +418,7 @@ describe("applyCommand - 摸牌、加牌链与质疑", () => {
         active: true,
         amount: 4,
         previousDrawValue: 2,
+        previousDrawKind: "draw-two",
         targetPlayerId: "p2"
       },
       seed: "draw-stack-reshuffle"

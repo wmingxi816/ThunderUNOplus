@@ -29,10 +29,10 @@ describe("getCardAssetPath", () => {
   });
 
   it.each([
-    ["red", "/cards/45_red_reverse.png", "/cards/43_red_swap.png"],
-    ["yellow", "/cards/51_yellow_reverse.png", "/cards/49_yellow_swap.png"],
-    ["blue", "/cards/57_blue_reverse.png", "/cards/55_blue_swap.png"],
-    ["green", "/cards/63_green_reverse.png", "/cards/61_green_swap.png"]
+    ["red", "/cards/43_red_swap.png", "/cards/45_red_reverse.png"],
+    ["yellow", "/cards/49_yellow_swap.png", "/cards/51_yellow_reverse.png"],
+    ["blue", "/cards/55_blue_swap.png", "/cards/57_blue_reverse.png"],
+    ["green", "/cards/61_green_swap.png", "/cards/63_green_reverse.png"]
   ] as const)(
     "keeps reverse and swap-hands artwork separate for %s",
     (color, reverseAsset, swapAsset) => {

@@ -144,6 +144,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
       active: true,
       amount: 2,
       previousDrawValue: 2,
+      previousDrawKind: "draw-two",
       targetPlayerId: "p2"
     });
     expect(result.state.currentPlayerId).toBe("p2");
@@ -166,6 +167,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
         active: true,
         amount: 2,
         previousDrawValue: 2,
+        previousDrawKind: "draw-two",
         targetPlayerId: "p2"
       }
     });
@@ -197,6 +199,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
         active: true,
         amount: 2,
         previousDrawValue: 2,
+        previousDrawKind: "draw-two",
         targetPlayerId: "p2"
       }
     });
@@ -230,6 +233,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
         active: true,
         amount: 2,
         previousDrawValue: 2,
+        previousDrawKind: "draw-two",
         targetPlayerId: "p2"
       }
     });
@@ -243,6 +247,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
 
     expect(result.state.drawStack.amount).toBe(8);
     expect(result.state.drawStack.previousDrawValue).toBe(6);
+    expect(result.state.drawStack.previousDrawKind).toBe("wild-draw-six");
     expect(result.state.currentColor).toBe("blue");
     expect(result.state.currentPlayerId).toBe("p3");
   });
@@ -264,6 +269,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
         active: true,
         amount: 6,
         previousDrawValue: 6,
+        previousDrawKind: "wild-draw-six",
         targetPlayerId: "p2"
       }
     });
@@ -279,6 +285,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
       active: true,
       amount: 16,
       previousDrawValue: 10,
+      previousDrawKind: "wild-draw-ten",
       targetPlayerId: "p3"
     });
     expect(result.state.currentPlayerId).toBe("p3");
@@ -311,6 +318,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
       active: true,
       amount: 4,
       previousDrawValue: 4,
+      previousDrawKind: "wild-reverse-draw-four",
       targetPlayerId: "p3"
     });
     expect(result.state.currentPlayerId).toBe("p3");

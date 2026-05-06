@@ -49,6 +49,29 @@ describe("createPlayerGameSnapshot", () => {
     expect(opponent).not.toHaveProperty("hand");
   });
 
+  it("snapshot 中会公开 UNO 待喊和保护期时间", () => {
+    const state = createGameState({
+      players: [
+        createPlayerState("p1", [numberCard("red-1", "red", 1)], {
+          unoPendingSinceMs: 1000,
+          unoProtectionStartedAtMs: 2000,
+          unoProtectionEndsAtMs: 5000
+        }),
+        createPlayerState("p2", [numberCard("blue-2", "blue", 2)])
+      ]
+    });
+
+    const snapshot = createPlayerGameSnapshot(state, "p2");
+    const opponent = snapshot.opponents[0];
+
+    expect(opponent).toMatchObject({
+      playerId: "p1",
+      unoPendingSinceMs: 1000,
+      unoProtectionStartedAtMs: 2000,
+      unoProtectionEndsAtMs: 5000
+    });
+  });
+
   it("snapshot 中不会泄露 hadBlackCardBeforeDraw", () => {
     const state = createGameState({
       players: [

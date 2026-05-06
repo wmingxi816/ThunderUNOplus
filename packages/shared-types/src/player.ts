@@ -43,6 +43,9 @@ export interface GamePlayerState {
   handCount: number;
   hasCalledUno: boolean;
   unoPendingSinceMs: UnixMs | null;
+  unoProtectionStartedAtMs: UnixMs | null;
+  unoProtectionEndsAtMs: UnixMs | null;
   isEliminated: boolean;
+  hasLeftRoom: boolean;
   eliminationReason: PlayerEliminationReason | null;
 }

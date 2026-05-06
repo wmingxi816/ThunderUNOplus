@@ -12,33 +12,33 @@ const actionIndexes = {
     "draw-two": 40,
     "draw-four": 41,
     skip: 42,
-    "swap-hands": 43,
+    "swap-hands": 45,
     "discard-same-color": 44,
-    reverse: 45
+    reverse: 43
   },
   yellow: {
     "draw-two": 46,
     "draw-four": 47,
     skip: 48,
-    "swap-hands": 49,
+    "swap-hands": 51,
     "discard-same-color": 50,
-    reverse: 51
+    reverse: 49
   },
   blue: {
     "draw-two": 52,
     "draw-four": 53,
     skip: 54,
-    "swap-hands": 55,
+    "swap-hands": 57,
     "discard-same-color": 56,
-    reverse: 57
+    reverse: 55
   },
   green: {
     "draw-two": 58,
     "draw-four": 59,
     skip: 60,
-    "swap-hands": 61,
+    "swap-hands": 63,
     "discard-same-color": 62,
-    reverse: 63
+    reverse: 61
   }
 } as const;
 
@@ -117,11 +117,11 @@ function getCardAssetName(card: Card): string {
     case "skip":
       return `${card.color}_skip`;
     case "reverse":
-      return `${card.color}_reverse`;
+      return `${card.color}_swap`;
     case "discard-same-color":
       return `${card.color}_discard`;
     case "swap-hands":
-      return `${card.color}_swap`;
+      return `${card.color}_reverse`;
     default:
       return "back";
   }

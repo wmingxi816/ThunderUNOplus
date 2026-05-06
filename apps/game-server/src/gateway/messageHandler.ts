@@ -100,6 +100,10 @@ function handleCreateRoom(params: {
     params.connectionRegistry,
     params.message.requestId
   );
+
+  if (result.room.gameState !== null) {
+    sendSnapshotsToRoom(result.room, params.connectionRegistry);
+  }
 }
 
 function handleJoinRoom(params: {
@@ -121,6 +125,10 @@ function handleJoinRoom(params: {
     params.connectionRegistry,
     params.message.requestId
   );
+
+  if (result.room.gameState !== null) {
+    sendSnapshotsToRoom(result.room, params.connectionRegistry);
+  }
 }
 
 function handleStartGame(params: {
@@ -166,7 +174,8 @@ function handleLeaveRoom(params: {
 }): void {
   const result = params.roomManager.leaveRoom({
     roomId: params.message.roomId,
-    playerId: params.message.playerId
+    playerId: params.message.playerId,
+    markLeft: true
   });
 
   if (result.room === null) {
@@ -181,6 +190,10 @@ function handleLeaveRoom(params: {
     params.connectionRegistry,
     params.message.requestId
   );
+
+  if (result.room.gameState !== null) {
+    sendSnapshotsToRoom(result.room, params.connectionRegistry);
+  }
 }
 
 function handleReconnect(params: {

@@ -48,15 +48,19 @@ interface AppState {
   recentDrawnCardIds: string[];
   colorPickerCardId: string | null;
   latestCardsPlayedEvent: CardsPlayedAnimationEvent | null;
+  latestPlayGroupEvent: CardsPlayedAnimationEvent | null;
   flyingCard: FlyingCardAnimation | null;
   drawFlyingCard: DrawFlyingCardAnimation | null;
+  drawStackBurst: DrawStackBurstAnimation | null;
   challengePrompt: ChallengePromptState | null;
+  eventModal: EventModalState | null;
   uiToast: UiToastState | null;
   snapshotRecoveryRoomId: RoomId | null;
 }
 
 interface CardsPlayedAnimationEvent {
   playerId: PlayerId;
+  cardIds: string[];
   topCardId: string;
   receivedAt: number;
 }
@@ -75,10 +79,23 @@ interface DrawFlyingCardAnimation {
   count: number;
 }
 
+interface DrawStackBurstAnimation {
+  key: string;
+  cards: Card[];
+}
+
 interface ChallengePromptState {
   targetPlayerId: PlayerId;
   openedAt: number;
   dismissed: boolean;
+}
+
+interface EventModalState {
+  key: string;
+  title: string;
+  message: string;
+  tone: "warning" | "success";
+  dismissible: boolean;
 }
 
 interface UiToastState {
@@ -111,6 +128,7 @@ const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 
 const root = document.querySelector<HTMLDivElement>("#app");
+let unoProtectionRenderTimer: number | null = null;
 
 if (root === null) {
   throw new Error("App root was not found.");
@@ -140,9 +158,12 @@ const state: AppState = {
   recentDrawnCardIds: [],
   colorPickerCardId: null,
   latestCardsPlayedEvent: null,
+  latestPlayGroupEvent: null,
   flyingCard: null,
   drawFlyingCard: null,
+  drawStackBurst: null,
   challengePrompt: null,
+  eventModal: null,
   uiToast: null,
   snapshotRecoveryRoomId: null
 };
@@ -208,6 +229,7 @@ function handleServerMessage(message: ServerMessage): void {
       clearSelectedCards();
       setSessionStoredValue(LAST_ROOM_STORAGE_KEY, message.roomId);
       syncChallengePrompt(state.snapshot);
+      scheduleUnoProtectionRender(state.snapshot);
       pushLog(`收到对局快照：版本 ${message.snapshotVersion}`);
       return;
     case "events":
@@ -346,9 +368,9 @@ function renderLobbyPanel(): string {
           </label>
         </div>
         <div class="button-row">
-          <button id="create-room-button" data-testid="create-room-button" ${canCreateRoom ? "" : "disabled"}>创建房间</button>
-          <button id="join-room-button" data-testid="join-room-button" class="secondary" ${canJoinRoom ? "" : "disabled"}>加入房间</button>
-          <button id="leave-room-button" data-testid="leave-room-button" class="secondary" ${isConnected && state.roomId !== null ? "" : "disabled"}>离开</button>
+          <button id="create-room-button" data-testid="create-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>创建房间</button>
+          <button id="join-room-button" data-testid="join-room-button" class="secondary" ${canJoinRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>加入房间</button>
+          <button id="leave-room-button" data-testid="leave-room-button" class="secondary" ${isConnected && state.roomId !== null ? "" : `disabled title="${escapeHtml(isConnected ? "当前不在房间中。" : "未连接服务端。")}"`}>离开</button>
         </div>
       </div>
       <div class="panel" data-testid="lobby-status-panel">
@@ -363,8 +385,23 @@ function renderLobbyPanel(): string {
   `;
 }
 
+function getLobbyDisabledReason(isConnected: boolean): string {
+  if (!isConnected) {
+    return "未连接服务端。";
+  }
+
+  if (state.roomId !== null) {
+    return "已在房间中。";
+  }
+
+  return "当前不可操作。";
+}
+
 function renderRoomState(room: PlayerRoomSnapshot): string {
-  const canStart = state.connectionStatus === "open" && room.hostPlayerId === state.playerId;
+  const canStart =
+    state.connectionStatus === "open" &&
+    room.hostPlayerId === state.playerId &&
+    room.players.length >= 3;
   const hostPlayer = room.players.find((player) => player.isHost);
 
   return `
@@ -397,8 +434,24 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
       <span>可选种子</span>
       <input id="seed-input" autocomplete="off" />
     </label>
-    <button id="start-game-button" data-testid="start-game-button" ${canStart ? "" : "disabled"}>开始游戏</button>
+    <button id="start-game-button" data-testid="start-game-button" ${canStart ? "" : `disabled title="${escapeHtml(getStartGameDisabledReason(room))}"`}>开始游戏</button>
   `;
+}
+
+function getStartGameDisabledReason(room: PlayerRoomSnapshot): string {
+  if (state.connectionStatus !== "open") {
+    return "未连接服务端。";
+  }
+
+  if (room.hostPlayerId !== state.playerId) {
+    return "只有房主可以开始游戏。";
+  }
+
+  if (room.players.length < 3) {
+    return "至少 3 人才能开始。";
+  }
+
+  return "当前不能开始。";
 }
 
 function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
@@ -407,9 +460,20 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
   const isConnected = state.connectionStatus === "open";
   const canTakeTurnAction = isConnected && isMyTurn && !isGameFinished;
   const canUseOpponentAction = isConnected && !isGameFinished;
+  const canSayUno =
+    isConnected &&
+    isMyTurn &&
+    !isGameFinished &&
+    snapshot.self.handCount === 1 &&
+    !snapshot.self.hasCalledUno &&
+    snapshot.self.unoPendingSinceMs !== null &&
+    !snapshot.self.isEliminated;
   const hand = snapshot.self.hand;
   const selectedCards = getSelectedCards(hand, state.selectedCardIds);
-  const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand);
+  const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand, {
+    currentColor: snapshot.currentColor,
+    topCard: snapshot.topCard
+  });
   const challengePrompt = getVisibleChallengePrompt(snapshot, isConnected, isGameFinished);
 
   return `
@@ -430,15 +494,24 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
       }
       ${renderBattleHud(snapshot, isMyTurn)}
       ${renderNormalDrawOfferPrompt(snapshot, canTakeTurnAction)}
+      ${renderEventModal(snapshot)}
       <div class="table-zone battle-stage">
         <div class="battle-table">
           <div class="opponents" data-testid="opponents-area">
             ${snapshot.opponents
-              .map((player, index) => renderOpponent(player, canUseOpponentAction, getOpponentSeatClass(index, snapshot.opponents.length)))
+              .map((player, index) =>
+                renderOpponent(
+                  snapshot,
+                  player,
+                  canUseOpponentAction,
+                  getOpponentSeatClass(index, snapshot.opponents.length)
+                )
+              )
               .join("")}
           </div>
           ${renderFlyingCard(snapshot)}
           ${renderDrawFlyingCard()}
+          ${renderDrawStackBurst()}
           <div class="center-table">
             <div class="draw-pile">
               <img src="${getCardBackAssetPath()}" alt="牌堆" />
@@ -446,16 +519,22 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
             </div>
             ${renderDiscardPile(snapshot)}
             <div class="table-facts">
-              ${renderCurrentColorBadge(snapshot.currentColor)}
-              <span>方向：${escapeHtml(snapshot.direction)}</span>
-              <span>${isMyTurn ? "轮到你" : `等待 ${escapeHtml(lookupPlayerName(snapshot, snapshot.currentPlayerId))}`}</span>
+              <span class="table-fact table-fact-primary">${isMyTurn ? "轮到你行动" : `当前：${escapeHtml(lookupPlayerName(snapshot, snapshot.currentPlayerId))}`}</span>
+              <span class="table-fact">颜色 ${renderCurrentColorBadge(snapshot.currentColor)}</span>
+              <span class="table-fact">方向 ${renderDirectionIndicator(snapshot.direction)}</span>
+              ${renderDrawAmountFact(snapshot)}
             </div>
           </div>
           ${challengePrompt === null ? "" : renderChallengePrompt(snapshot, challengePrompt)}
           ${renderSelfSeat(snapshot)}
         </div>
-        <div class="actions">
-          <button id="say-uno-button" data-testid="say-uno-button" class="secondary" ${canTakeTurnAction ? "" : "disabled"}>UNO</button>
+        <div class="actions ${canTakeTurnAction ? "is-active" : ""}">
+          <button
+            id="say-uno-button"
+            data-testid="say-uno-button"
+            class="secondary"
+            ${canSayUno ? `title="喊 UNO"` : `disabled title="${escapeHtml(getSayUnoDisabledReason(snapshot, isConnected, isGameFinished, isMyTurn))}"`}
+          >UNO</button>
         </div>
       </div>
       <div class="hand">
@@ -502,27 +581,78 @@ function renderNormalDrawOfferPrompt(
   );
 
   return `
-    <div class="panel normal-draw-offer" data-testid="normal-draw-offer">
-      <strong>刚摸到的牌</strong>
-      <p>${escapeHtml(drawnCard?.displayName ?? "未知")}</p>
-      <div class="challenge-actions">
-        <button id="play-drawn-card-button" ${drawnCard === undefined ? "disabled" : ""}>立即打出</button>
-        <button id="keep-drawn-card-button" class="secondary">保留</button>
+    <div class="normal-draw-offer-backdrop">
+      <div class="panel normal-draw-offer normal-draw-offer-modal" data-testid="normal-draw-offer">
+        <strong>刚摸到的牌</strong>
+        <p>${escapeHtml(drawnCard?.displayName ?? "牌数据同步中")}</p>
+        <div class="challenge-actions">
+          <button id="play-drawn-card-button" ${drawnCard === undefined ? `disabled title="牌数据同步中。"` : ""}>立即打出</button>
+          <button id="keep-drawn-card-button" class="secondary">保留</button>
+        </div>
       </div>
     </div>
   `;
 }
 
+function renderEventModal(snapshot: PlayerGameSnapshot): string {
+  const finishedNotice = buildFinishedNotice(snapshot);
+  const notice = finishedNotice ?? state.eventModal;
+
+  if (notice === null) {
+    return "";
+  }
+
+  return `
+    <div class="event-modal-backdrop" data-testid="event-modal">
+      <section class="event-modal ${escapeHtml(notice.tone)}">
+        <h2>${escapeHtml(notice.title)}</h2>
+        <p>${escapeHtml(notice.message)}</p>
+        ${
+          finishedNotice !== null
+            ? `<p class="muted">当前版本暂不支持房内重开。</p>
+               <button id="finish-reset-button-modal" class="secondary">返回大厅</button>`
+            : notice.dismissible
+              ? `<button id="close-event-modal-button" class="secondary">知道了</button>`
+              : ""
+        }
+      </section>
+    </div>
+  `;
+}
+
+function buildFinishedNotice(snapshot: PlayerGameSnapshot): EventModalState | null {
+  if (snapshot.status !== "finished") {
+    return null;
+  }
+
+  const winners = snapshot.winnerPlayerIds
+    .map((playerId) => lookupPlayerName(snapshot, playerId))
+    .join(" · ") || "未知";
+
+  return {
+    key: `game-finished-${snapshot.winnerPlayerIds.join("-")}`,
+    title: "对局结束",
+    message: `玩家 ${winners} 获胜！`,
+    tone: "success",
+    dismissible: false
+  };
+}
+
 function renderOpponent(
+  snapshot: PlayerGameSnapshot,
   player: PlayerGameSnapshot["opponents"][number],
   enabled: boolean,
   seatClass: string
 ): string {
-  const seatLabel = player.isCurrentPlayer ? "当前回合" : player.hasCalledUno ? "UNO" : "等待";
+  const status = getPlayerSeatStatus(snapshot, player, false);
+  const canReportUno = enabled && canReportUnoTarget(player);
+  const reportUnoTitle = canReportUno
+    ? getReportUnoEnabledTitle(player)
+    : getReportUnoDisabledReason(player, enabled);
 
   return `
     <div class="opponent seat ${seatClass} ${player.isCurrentPlayer ? "current" : ""}">
-      <span class="seat-badge">${escapeHtml(seatLabel)}</span>
+      <span class="seat-badge ${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
       <img
         class="avatar"
         src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
@@ -530,20 +660,24 @@ function renderOpponent(
       />
       <strong>${escapeHtml(player.displayName ?? player.playerId)}</strong>
       <span class="hand-count-badge">${String(player.handCount)}</span>
-      <small>${player.isCurrentPlayer ? "当前行动" : player.hasCalledUno ? "已叫 UNO" : "等待"}</small>
+      <small>${escapeHtml(status.detail)}</small>
       <div class="opponent-actions">
-        <button data-report-uno="${escapeHtml(player.playerId)}" ${enabled ? "" : "disabled"}>报 UNO</button>
+        <button
+          data-report-uno="${escapeHtml(player.playerId)}"
+          title="${escapeHtml(reportUnoTitle)}"
+          ${canReportUno ? "" : "disabled"}
+        >${escapeHtml(getReportUnoLabel(player))}</button>
       </div>
     </div>
   `;
 }
 
 function renderSelfSeat(snapshot: PlayerGameSnapshot): string {
-  const seatLabel = snapshot.self.isCurrentPlayer ? "轮到你" : "等待";
+  const status = getPlayerSeatStatus(snapshot, snapshot.self, true);
 
   return `
     <div class="self-seat seat ${snapshot.self.isCurrentPlayer ? "current" : ""}">
-      <span class="seat-badge">${escapeHtml(seatLabel)}</span>
+      <span class="seat-badge ${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
       <img
         class="avatar"
         src="${escapeHtml(resolvePlayerAvatar(snapshot.self.playerId, snapshot.self.avatarUrl))}"
@@ -551,28 +685,180 @@ function renderSelfSeat(snapshot: PlayerGameSnapshot): string {
       />
       <strong>${escapeHtml(snapshot.self.displayName ?? "我")}</strong>
       <span class="hand-count-badge">${String(snapshot.self.hand.length)}</span>
-      <small>${snapshot.self.isCurrentPlayer ? "轮到你" : "等待"}</small>
+      <small>${escapeHtml(status.detail)}</small>
     </div>
   `;
+}
+
+type SnapshotSeatPlayer =
+  | PlayerGameSnapshot["self"]
+  | PlayerGameSnapshot["opponents"][number];
+
+function getPlayerSeatStatus(
+  snapshot: PlayerGameSnapshot,
+  player: SnapshotSeatPlayer,
+  isSelf: boolean
+): { label: string; detail: string; tone: string } {
+  if (snapshot.winnerPlayerIds.includes(player.playerId)) {
+    return { label: "赢家", detail: "本局获胜", tone: "success" };
+  }
+
+  if (player.hasLeftRoom) {
+    return { label: "已退出", detail: "已退出房间", tone: "neutral" };
+  }
+
+  if (player.isEliminated) {
+    return { label: "出局", detail: "已出局", tone: "danger" };
+  }
+
+  if (snapshot.drawStack.active && snapshot.drawStack.targetPlayerId === player.playerId) {
+    return {
+      label: `+${String(snapshot.drawStack.amount)}`,
+      detail: "加牌目标",
+      tone: "danger"
+    };
+  }
+
+  if (snapshot.drawUntilColor.active && snapshot.drawUntilColor.targetPlayerId === player.playerId) {
+    return {
+      label: "罚摸",
+      detail:
+        snapshot.drawUntilColor.color === null
+          ? "罚抽目标"
+          : `罚抽到${getColorDisplayName(snapshot.drawUntilColor.color)}`,
+      tone: "danger"
+    };
+  }
+
+  if (player.hasCalledUno) {
+    return { label: "UNO", detail: "已喊 UNO", tone: "success" };
+  }
+
+  if (player.handCount === 1 && player.unoPendingSinceMs !== null) {
+    if (player.unoProtectionEndsAtMs === null) {
+      return {
+        label: "待喊 UNO",
+        detail: "UNO 保护未开始",
+        tone: "warning"
+      };
+    }
+
+    const remainingMs = getUnoProtectionRemainingMs(player);
+
+    if (remainingMs > 0) {
+      return {
+        label: "保护中",
+        detail: `UNO 保护 ${String(Math.ceil(remainingMs / 1000))}s`,
+        tone: "warning"
+      };
+    }
+
+    return {
+      label: isSelf ? "待喊 UNO" : "可抓 UNO",
+      detail: isSelf ? "请喊 UNO" : "可抓 UNO",
+      tone: "warning"
+    };
+  }
+
+  if (player.isCurrentPlayer) {
+    return { label: isSelf ? "轮到你" : "当前回合", detail: "当前行动", tone: "active" };
+  }
+
+  return { label: "等待", detail: "等待", tone: "neutral" };
+}
+
+function getUnoProtectionRemainingMs(player: SnapshotSeatPlayer): number {
+  if (player.unoProtectionEndsAtMs === null) {
+    return 0;
+  }
+
+  return Math.max(0, player.unoProtectionEndsAtMs - Date.now());
+}
+
+function canReportUnoTarget(player: PlayerGameSnapshot["opponents"][number]): boolean {
+  return (
+    !player.isEliminated &&
+    !player.hasLeftRoom &&
+    player.handCount === 1 &&
+    !player.hasCalledUno &&
+    player.unoPendingSinceMs !== null
+  );
+}
+
+function getReportUnoLabel(player: PlayerGameSnapshot["opponents"][number]): string {
+  if (!canReportUnoTarget(player)) {
+    return "报 UNO";
+  }
+
+  const remainingMs = getUnoProtectionRemainingMs(player);
+
+  return player.unoProtectionEndsAtMs !== null && remainingMs > 0
+    ? `保护 ${String(Math.ceil(remainingMs / 1000))}s`
+    : "抓 UNO";
+}
+
+function getReportUnoEnabledTitle(player: PlayerGameSnapshot["opponents"][number]): string {
+  const remainingMs = getUnoProtectionRemainingMs(player);
+
+  if (player.unoProtectionEndsAtMs !== null && remainingMs > 0) {
+    return "仍在 UNO 保护期，点击会得到保护提示。";
+  }
+
+  return "抓对方未喊 UNO。";
+}
+
+function getReportUnoDisabledReason(
+  player: PlayerGameSnapshot["opponents"][number],
+  enabled: boolean
+): string {
+  if (!enabled) {
+    return state.connectionStatus === "open" ? "对局已结束。" : "未连接服务端。";
+  }
+
+  if (player.isEliminated) {
+    return "该玩家已出局。";
+  }
+
+  if (player.hasLeftRoom) {
+    return "该玩家已退出房间。";
+  }
+
+  if (player.handCount !== 1) {
+    return "对方不是 1 张手牌。";
+  }
+
+  if (player.hasCalledUno) {
+    return "对方已经喊过 UNO。";
+  }
+
+  return "当前不能抓 UNO。";
 }
 
 function renderDiscardPile(snapshot: PlayerGameSnapshot): string {
   const discardPile = Array.isArray((snapshot as { discardPile?: Card[] }).discardPile)
     ? (snapshot as { discardPile: Card[] }).discardPile
     : [];
-  const pileCards = (discardPile.length === 0 ? [snapshot.topCard] : discardPile).slice(-8);
+  const pileCards = discardPile.length === 0 ? [snapshot.topCard] : discardPile;
+  const latestGroup = getLatestPlayedGroup(pileCards);
+  const activeChain = getActiveDrawChainCards(snapshot, pileCards, latestGroup);
+  const hiddenLatestIds = new Set<string>([
+    ...latestGroup.cards.map((card) => card.id),
+    ...activeChain.map((card) => card.id)
+  ]);
+  const historyCards = pileCards
+    .filter((card) => !hiddenLatestIds.has(card.id))
+    .slice(-8);
 
   return `
     <div class="discard-pile top-card" data-testid="top-card">
       <div class="discard-stack" aria-label="弃牌堆">
-        ${pileCards
+        ${historyCards
           .map((card, index) => {
-            const offset = getPileOffset(index, pileCards.length);
-            const isTopCard = index === pileCards.length - 1;
+            const offset = getPileOffset(index, historyCards.length);
 
             return `
               <img
-                class="discard-card ${isTopCard ? "top-discard-card" : ""}"
+                class="discard-card history-discard-card"
                 src="${getCardAssetPath(card)}"
                 alt="${escapeHtml(card.displayName)}"
                 style="--pile-x: ${String(offset.x)}px; --pile-y: ${String(offset.y)}px; --pile-rotate: ${String(offset.rotate)}deg; --pile-index: ${String(index)};"
@@ -580,8 +866,176 @@ function renderDiscardPile(snapshot: PlayerGameSnapshot): string {
             `;
           })
           .join("")}
+        ${activeChain.length === 0 ? renderLatestPlayedGroup(latestGroup) : ""}
+        ${renderActiveDrawChain(activeChain)}
       </div>
       <strong>${escapeHtml(snapshot.topCard.displayName)}</strong>
+    </div>
+  `;
+}
+
+function getLatestPlayedGroup(
+  pileCards: readonly Card[]
+): { cards: Card[]; mode: "single" | "sequence" | "multiple" | "discard-same-color" } {
+  const event = state.latestPlayGroupEvent;
+
+  if (event === null || event.cardIds.length === 0) {
+    const topCard = pileCards[pileCards.length - 1];
+    return {
+      cards: topCard === undefined ? [] : [topCard],
+      mode: "single"
+    };
+  }
+
+  const latestCards = event.cardIds
+    .map((cardId) => pileCards.find((card) => card.id === cardId))
+    .filter((card): card is Card => card !== undefined);
+
+  if (latestCards.length !== event.cardIds.length) {
+    const topCard = pileCards[pileCards.length - 1];
+    return {
+      cards: topCard === undefined ? [] : [topCard],
+      mode: "single"
+    };
+  }
+
+  return {
+    cards: orderLatestPlayedCards(latestCards),
+    mode: classifyPlayedGroup(latestCards)
+  };
+}
+
+function orderLatestPlayedCards(cards: readonly Card[]): Card[] {
+  const sameColorMainCard = cards.find((card) => card.kind === "discard-same-color");
+
+  if (sameColorMainCard !== undefined) {
+    return [
+      ...cards.filter((card) => card.id !== sameColorMainCard.id),
+      sameColorMainCard
+    ];
+  }
+
+  return [...cards];
+}
+
+function classifyPlayedGroup(
+  cards: readonly Card[]
+): "single" | "sequence" | "multiple" | "discard-same-color" {
+  if (cards.length <= 1) {
+    return "single";
+  }
+
+  if (cards.some((card) => card.kind === "discard-same-color")) {
+    return "discard-same-color";
+  }
+
+  const numberCards = cards.filter((card) => card.kind === "number");
+
+  if (numberCards.length === cards.length) {
+    const first = numberCards[0];
+    const isMultiple =
+      first !== undefined &&
+      numberCards.every(
+        (card) => card.color === first.color && card.number === first.number
+      );
+
+    if (isMultiple) {
+      return "multiple";
+    }
+
+    return "sequence";
+  }
+
+  return "single";
+}
+
+function renderLatestPlayedGroup(group: ReturnType<typeof getLatestPlayedGroup>): string {
+  if (group.cards.length === 0) {
+    return "";
+  }
+
+  const groupClass =
+    group.cards.length > 1 ? `latest-play-group ${group.mode}` : "latest-play-group single";
+
+  return `
+    <div class="${escapeHtml(groupClass)}" data-testid="latest-play-group">
+      ${group.cards
+        .map((card, index) => {
+          const fan = getFanOffset(index, group.cards.length);
+
+          return `
+            <img
+              class="discard-card top-discard-card latest-play-card"
+              src="${getCardAssetPath(card)}"
+              alt="${escapeHtml(card.displayName)}"
+              style="--fan-x: ${String(fan.x)}px; --fan-y: ${String(fan.y)}px; --fan-rotate: ${String(fan.rotate)}deg; --fan-index: ${String(index)};"
+            />
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function getActiveDrawChainCards(
+  snapshot: PlayerGameSnapshot,
+  pileCards: readonly Card[],
+  latestGroup: ReturnType<typeof getLatestPlayedGroup>
+): Card[] {
+  const shouldShowDrawStack =
+    snapshot.drawStack.active || snapshot.drawUntilColor.active;
+
+  if (!shouldShowDrawStack) {
+    return [];
+  }
+
+  const chainCards: Card[] = [];
+
+  for (let index = pileCards.length - 1; index >= 0; index -= 1) {
+    const card = pileCards[index];
+
+    if (card === undefined || !isDrawChainDisplayCard(card)) {
+      break;
+    }
+
+    chainCards.unshift(card);
+  }
+
+  if (chainCards.length <= 1) {
+    return [];
+  }
+
+  return chainCards;
+}
+
+function isDrawChainDisplayCard(card: Card): boolean {
+  return (
+    card.kind === "draw-two" ||
+    card.kind === "draw-four" ||
+    card.kind === "wild-reverse-draw-four" ||
+    card.kind === "wild-draw-six" ||
+    card.kind === "wild-draw-ten" ||
+    card.kind === "penalty-draw"
+  );
+}
+
+function renderActiveDrawChain(cards: readonly Card[]): string {
+  if (cards.length === 0) {
+    return "";
+  }
+
+  return `
+    <div class="active-draw-chain" data-testid="active-draw-chain">
+      ${cards
+        .map((card, index) => `
+          <img
+            class="draw-chain-card"
+            src="${getCardAssetPath(card)}"
+            alt="${escapeHtml(card.displayName)}"
+            style="--chain-index: ${String(index)};"
+          />
+        `)
+        .join("")}
     </div>
   `;
 }
@@ -621,6 +1075,33 @@ function renderDrawFlyingCard(): string {
   `;
 }
 
+function renderDrawStackBurst(): string {
+  const burst = state.drawStackBurst;
+
+  if (burst === null || burst.cards.length === 0) {
+    return "";
+  }
+
+  return `
+    <div class="draw-stack-burst" data-testid="draw-stack-burst">
+      ${burst.cards
+        .map((card, index) => {
+          const offset = getPileOffset(index, burst.cards.length);
+
+          return `
+            <img
+              class="burst-card"
+              src="${getCardAssetPath(card)}"
+              alt="${escapeHtml(card.displayName)}"
+              style="--burst-x: ${String(offset.x * 1.5)}px; --burst-y: ${String(offset.y * 1.5)}px; --burst-rotate: ${String(offset.rotate)}deg; --burst-index: ${String(index)};"
+            />
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
 function renderChallengePrompt(
   snapshot: PlayerGameSnapshot,
   prompt: ChallengePromptState
@@ -645,10 +1126,16 @@ function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): strin
   return `
     <div class="battle-hud">
       <span class="hud-primary">当前：${escapeHtml(isMyTurn ? "轮到你" : lookupPlayerName(snapshot, snapshot.currentPlayerId))}</span>
-      <span>颜色：${escapeHtml(snapshot.currentColor)}</span>
-      <span>方向：${escapeHtml(snapshot.direction)}</span>
-      <span>牌堆</span>
+      <span class="hud-item">颜色：${renderCurrentColorBadge(snapshot.currentColor)}</span>
+      <span class="hud-item">方向：${renderDirectionIndicator(snapshot.direction)}</span>
+      <span class="hud-item">牌堆 ${String(snapshot.drawPileCount)} 张</span>
       ${renderBattleStatusChips(snapshot)}
+      <button
+        id="battle-leave-room-button"
+        data-testid="battle-leave-room-button"
+        class="secondary hud-leave-button"
+        ${state.connectionStatus === "open" ? "" : `disabled title="未连接服务端。"`}
+      >退出房间</button>
     </div>
   `;
 }
@@ -657,6 +1144,7 @@ interface DrawActionState {
   actionType: "draw-card" | "resolve-draw-stack" | "resolve-draw-until-color";
   label: string;
   enabled: boolean;
+  reason: string;
 }
 
 function renderDrawButton(snapshot: PlayerGameSnapshot, enabled: boolean): string {
@@ -667,6 +1155,7 @@ function renderDrawButton(snapshot: PlayerGameSnapshot, enabled: boolean): strin
       id="draw-card-button"
       data-testid="draw-card-button"
       data-draw-action="${state.actionType}"
+      title="${escapeHtml(state.enabled ? state.label : state.reason)}"
       ${state.enabled ? "" : "disabled"}
     >${escapeHtml(state.label)}</button>
   `;
@@ -674,7 +1163,12 @@ function renderDrawButton(snapshot: PlayerGameSnapshot, enabled: boolean): strin
 
 function getDrawActionState(snapshot: PlayerGameSnapshot, enabled: boolean): DrawActionState {
   if (!enabled) {
-    return { actionType: "draw-card", label: "摸牌", enabled: false };
+    return {
+      actionType: "draw-card",
+      label: "摸牌",
+      enabled: false,
+      reason: getTurnActionDisabledReason(snapshot)
+    };
   }
 
   if (
@@ -684,7 +1178,8 @@ function getDrawActionState(snapshot: PlayerGameSnapshot, enabled: boolean): Dra
     return {
       actionType: "draw-card",
       label: "先处理刚摸到的牌",
-      enabled: false
+      enabled: false,
+      reason: "请先决定打出或保留刚摸到的牌。"
     };
   }
 
@@ -692,7 +1187,8 @@ function getDrawActionState(snapshot: PlayerGameSnapshot, enabled: boolean): Dra
     return {
       actionType: "resolve-draw-stack",
       label: `摸 ${String(snapshot.drawStack.amount)} 张`,
-      enabled: true
+      enabled: true,
+      reason: ""
     };
   }
 
@@ -702,15 +1198,66 @@ function getDrawActionState(snapshot: PlayerGameSnapshot, enabled: boolean): Dra
     return {
       actionType: "resolve-draw-until-color",
       label: targetColor === null ? "继续罚摸" : `罚摸${getColorDisplayName(targetColor)}：摸 1 张`,
-      enabled: true
+      enabled: true,
+      reason: ""
     };
   }
 
   return {
     actionType: "draw-card",
     label: "摸牌",
-    enabled: true
+    enabled: true,
+    reason: ""
   };
+}
+
+function getTurnActionDisabledReason(snapshot: PlayerGameSnapshot): string {
+  if (snapshot.status === "finished") {
+    return "本局已结束。";
+  }
+
+  if (state.connectionStatus !== "open") {
+    return "未连接服务端。";
+  }
+
+  if (snapshot.currentPlayerId !== state.playerId) {
+    return `等待 ${lookupPlayerName(snapshot, snapshot.currentPlayerId)} 行动。`;
+  }
+
+  return "当前不能操作。";
+}
+
+function getSayUnoDisabledReason(
+  snapshot: PlayerGameSnapshot,
+  isConnected: boolean,
+  isGameFinished: boolean,
+  isMyTurn: boolean
+): string {
+  if (isGameFinished) {
+    return "本局已结束。";
+  }
+
+  if (!isConnected) {
+    return "未连接服务端。";
+  }
+
+  if (snapshot.self.isEliminated) {
+    return "你已出局。";
+  }
+
+  if (!isMyTurn) {
+    return "只能在自己的回合喊 UNO。";
+  }
+
+  if (snapshot.self.handCount !== 1) {
+    return "手牌剩 1 张时才能喊 UNO。";
+  }
+
+  if (snapshot.self.hasCalledUno) {
+    return "你已经喊过 UNO。";
+  }
+
+  return "当前不能喊 UNO。";
 }
 
 function renderCurrentColorBadge(color: string): string {
@@ -870,8 +1417,9 @@ function getCardHint(card: Card, snapshot: PlayerGameSnapshot, enabled: boolean)
 
 function canContinueDrawStack(card: Card, snapshot: PlayerGameSnapshot): boolean {
   const previousDrawValue = (snapshot.drawStack as { previousDrawValue?: number | null }).previousDrawValue ?? null;
+  const previousDrawKind = (snapshot.drawStack as { previousDrawKind?: string | null }).previousDrawKind ?? null;
 
-  if (previousDrawValue === null) {
+  if (previousDrawValue === null || previousDrawKind === null) {
     return false;
   }
 
@@ -880,10 +1428,26 @@ function canContinueDrawStack(card: Card, snapshot: PlayerGameSnapshot): boolean
   }
 
   if (card.kind === "draw-two" || card.kind === "draw-four") {
+    if (
+      isBlackDrawKindName(previousDrawKind) &&
+      card.drawValue !== undefined &&
+      card.drawValue >= previousDrawValue
+    ) {
+      return false;
+    }
+
     return card.drawValue === previousDrawValue || card.color === snapshot.currentColor;
   }
 
-  return true;
+  return card.drawValue !== undefined && card.drawValue >= previousDrawValue;
+}
+
+function isBlackDrawKindName(kind: string): boolean {
+  return (
+    kind === "wild-reverse-draw-four" ||
+    kind === "wild-draw-six" ||
+    kind === "wild-draw-ten"
+  );
 }
 
 function canPlaySingleCardLike(card: Card, snapshot: PlayerGameSnapshot): boolean {
@@ -900,6 +1464,36 @@ function canPlaySingleCardLike(card: Card, snapshot: PlayerGameSnapshot): boolea
   }
 
   return card.color === snapshot.currentColor;
+}
+
+function renderDirectionIndicator(direction: PlayerGameSnapshot["direction"]): string {
+  const isClockwise = direction === "clockwise";
+  const label = isClockwise ? "顺时针" : "逆时针";
+
+  return `
+    <span
+      class="direction-indicator ${isClockwise ? "direction-clockwise" : "direction-counter-clockwise"}"
+      title="${label}"
+      aria-label="${label}"
+    >
+      <span class="direction-icon" aria-hidden="true">${isClockwise ? "↻" : "↺"}</span>
+      <span class="direction-label">${isClockwise ? "顺" : "逆"}</span>
+    </span>
+  `;
+}
+
+function renderDrawAmountFact(snapshot: PlayerGameSnapshot): string {
+  if (snapshot.drawStack.active) {
+    return `<span class="table-fact table-fact-danger">加牌 +${String(snapshot.drawStack.amount)}</span>`;
+  }
+
+  if (snapshot.drawUntilColor.active) {
+    const targetColor = snapshot.drawUntilColor.color;
+
+    return `<span class="table-fact table-fact-danger">${targetColor === null ? "罚摸中" : `罚摸 ${getColorDisplayName(targetColor)}`}</span>`;
+  }
+
+  return `<span class="table-fact">牌堆 ${String(snapshot.drawPileCount)} 张</span>`;
 }
 
 function renderCardButtonV2(
@@ -1075,7 +1669,7 @@ function getBaseHandCardPresentation(
     };
   }
 
-  if (canCardJoinAnyCombo(card, snapshot.self.hand)) {
+  if (canCardJoinAnyCombo(card, snapshot)) {
     return {
       baseState: "combo-candidate",
       reason: "可作为组合候选",
@@ -1115,8 +1709,42 @@ function getSelectionPotentialKinds(
   return kinds;
 }
 
-function canCardJoinAnyCombo(card: Card, hand: readonly Card[]): boolean {
-  return getSelectionPotentialKinds([card], hand).length > 0;
+function canCardJoinAnyCombo(card: Card, snapshot: PlayerGameSnapshot): boolean {
+  if (canPlaySingleCardLike(card, snapshot)) {
+    return true;
+  }
+
+  if (card.kind !== "number") {
+    return getSelectionPotentialKinds([card], snapshot.self.hand).includes("discard-same-color");
+  }
+
+  return (
+    canNumberJoinLegalMultiple(card, snapshot) ||
+    getSequenceCandidateCardIds(snapshot.self.hand, {
+      currentColor: snapshot.currentColor,
+      topCard: snapshot.topCard
+    }).has(card.id)
+  );
+}
+
+function canNumberJoinLegalMultiple(card: Card, snapshot: PlayerGameSnapshot): boolean {
+  if (card.kind !== "number" || card.color === undefined || card.number === undefined) {
+    return false;
+  }
+
+  if (!canPlaySingleCardLike(card, snapshot)) {
+    return false;
+  }
+
+  const sameCards = snapshot.self.hand.filter((candidate) => {
+    return (
+      candidate.kind === "number" &&
+      candidate.color === card.color &&
+      candidate.number === card.number
+    );
+  });
+
+  return sameCards.length >= 2;
 }
 
 function canSelectionPotentiallyBeSequence(
@@ -1429,7 +2057,7 @@ function getPlaySelectionPreview(
     };
   }
 
-  if (isValidSequenceSelection(selectedCards)) {
+  if (isValidSequenceSelection(selectedCards) && canSequenceConnectCurrentCard(selectedCards, snapshot)) {
     return {
       canPlay: true,
       label: "出牌",
@@ -1437,7 +2065,7 @@ function getPlaySelectionPreview(
     };
   }
 
-  if (canPlayMultipleNumberSelection(selectedCards)) {
+  if (canPlayMultipleNumberSelection(selectedCards) && canMultipleConnectCurrentCard(selectedCards, snapshot)) {
     return {
       canPlay: true,
       label: "出牌",
@@ -1711,7 +2339,11 @@ function renderSelectionPanel(
         }</span>
       </div>
       <div class="selection-actions">
-        <button id="play-button" ${preview.canPlay ? "" : "disabled"}>${escapeHtml(preview.label)}</button>
+        <button
+          id="play-button"
+          title="${escapeHtml(preview.message)}"
+          ${preview.canPlay ? "" : "disabled"}
+        >${escapeHtml(preview.label)}</button>
         <button id="clear-selection-button" class="secondary">清空</button>
       </div>
       <p class="muted">${escapeHtml(preview.message)}</p>
@@ -1825,6 +2457,41 @@ function getPileOffset(index: number, total: number): { x: number; y: number; ro
   return { x, y, rotate };
 }
 
+function canSequenceConnectCurrentCard(
+  cards: readonly Card[],
+  snapshot: PlayerGameSnapshot
+): boolean {
+  const firstCard = [...cards]
+    .filter((card) => card.kind === "number")
+    .sort((left, right) => (left.number ?? 0) - (right.number ?? 0))[0];
+
+  return firstCard !== undefined && canPlaySingleCardLike(firstCard, snapshot);
+}
+
+function canMultipleConnectCurrentCard(
+  cards: readonly Card[],
+  snapshot: PlayerGameSnapshot
+): boolean {
+  const referenceCard = cards[0];
+
+  return referenceCard !== undefined && canPlaySingleCardLike(referenceCard, snapshot);
+}
+
+function getFanOffset(index: number, total: number): { x: number; y: number; rotate: number } {
+  if (total <= 1) {
+    return { x: 0, y: 0, rotate: 0 };
+  }
+
+  const midpoint = (total - 1) / 2;
+  const distance = index - midpoint;
+
+  return {
+    x: distance * 22,
+    y: Math.abs(distance) * 2,
+    rotate: distance * 7
+  };
+}
+
 function syncRecentDrawnCards(
   previousSnapshot: PlayerGameSnapshot | null,
   nextSnapshot: PlayerGameSnapshot
@@ -1891,6 +2558,42 @@ function startDrawCardAnimation(playerId: PlayerId, count: number): void {
   }, 720);
 }
 
+function startDrawStackBurstAnimation(): void {
+  if (state.snapshot === null) {
+    return;
+  }
+
+  const pileCards = state.snapshot.discardPile;
+  const chainCards: Card[] = [];
+
+  for (let index = pileCards.length - 1; index >= 0; index -= 1) {
+    const card = pileCards[index];
+
+    if (card === undefined || !isDrawChainDisplayCard(card)) {
+      break;
+    }
+
+    chainCards.unshift(card);
+  }
+
+  if (chainCards.length <= 1) {
+    return;
+  }
+
+  const key = `draw-stack-burst-${String(Date.now())}-${String(Math.random())}`;
+  state.drawStackBurst = {
+    key,
+    cards: chainCards
+  };
+
+  window.setTimeout(() => {
+    if (state.drawStackBurst?.key === key) {
+      state.drawStackBurst = null;
+      render();
+    }
+  }, 680);
+}
+
 function syncChallengePrompt(snapshot: PlayerGameSnapshot): void {
   const targetPlayerId = snapshot.challengeWindow.targetPlayerId;
   const shouldShowPrompt =
@@ -1948,6 +2651,39 @@ function getVisibleChallengePrompt(
   return prompt;
 }
 
+function scheduleUnoProtectionRender(snapshot: PlayerGameSnapshot): void {
+  if (unoProtectionRenderTimer !== null) {
+    window.clearTimeout(unoProtectionRenderTimer);
+    unoProtectionRenderTimer = null;
+  }
+
+  const protectedPlayers = [snapshot.self, ...snapshot.opponents].filter(
+    (player) =>
+      player.handCount === 1 &&
+      !player.hasCalledUno &&
+      player.unoProtectionEndsAtMs !== null &&
+      player.unoProtectionEndsAtMs > Date.now()
+  );
+
+  if (protectedPlayers.length === 0) {
+    return;
+  }
+
+  const nextEndsAt = Math.min(
+    ...protectedPlayers.map((player) => player.unoProtectionEndsAtMs ?? Date.now())
+  );
+  const nextTickMs = Math.min(1_000, Math.max(100, nextEndsAt - Date.now()));
+
+  unoProtectionRenderTimer = window.setTimeout(() => {
+    unoProtectionRenderTimer = null;
+    render();
+
+    if (state.snapshot !== null) {
+      scheduleUnoProtectionRender(state.snapshot);
+    }
+  }, nextTickMs);
+}
+
 function renderLogPanel(): string {
   return `
     <details class="panel log-panel">
@@ -1972,12 +2708,19 @@ function handleGameEvents(events: readonly GameEvent[]): void {
   for (const event of events) {
     if (event.type === "cards-played") {
       state.recentDrawnCardIds = [];
-      state.latestCardsPlayedEvent = {
+      const playedEvent = {
         playerId: event.playerId,
+        cardIds: [...event.cardIds],
         topCardId: event.topCardId,
         receivedAt: Date.now()
       };
+      state.latestCardsPlayedEvent = playedEvent;
+      state.latestPlayGroupEvent = playedEvent;
       showToast(`${lookupNameFromKnownState(event.playerId)} \u51fa\u724c\u6210\u529f`, "success");
+    }
+
+    if (event.type === "draw-stack-cleared" && event.reason === "resolved") {
+      startDrawStackBurstAnimation();
     }
 
     if (event.type === "cards-drawn") {
@@ -2011,8 +2754,33 @@ function handleGameEvents(events: readonly GameEvent[]): void {
       showToast(message, event.success ? "success" : "warning");
     }
 
+    if (event.type === "uno-report-failed-protected") {
+      const message = `${lookupNameFromKnownState(event.targetPlayerId)} 仍在 UNO 保护期，抓 UNO 无效。`;
+      pushLog(message);
+      showToast(message, "warning");
+    }
+
+    if (event.type === "uno-called") {
+      const message = `${lookupNameFromKnownState(event.playerId)} 已喊 UNO`;
+      pushLog(message);
+      showToast(message, "success");
+    }
+
+    if (event.type === "uno-penalty-applied") {
+      const message = `抓 UNO 成功，${lookupNameFromKnownState(event.targetPlayerId)} 罚摸 ${String(event.drawCount)} 张`;
+      pushLog(message);
+      showToast(message, "success");
+    }
+
     if (event.type === "player-eliminated") {
-      const message = `${lookupNameFromKnownState(event.playerId)} \u88ab\u6dd8\u6c70`;
+      const message = `${lookupNameFromKnownState(event.playerId)} 手牌为 ${String(event.handCount)} 张，已出局。`;
+      state.eventModal = {
+        key: `player-eliminated-${event.playerId}-${Date.now()}`,
+        title: "玩家出局",
+        message,
+        tone: "warning",
+        dismissible: true
+      };
       pushLog(message);
       showToast(message, "warning");
     }
@@ -2073,7 +2841,7 @@ function translateRejectedMessage(code: ErrorCode, fallbackMessage: string): str
     case "UNO_NOT_AVAILABLE":
       return "当前不能说 UNO。";
     case "UNO_REPORT_FAILED":
-      return "说 UNO 失败。";
+      return translateUnoReportFailedMessage(fallbackMessage);
     case "CHALLENGE_NOT_AVAILABLE":
       return "当前不能质疑。";
     default:
@@ -2164,6 +2932,17 @@ function bindLobbyPanel(): void {
 }
 
 function bindBattlePanel(): void {
+  document.querySelector("#battle-leave-room-button")?.addEventListener("click", () => {
+    if (state.roomId === null || state.playerId === null) {
+      return;
+    }
+
+    sendSafely(buildLeaveRoomMessage({ roomId: state.roomId, playerId: state.playerId }));
+    resetRoomContext();
+    pushLog("已退出房间");
+    render();
+  });
+
   document.querySelector("#finish-reset-button")?.addEventListener("click", () => {
     resetRoomContext();
     pushLog("已返回大厅，请重新创建或加入房间");
@@ -2232,6 +3011,17 @@ function bindBattlePanel(): void {
 
   document.querySelector("#say-uno-button")?.addEventListener("click", () => {
     sendCommand({ type: "say-uno" });
+  });
+
+  document.querySelector("#close-event-modal-button")?.addEventListener("click", () => {
+    state.eventModal = null;
+    render();
+  });
+
+  document.querySelector("#finish-reset-button-modal")?.addEventListener("click", () => {
+    resetRoomContext();
+    pushLog("已返回大厅，请重新创建或加入房间");
+    render();
   });
 
   document.querySelector("#challenge-no-button")?.addEventListener("click", () => {
@@ -2475,7 +3265,7 @@ function playSelectedCards(): void {
     return;
   }
 
-  if (isValidSequenceSelection(selectedCards)) {
+  if (isValidSequenceSelection(selectedCards) && canSequenceConnectCurrentCard(selectedCards, state.snapshot)) {
     sendCommand({
       type: "play-sequence",
       cardIds: selectedCards.map((card) => card.id)
@@ -2483,7 +3273,7 @@ function playSelectedCards(): void {
     return;
   }
 
-  if (canPlayMultipleNumberSelection(selectedCards)) {
+  if (canPlayMultipleNumberSelection(selectedCards) && canMultipleConnectCurrentCard(selectedCards, state.snapshot)) {
     sendCommand({
       type: "play-multiple-number",
       cardIds: selectedCards.map((card) => card.id)
@@ -2536,6 +3326,18 @@ function toggleSelectedCard(cardId: string): void {
   }
 }
 
+function translateUnoReportFailedMessage(fallbackMessage: string): string {
+  if (fallbackMessage.includes("called UNO")) {
+    return "对方已经喊过 UNO，不能抓。";
+  }
+
+  if (fallbackMessage.includes("not currently punishable")) {
+    return "目标玩家当前不能被抓 UNO。";
+  }
+
+  return "抓 UNO 失败。";
+}
+
 function handleHandCardClick(cardId: string): void {
   if (state.snapshot === null) {
     return;
@@ -2553,7 +3355,10 @@ function handleHandCardClick(cardId: string): void {
     state.connectionStatus === "open" &&
     state.playerId === state.snapshot.currentPlayerId &&
     state.snapshot.status !== "finished";
-  const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand);
+  const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand, {
+    currentColor: state.snapshot.currentColor,
+    topCard: state.snapshot.topCard
+  });
   const info = getHandCardPresentation(
     card,
     state.snapshot,
@@ -2585,6 +3390,11 @@ function clearSelectedCards(): void {
 }
 
 function resetRoomContext(): void {
+  if (unoProtectionRenderTimer !== null) {
+    window.clearTimeout(unoProtectionRenderTimer);
+    unoProtectionRenderTimer = null;
+  }
+
   state.room = null;
   state.snapshot = null;
   state.roomId = null;
@@ -2592,8 +3402,12 @@ function resetRoomContext(): void {
   state.uiToast = null;
   state.snapshotRecoveryRoomId = null;
   state.recentDrawnCardIds = [];
+  state.latestCardsPlayedEvent = null;
+  state.latestPlayGroupEvent = null;
   state.flyingCard = null;
   state.drawFlyingCard = null;
+  state.drawStackBurst = null;
+  state.eventModal = null;
   clearSelectedCards();
   removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);
 }
@@ -2609,6 +3423,7 @@ function normalizePlayerGameSnapshot(snapshot: unknown): PlayerGameSnapshot {
       active: false,
       amount: 0,
       previousDrawValue: null,
+      previousDrawKind: null,
       targetPlayerId: null,
       ...partial.drawStack
     },
@@ -2632,7 +3447,9 @@ function normalizePlayerGameSnapshot(snapshot: unknown): PlayerGameSnapshot {
     winnerPlayerIds: Array.isArray(partial.winnerPlayerIds)
       ? partial.winnerPlayerIds
       : [],
-    opponents: Array.isArray(partial.opponents) ? partial.opponents : [],
+    opponents: Array.isArray(partial.opponents)
+      ? partial.opponents.map((player) => normalizeSnapshotPublicPlayer(player))
+      : [],
     self: {
       ...self,
       hand: Array.isArray(self.hand) ? self.hand : [],
@@ -2643,10 +3460,30 @@ function normalizePlayerGameSnapshot(snapshot: unknown): PlayerGameSnapshot {
             ? self.hand.length
             : 0,
       hasCalledUno: self.hasCalledUno ?? false,
+      unoPendingSinceMs: self.unoPendingSinceMs ?? null,
+      unoProtectionStartedAtMs: self.unoProtectionStartedAtMs ?? null,
+      unoProtectionEndsAtMs: self.unoProtectionEndsAtMs ?? null,
       isEliminated: self.isEliminated ?? false,
+      hasLeftRoom: self.hasLeftRoom ?? false,
       isCurrentPlayer: self.isCurrentPlayer ?? false
     }
   } as PlayerGameSnapshot;
+}
+
+function normalizeSnapshotPublicPlayer(
+  player: PlayerGameSnapshot["opponents"][number]
+): PlayerGameSnapshot["opponents"][number] {
+  return {
+    ...player,
+    handCount: typeof player.handCount === "number" ? player.handCount : 0,
+    hasCalledUno: player.hasCalledUno ?? false,
+    unoPendingSinceMs: player.unoPendingSinceMs ?? null,
+    unoProtectionStartedAtMs: player.unoProtectionStartedAtMs ?? null,
+    unoProtectionEndsAtMs: player.unoProtectionEndsAtMs ?? null,
+    isEliminated: player.isEliminated ?? false,
+    hasLeftRoom: player.hasLeftRoom ?? false,
+    isCurrentPlayer: player.isCurrentPlayer ?? false
+  };
 }
 
 function recoverMissingPlayingSnapshot(room: PlayerRoomSnapshot): void {

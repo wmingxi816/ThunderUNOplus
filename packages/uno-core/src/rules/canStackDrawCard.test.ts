@@ -17,7 +17,8 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "red",
-        previousDrawValue: 4
+        previousDrawValue: 4,
+        previousDrawKind: "draw-four"
       })
     ).toBe(true);
   });
@@ -30,7 +31,8 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "red",
-        previousDrawValue: 2
+        previousDrawValue: 2,
+        previousDrawKind: "draw-two"
       })
     ).toBe(true);
   });
@@ -43,7 +45,8 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "red",
-        previousDrawValue: 2
+        previousDrawValue: 2,
+        previousDrawKind: "draw-two"
       })
     ).toBe(false);
   });
@@ -55,7 +58,8 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "red",
-        previousDrawValue: 2
+        previousDrawValue: 2,
+        previousDrawKind: "draw-two"
       })
     ).toBe(true);
   });
@@ -68,7 +72,8 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "yellow",
-        previousDrawValue: 2
+        previousDrawValue: 2,
+        previousDrawKind: "draw-two"
       })
     ).toBe(true);
   });
@@ -80,7 +85,8 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "green",
-        previousDrawValue: 4
+        previousDrawValue: 4,
+        previousDrawKind: "wild-reverse-draw-four"
       })
     ).toBe(true);
   });
@@ -93,7 +99,8 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "blue",
-        previousDrawValue: 6
+        previousDrawValue: 6,
+        previousDrawKind: "wild-draw-six"
       })
     ).toBe(true);
 
@@ -101,12 +108,13 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "red",
-        previousDrawValue: 6
+        previousDrawValue: 6,
+        previousDrawKind: "wild-draw-six"
       })
     ).toBe(false);
   });
 
-  it.each([2, 4, 6, 10] as const)(
+  it.each([2, 4] as const)(
     "allows wild-reverse-draw-four after previous draw value %s",
     (previousDrawValue) => {
       const nextCard = createBlackCard("next", "wild-reverse-draw-four");
@@ -115,14 +123,15 @@ describe("canStackDrawCard", () => {
         canStackDrawCard({
           nextCard,
           currentColor: "red",
-          previousDrawValue
+          previousDrawValue,
+          previousDrawKind: "draw-two"
         })
       ).toBe(true);
     }
   );
 
-  it.each([2, 4, 6, 10] as const)(
-    "allows wild-draw-six after previous draw value %s",
+  it.each([2, 4] as const)(
+    "allows wild-draw-six after lower previous draw value %s",
     (previousDrawValue) => {
       const nextCard = createBlackCard("next", "wild-draw-six");
 
@@ -130,7 +139,8 @@ describe("canStackDrawCard", () => {
         canStackDrawCard({
           nextCard,
           currentColor: "yellow",
-          previousDrawValue
+          previousDrawValue,
+          previousDrawKind: "draw-two"
         })
       ).toBe(true);
     }
@@ -145,7 +155,8 @@ describe("canStackDrawCard", () => {
         canStackDrawCard({
           nextCard,
           currentColor: "blue",
-          previousDrawValue
+          previousDrawValue,
+          previousDrawKind: "draw-two"
         })
       ).toBe(true);
     }
@@ -158,7 +169,47 @@ describe("canStackDrawCard", () => {
       canStackDrawCard({
         nextCard,
         currentColor: "green",
-        previousDrawValue: 2
+        previousDrawValue: 2,
+        previousDrawKind: "draw-two"
+      })
+    ).toBe(false);
+  });
+
+  it("rejects colored +4 after black reverse +4 even when color matches", () => {
+    const nextCard = createColoredActionCard("next", "red", "draw-four");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "red",
+        previousDrawValue: 4,
+        previousDrawKind: "wild-reverse-draw-four"
+      })
+    ).toBe(false);
+  });
+
+  it("rejects black +6 after black +10", () => {
+    const nextCard = createBlackCard("next", "wild-draw-six");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "green",
+        previousDrawValue: 10,
+        previousDrawKind: "wild-draw-ten"
+      })
+    ).toBe(false);
+  });
+
+  it("rejects black reverse +4 after black +10", () => {
+    const nextCard = createBlackCard("next", "wild-reverse-draw-four");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "green",
+        previousDrawValue: 10,
+        previousDrawKind: "wild-draw-ten"
       })
     ).toBe(false);
   });

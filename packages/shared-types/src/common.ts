@@ -30,7 +30,8 @@ export type TurnDirection = (typeof TURN_DIRECTIONS)[number];
 export const PLAYER_CONNECTION_STATUSES = [
   "connected",
   "reconnecting",
-  "disconnected"
+  "disconnected",
+  "left"
 ] as const;
 export type PlayerConnectionStatus =
   (typeof PLAYER_CONNECTION_STATUSES)[number];

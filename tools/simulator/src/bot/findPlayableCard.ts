@@ -15,13 +15,16 @@ export function findPlayableCard(
   const playableCards = player.hand.filter((card) => {
     if (state.drawStack.active) {
       const previousDrawValue = state.drawStack.previousDrawValue;
+      const previousDrawKind = state.drawStack.previousDrawKind;
 
       return (
         previousDrawValue !== null &&
+        previousDrawKind !== null &&
         canStackDrawCard({
           nextCard: card,
           currentColor: state.currentColor,
-          previousDrawValue
+          previousDrawValue,
+          previousDrawKind
         })
       );
     }

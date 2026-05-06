@@ -34,6 +34,7 @@ export function createPlayerGameSnapshot(
       active: state.drawStack.active,
       amount: state.drawStack.amount,
       previousDrawValue: state.drawStack.previousDrawValue,
+      previousDrawKind: state.drawStack.previousDrawKind,
       targetPlayerId: state.drawStack.targetPlayerId
     },
     drawUntilColor: {
@@ -58,7 +59,11 @@ export function createPlayerGameSnapshot(
       playerId: self.id,
       handCount: self.handCount,
       hasCalledUno: self.hasCalledUno,
+      unoPendingSinceMs: self.unoPendingSinceMs,
+      unoProtectionStartedAtMs: self.unoProtectionStartedAtMs,
+      unoProtectionEndsAtMs: self.unoProtectionEndsAtMs,
       isEliminated: self.isEliminated,
+      hasLeftRoom: self.hasLeftRoom,
       isCurrentPlayer: self.id === state.currentPlayerId,
       hand: [...self.hand],
       ...(self.displayName === undefined
@@ -73,7 +78,11 @@ export function createPlayerGameSnapshot(
           playerId: player.id,
           handCount: player.handCount,
           hasCalledUno: player.hasCalledUno,
+          unoPendingSinceMs: player.unoPendingSinceMs,
+          unoProtectionStartedAtMs: player.unoProtectionStartedAtMs,
+          unoProtectionEndsAtMs: player.unoProtectionEndsAtMs,
           isEliminated: player.isEliminated,
+          hasLeftRoom: player.hasLeftRoom,
           isCurrentPlayer: player.id === state.currentPlayerId,
           ...(player.displayName === undefined
             ? {}

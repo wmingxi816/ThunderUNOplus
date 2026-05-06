@@ -32,6 +32,8 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
     expect(player.handCount).toBe(1);
     expect(player.hasCalledUno).toBe(false);
     expect(player.unoPendingSinceMs).toBe(3000);
+    expect(player.unoProtectionStartedAtMs).toBe(3000);
+    expect(player.unoProtectionEndsAtMs).toBe(6000);
   });
 
   it("喊过 UNO 后不能被成功揭发", () => {
@@ -39,7 +41,9 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
       now: 1000,
       players: [
         createPlayerState("p1", [numberCard("blue-2", "blue", 2)], {
-          unoPendingSinceMs: 1000
+          unoPendingSinceMs: 1000,
+          unoProtectionStartedAtMs: 1000,
+          unoProtectionEndsAtMs: 4000
         }),
         createPlayerState("p2", []),
         createPlayerState("p3", [])
@@ -73,7 +77,9 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
       now: 1000,
       players: [
         createPlayerState("p1", [numberCard("blue-2", "blue", 2)], {
-          unoPendingSinceMs: 1000
+          unoPendingSinceMs: 1000,
+          unoProtectionStartedAtMs: 1000,
+          unoProtectionEndsAtMs: 4000
         }),
         createPlayerState("p2", []),
         createPlayerState("p3", [])
@@ -103,7 +109,9 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
       drawPile: [],
       players: [
         createPlayerState("p1", [numberCard("blue-2", "blue", 2)], {
-          unoPendingSinceMs: 1000
+          unoPendingSinceMs: 1000,
+          unoProtectionStartedAtMs: 1000,
+          unoProtectionEndsAtMs: 4000
         }),
         createPlayerState("p2", []),
         createPlayerState("p3", [])
@@ -129,7 +137,9 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
       now: 1000,
       players: [
         createPlayerState("p1", [numberCard("blue-2", "blue", 2)], {
-          unoPendingSinceMs: 1000
+          unoPendingSinceMs: 1000,
+          unoProtectionStartedAtMs: 1000,
+          unoProtectionEndsAtMs: 4000
         }),
         createPlayerState("p2", []),
         createPlayerState("p3", [])
@@ -144,9 +154,41 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
     });
 
     expect(result.events[0]).toMatchObject({
-      type: "command-rejected",
-      code: "UNO_REPORT_FAILED"
+      type: "uno-report-failed-protected",
+      targetPlayerId: "p1",
+      reporterPlayerId: "p2",
+      protectionEndsAtMs: 4000
     });
+  });
+
+  it("UNO 保护期尚未启动时揭发也不会罚摸", () => {
+    const state = createGameState({
+      now: 1000,
+      players: [
+        createPlayerState("p1", [numberCard("blue-2", "blue", 2)], {
+          unoPendingSinceMs: 1000,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null
+        }),
+        createPlayerState("p2", []),
+        createPlayerState("p3", [])
+      ]
+    });
+
+    const result = applyCommand(state, {
+      type: "report-uno",
+      playerId: "p2",
+      targetPlayerId: "p1",
+      timestampMs: 9000
+    });
+
+    expect(result.events[0]).toMatchObject({
+      type: "uno-report-failed-protected",
+      targetPlayerId: "p1",
+      reporterPlayerId: "p2",
+      protectionEndsAtMs: null
+    });
+    expect(getPlayer(result.state, "p1").handCount).toBe(1);
   });
 
   it("UNO 保护期结束后可以正常揭发", () => {
@@ -157,7 +199,9 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
       now: 1000,
       players: [
         createPlayerState("p1", [numberCard("blue-2", "blue", 2)], {
-          unoPendingSinceMs: 1000
+          unoPendingSinceMs: 1000,
+          unoProtectionStartedAtMs: 1000,
+          unoProtectionEndsAtMs: 4000
         }),
         createPlayerState("p2", []),
         createPlayerState("p3", [])
@@ -191,6 +235,7 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
         active: true,
         amount: 1,
         previousDrawValue: 2,
+        previousDrawKind: "draw-two",
         targetPlayerId: "p1"
       }
     });
@@ -247,6 +292,7 @@ describe("applyCommand - UNO、淘汰与胜利", () => {
         active: true,
         amount: 1,
         previousDrawValue: 2,
+        previousDrawKind: "draw-two",
         targetPlayerId: "p1"
       }
     });

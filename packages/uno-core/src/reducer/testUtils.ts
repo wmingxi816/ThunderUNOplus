@@ -51,7 +51,10 @@ export function createPlayerState(
     handCount: hand.length,
     hasCalledUno: false,
     unoPendingSinceMs: null,
+    unoProtectionStartedAtMs: null,
+    unoProtectionEndsAtMs: null,
     isEliminated: false,
+    hasLeftRoom: false,
     eliminationReason: null,
     ...overrides
   };
@@ -113,6 +116,7 @@ export function createGameState(
       active: false,
       amount: 0,
       previousDrawValue: null,
+      previousDrawKind: null,
       targetPlayerId: null
     },
     drawUntilColor: params.drawUntilColor ?? {

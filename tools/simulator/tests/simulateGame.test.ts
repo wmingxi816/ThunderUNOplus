@@ -151,7 +151,10 @@ describe("simulateGame", () => {
           handCount: 3,
           hasCalledUno: false,
           unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
           isEliminated: false,
+          hasLeftRoom: false,
           eliminationReason: null
         },
         ...createStateWithOverrides({}).players.slice(1)
@@ -175,6 +178,7 @@ describe("simulateGame", () => {
         active: true,
         amount: 2,
         previousDrawValue: 2,
+        previousDrawKind: "draw-two",
         targetPlayerId: "p1"
       },
       players: [
@@ -195,7 +199,10 @@ describe("simulateGame", () => {
           handCount: 1,
           hasCalledUno: false,
           unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
           isEliminated: false,
+          hasLeftRoom: false,
           eliminationReason: null
         },
         ...createStateWithOverrides({}).players.slice(1)

@@ -19,6 +19,7 @@ export const GAME_EVENT_TYPES = [
   "challenge-resolved",
   "uno-pending",
   "uno-called",
+  "uno-report-failed-protected",
   "uno-penalty-applied",
   "player-eliminated",
   "game-finished",
@@ -126,6 +127,13 @@ export interface UnoCalledEvent {
   playerId: PlayerId;
 }
 
+export interface UnoReportFailedProtectedEvent {
+  type: "uno-report-failed-protected";
+  targetPlayerId: PlayerId;
+  reporterPlayerId: PlayerId;
+  protectionEndsAtMs: number | null;
+}
+
 export interface UnoPenaltyAppliedEvent {
   type: "uno-penalty-applied";
   targetPlayerId: PlayerId;
@@ -136,6 +144,7 @@ export interface UnoPenaltyAppliedEvent {
 export interface PlayerEliminatedEvent {
   type: "player-eliminated";
   playerId: PlayerId;
+  handCount: number;
   reason: "hand-limit";
 }
 
@@ -172,6 +181,7 @@ export type GameEvent =
   | ChallengeResolvedEvent
   | UnoPendingEvent
   | UnoCalledEvent
+  | UnoReportFailedProtectedEvent
   | UnoPenaltyAppliedEvent
   | PlayerEliminatedEvent
   | GameFinishedEvent

@@ -3,7 +3,8 @@ import {
   clearDrawStack,
   cloneGameState,
   findPlayer,
-  giveCardsToPlayer
+  giveCardsToPlayer,
+  startUnoProtectionWindows
 } from "./effects";
 import { drawCardsFromState } from "./drawCardsFromState";
 import { ERROR_CODES, rejectCommand } from "./errors";
@@ -91,6 +92,7 @@ export function applyResolveDrawStackCommand(
 
   if (nextPlayerId !== null) {
     nextState.currentPlayerId = nextPlayerId;
+    startUnoProtectionWindows(nextState, now);
     events.push({
       type: "turn-advanced",
       previousPlayerId: command.playerId,

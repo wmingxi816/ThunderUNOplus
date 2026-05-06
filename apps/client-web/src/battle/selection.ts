@@ -1,4 +1,4 @@
-import type { Card, NumberCard } from "@thunder-uno/shared-types";
+import type { Card, CardColor, NumberCard } from "@thunder-uno/shared-types";
 
 export function getSelectedCards(
   hand: readonly Card[],
@@ -60,26 +60,58 @@ export function buildDiscardSameColorPayload(cards: readonly Card[]): {
   };
 }
 
-export function getSequenceCandidateCardIds(hand: readonly Card[]): Set<string> {
-  const numberCounts = new Map<number, number>();
+export function getSequenceCandidateCardIds(
+  hand: readonly Card[],
+  params?: {
+    currentColor: CardColor;
+    topCard: Card;
+  }
+): Set<string> {
+  const cardsByNumber = new Map<number, NumberCard[]>();
 
   for (const card of hand) {
     if (!isNumberCard(card)) {
       continue;
     }
 
-    numberCounts.set(card.number, (numberCounts.get(card.number) ?? 0) + 1);
+    const cards = cardsByNumber.get(card.number) ?? [];
+    cards.push(card);
+    cardsByNumber.set(card.number, cards);
   }
 
   const candidateIds = new Set<string>();
 
-  for (const card of hand) {
-    if (!isNumberCard(card)) {
-      continue;
-    }
+  for (let start = 0; start <= 5; start += 1) {
+    for (let end = start + 4; end <= 9; end += 1) {
+      const firstCards = cardsByNumber.get(start) ?? [];
 
-    if (canParticipateInSequence(card.number, numberCounts)) {
-      candidateIds.add(card.id);
+      if (firstCards.length === 0) {
+        continue;
+      }
+
+      if (
+        params !== undefined &&
+        !firstCards.some((card) => canSequenceStartConnect(card, params))
+      ) {
+        continue;
+      }
+
+      const sequenceCards: NumberCard[] = [];
+
+      for (let value = start; value <= end; value += 1) {
+        const cards = cardsByNumber.get(value);
+
+        if (cards === undefined || cards.length === 0) {
+          sequenceCards.length = 0;
+          break;
+        }
+
+        sequenceCards.push(...cards);
+      }
+
+      for (const card of sequenceCards) {
+        candidateIds.add(card.id);
+      }
     }
   }
 
@@ -113,30 +145,16 @@ function isNumberCard(card: Card): card is NumberCard {
   return card.kind === "number";
 }
 
-function canParticipateInSequence(
-  number: number,
-  numberCounts: ReadonlyMap<number, number>
+function canSequenceStartConnect(
+  card: NumberCard,
+  params: {
+    currentColor: CardColor;
+    topCard: Card;
+  }
 ): boolean {
-  for (let start = 0; start <= 5; start += 1) {
-    for (let end = start + 4; end <= 9; end += 1) {
-      if (number < start || number > end) {
-        continue;
-      }
-
-      let valid = true;
-
-      for (let value = start; value <= end; value += 1) {
-        if ((numberCounts.get(value) ?? 0) === 0) {
-          valid = false;
-          break;
-        }
-      }
-
-      if (valid) {
-        return true;
-      }
-    }
+  if (card.color === params.currentColor) {
+    return true;
   }
 
-  return false;
+  return params.topCard.kind === "number" && card.number === params.topCard.number;
 }

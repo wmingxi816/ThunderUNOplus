@@ -1,4 +1,8 @@
-import { createInitialGame } from "@thunder-uno/uno-core";
+import {
+  createInitialGame,
+  markPlayerLeftRoom,
+  type GameEvent
+} from "@thunder-uno/uno-core";
 import type { GameMode } from "@thunder-uno/shared-types";
 import { createPlayerId as createDefaultPlayerId } from "../ids/createPlayerId";
 import { createRoomId as createDefaultRoomId } from "../ids/createRoomId";
@@ -111,6 +115,7 @@ export class RoomManager {
     if (existingPlayer !== undefined) {
       existingPlayer.connectionId = params.connectionId;
       existingPlayer.connected = true;
+      existingPlayer.hasLeftRoom = false;
       existingPlayer.nickname = params.nickname;
       existingPlayer.avatarUrl = params.avatarUrl ?? existingPlayer.avatarUrl;
       room.updatedAt = this.now();
@@ -211,12 +216,25 @@ export class RoomManager {
       };
     }
 
-    // 对局中先不移除玩家，只断开连接，给后续断线重连留恢复点。
+    // 对局中保留座位；主动退出和断线重连是两个不同状态。
     player.connected = false;
+    player.hasLeftRoom = params.markLeft === true;
 
     if (player.connectionId !== null) {
       this.connectionRegistry.unbindConnection(player.connectionId);
       player.connectionId = null;
+    }
+
+    if (params.markLeft === true && room.gameState !== null) {
+      const events: GameEvent[] = [];
+      room.gameState.now = this.now();
+      markPlayerLeftRoom(room.gameState, player.playerId, events);
+      room.gameState.snapshotVersion += 1;
+      room.snapshotVersion = room.gameState.snapshotVersion;
+
+      if (room.gameState.status === "finished") {
+        room.status = "finished";
+      }
     }
 
     room.updatedAt = this.now();
@@ -297,6 +315,14 @@ export class RoomManager {
       );
     }
 
+    if (player.hasLeftRoom) {
+      throw new GameServerError(
+        "player-not-in-room",
+        `User ${params.userId} has left room ${params.roomId}.`,
+        params.roomId
+      );
+    }
+
     player.connectionId = params.connectionId;
     player.connected = true;
     room.updatedAt = this.now();
@@ -365,6 +391,7 @@ export class RoomManager {
       nickname: params.nickname,
       avatarUrl: params.avatarUrl,
       connected: true,
+      hasLeftRoom: false,
       joinedAt: params.joinedAt
     };
   }

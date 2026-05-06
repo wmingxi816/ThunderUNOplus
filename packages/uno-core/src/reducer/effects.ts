@@ -5,7 +5,7 @@ import type {
   PlayerEliminationReason
 } from "../gameState";
 import { isBlackCard } from "../rules/cardGuards";
-import { getActivePlayerCount } from "./turn";
+import { getActivePlayerCount, getNextActivePlayerId } from "./turn";
 import type { GameEvent } from "./types";
 
 export const UNO_PROTECTION_WINDOW_MS = 3_000;
@@ -107,6 +107,8 @@ export function syncPlayerHandState(
   if (player.isEliminated) {
     player.hasCalledUno = false;
     player.unoPendingSinceMs = null;
+    player.unoProtectionStartedAtMs = null;
+    player.unoProtectionEndsAtMs = null;
     return;
   }
 
@@ -114,6 +116,8 @@ export function syncPlayerHandState(
     if (previousHandCount !== 1) {
       player.hasCalledUno = false;
       player.unoPendingSinceMs = now;
+      player.unoProtectionStartedAtMs = null;
+      player.unoProtectionEndsAtMs = null;
       events.push({
         type: "uno-pending",
         playerId: player.id
@@ -125,6 +129,8 @@ export function syncPlayerHandState(
 
   player.hasCalledUno = false;
   player.unoPendingSinceMs = null;
+  player.unoProtectionStartedAtMs = null;
+  player.unoProtectionEndsAtMs = null;
 }
 
 /** 让某位玩家直接摸若干张牌。 */
@@ -161,6 +167,7 @@ export function clearDrawStack(state: GameState): void {
     active: false,
     amount: 0,
     previousDrawValue: null,
+    previousDrawKind: null,
     targetPlayerId: null
   };
 }
@@ -250,15 +257,71 @@ export function markPlayerEliminated(
   events: GameEvent[]
 ): void {
   player.isEliminated = true;
+  player.hasLeftRoom = false;
   player.eliminationReason = reason;
   player.hasCalledUno = false;
   player.unoPendingSinceMs = null;
+  player.unoProtectionStartedAtMs = null;
+  player.unoProtectionEndsAtMs = null;
 
   events.push({
     type: "player-eliminated",
     playerId: player.id,
+    handCount: player.handCount,
     reason
   });
+
+  finalizeRemainingWinner(state, events);
+}
+
+/** 主动离开房间的玩家不再参与后续回合流转。 */
+export function markPlayerLeftRoom(
+  state: GameState,
+  playerId: string,
+  events: GameEvent[]
+): void {
+  const player = state.players.find((candidate) => candidate.id === playerId);
+
+  if (player === undefined || player.hasLeftRoom) {
+    return;
+  }
+
+  const wasCurrentPlayer = state.currentPlayerId === playerId;
+  player.hasLeftRoom = true;
+  player.hasCalledUno = false;
+  player.unoPendingSinceMs = null;
+  player.unoProtectionStartedAtMs = null;
+  player.unoProtectionEndsAtMs = null;
+
+  if (state.drawStack.targetPlayerId === playerId) {
+    clearDrawStack(state);
+  }
+
+  if (state.drawUntilColor.targetPlayerId === playerId) {
+    clearDrawUntilColor(state);
+  }
+
+  if (state.normalDrawOffer.playerId === playerId) {
+    clearNormalDrawOffer(state);
+  }
+
+  if (state.challengeWindow.targetPlayerId === playerId) {
+    clearChallengeWindow(state);
+  }
+
+  if (wasCurrentPlayer && state.status !== "finished") {
+    const nextPlayerId = getNextActivePlayerId(state, playerId, 1);
+
+    if (nextPlayerId !== null) {
+      state.currentPlayerId = nextPlayerId;
+      startUnoProtectionWindows(state, state.now);
+      events.push({
+        type: "turn-advanced",
+        previousPlayerId: playerId,
+        currentPlayerId: nextPlayerId
+      });
+    }
+  }
 
   finalizeRemainingWinner(state, events);
 }
@@ -276,7 +339,7 @@ export function finalizeRemainingWinner(
     return;
   }
 
-  const winner = state.players.find((player) => !player.isEliminated);
+  const winner = state.players.find((player) => !player.isEliminated && !player.hasLeftRoom);
 
   if (winner === undefined) {
     return;
@@ -302,4 +365,23 @@ export function finishGame(
 /** 用于判断摸牌前是否持有任意黑牌。 */
 export function hasBlackCardInHand(player: GamePlayerState): boolean {
   return player.hand.some((card) => isBlackCard(card));
+}
+
+/** 回合交给下一位行动玩家时，启动所有待喊 UNO 的保护期。 */
+export function startUnoProtectionWindows(state: GameState, now: number): void {
+  for (const player of state.players) {
+    if (
+      player.isEliminated ||
+      player.hasLeftRoom ||
+      player.handCount !== 1 ||
+      player.hasCalledUno ||
+      player.unoPendingSinceMs === null ||
+      player.unoProtectionStartedAtMs !== null
+    ) {
+      continue;
+    }
+
+    player.unoProtectionStartedAtMs = now;
+    player.unoProtectionEndsAtMs = now + UNO_PROTECTION_WINDOW_MS;
+  }
 }

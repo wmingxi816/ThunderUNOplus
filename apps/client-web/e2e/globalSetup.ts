@@ -10,14 +10,18 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     return async () => undefined;
   }
 
-  const command = process.platform === "win32" ? "corepack.cmd" : "corepack";
-  const child = spawn(command, ["pnpm", "--filter", "@thunder-uno/game-server", "dev"], {
+  const isWindows = process.platform === "win32";
+  const command = isWindows ? "corepack pnpm --filter @thunder-uno/game-server dev" : "corepack";
+  const args = isWindows
+    ? []
+    : ["pnpm", "--filter", "@thunder-uno/game-server", "dev"];
+  const child = spawn(command, args, {
     env: {
       ...process.env,
       HOST: GAME_SERVER_HOST,
       PORT: String(GAME_SERVER_PORT)
     },
-    shell: false,
+    shell: isWindows,
     stdio: ["ignore", "pipe", "pipe"]
   });
 

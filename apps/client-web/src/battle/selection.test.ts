@@ -134,4 +134,51 @@ describe("selection helpers", () => {
       "n6c"
     ]);
   });
+
+  it("only marks sequence candidates whose first card can connect to current color", () => {
+    const cards: Card[] = [
+      { id: "red-1", kind: "number", color: "red", number: 1, isBlack: false, displayName: "红1" },
+      { id: "red-2", kind: "number", color: "red", number: 2, isBlack: false, displayName: "红2" },
+      { id: "green-3", kind: "number", color: "green", number: 3, isBlack: false, displayName: "绿3" },
+      { id: "blue-4", kind: "number", color: "blue", number: 4, isBlack: false, displayName: "蓝4" },
+      { id: "blue-5", kind: "number", color: "blue", number: 5, isBlack: false, displayName: "蓝5" },
+      { id: "blue-6", kind: "number", color: "blue", number: 6, isBlack: false, displayName: "蓝6" },
+      { id: "blue-7", kind: "number", color: "blue", number: 7, isBlack: false, displayName: "蓝7" }
+    ];
+    const topCard: Card = {
+      id: "top",
+      kind: "number",
+      color: "green",
+      number: 9,
+      isBlack: false,
+      displayName: "绿9"
+    };
+
+    expect(
+      Array.from(
+        getSequenceCandidateCardIds(cards, {
+          currentColor: "green",
+          topCard
+        })
+      ).sort()
+    ).toEqual(["blue-4", "blue-5", "blue-6", "blue-7", "green-3"]);
+
+    expect(
+      Array.from(
+        getSequenceCandidateCardIds(cards, {
+          currentColor: "red",
+          topCard
+        })
+      ).sort()
+    ).toEqual(["blue-4", "blue-5", "blue-6", "blue-7", "green-3", "red-1", "red-2"]);
+
+    expect(
+      Array.from(
+        getSequenceCandidateCardIds(cards, {
+          currentColor: "blue",
+          topCard
+        })
+      ).sort()
+    ).toEqual([]);
+  });
 });

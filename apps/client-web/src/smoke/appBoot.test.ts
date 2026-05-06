@@ -151,6 +151,36 @@ describe("client-web smoke", () => {
       type: "room-state",
       roomId: "ROOM1",
       playerId: "player-host",
+      snapshotVersion: 0,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "lobby",
+        mode: createRoomMessage.mode,
+        hostPlayerId: "player-host",
+        snapshotVersion: 0,
+        players: [
+          {
+            playerId: "player-host",
+            displayName: createRoomMessage.nickname,
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const disabledStartButton = document.querySelector<HTMLButtonElement>("#start-game-button");
+    expect(disabledStartButton?.disabled).toBe(true);
+    expect(disabledStartButton?.title).toBe("至少 3 人才能开始。");
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-host",
       snapshotVersion: 1,
       room: {
         roomId: "ROOM1",
@@ -285,6 +315,7 @@ describe("client-web smoke", () => {
           active: false,
           amount: 0,
           previousDrawValue: null,
+          previousDrawKind: null,
           targetPlayerId: null
         },
         drawUntilColor: {
@@ -304,6 +335,9 @@ describe("client-web smoke", () => {
           hand: [],
           handCount: 0,
           hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
           isEliminated: false,
           isCurrentPlayer: true
         },
@@ -314,6 +348,9 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             handCount: 7,
             hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
             isEliminated: false,
             isCurrentPlayer: false
           },
@@ -323,6 +360,9 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             handCount: 7,
             hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
             isEliminated: false,
             isCurrentPlayer: false
           }
@@ -332,6 +372,25 @@ describe("client-web smoke", () => {
 
     expect(document.querySelector("[data-testid='battle-view']")).not.toBeNull();
     expect(document.querySelector("[data-testid='lobby-view']")).toBeNull();
+    expect(document.querySelector(".direction-indicator")?.textContent).toContain("顺");
+    expect(document.querySelector("[data-testid='battle-view']")?.textContent).not.toContain("clockwise");
+    expect(document.querySelector(".seat.current .seat-badge")?.textContent).toContain("轮到你");
+    expect(document.querySelector<HTMLButtonElement>("#play-button")?.disabled).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>("#play-button")?.title).toContain("出牌");
+
+    document.querySelector<HTMLButtonElement>("#battle-leave-room-button")?.click();
+
+    const leaveRoomMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "leave-room" && message.roomId === "ROOM1");
+
+    expect(leaveRoomMessage).toMatchObject({
+      type: "leave-room",
+      roomId: "ROOM1",
+      playerId: "player-host"
+    });
+    expect(document.querySelector("[data-testid='battle-view']")).toBeNull();
+    expect(document.querySelector("[data-testid='lobby-view']")).not.toBeNull();
   });
 
   it("marks newly drawn self cards and renders a draw animation", async () => {
@@ -381,6 +440,7 @@ describe("client-web smoke", () => {
         active: false,
         amount: 0,
         previousDrawValue: null,
+        previousDrawKind: null,
         targetPlayerId: null
       },
       drawUntilColor: {
@@ -400,6 +460,9 @@ describe("client-web smoke", () => {
         hand: [initialCard],
         handCount: 1,
         hasCalledUno: false,
+        unoPendingSinceMs: null,
+        unoProtectionStartedAtMs: null,
+        unoProtectionEndsAtMs: null,
         isEliminated: false,
         isCurrentPlayer: true
       },
@@ -467,6 +530,316 @@ describe("client-web smoke", () => {
     });
 
     expect(document.querySelector(".card-button.recent-drawn")).toBeNull();
+  });
+
+  it("shows UNO, elimination and victory feedback in battle UI", async () => {
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const now = Date.now();
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+    const lastCard = {
+      id: "blue-2",
+      kind: "number",
+      color: "blue",
+      number: 2,
+      isBlack: false,
+      displayName: "blue 2"
+    };
+    const snapshot = {
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      status: "in-progress",
+      mode: "no-challenge",
+      currentPlayerId: "player-1",
+      currentColor: "red",
+      direction: "clockwise",
+      topCard,
+      discardPile: [topCard],
+      drawPileCount: 80,
+      drawStack: {
+        active: false,
+        amount: 0,
+        previousDrawValue: null,
+        previousDrawKind: null,
+        targetPlayerId: null
+      },
+      drawUntilColor: {
+        active: false,
+        color: null,
+        targetPlayerId: null
+      },
+      normalDrawOffer: {
+        active: false,
+        playerId: null,
+        cardId: null
+      },
+      challengeWindow: {
+        active: false,
+        targetPlayerId: null
+      },
+      winnerPlayerIds: [],
+      self: {
+        playerId: "player-1",
+        displayName: "player-1",
+        avatarUrl: null,
+        hand: [lastCard],
+        handCount: 1,
+        hasCalledUno: false,
+        unoPendingSinceMs: now - 500,
+        unoProtectionStartedAtMs: now - 500,
+        unoProtectionEndsAtMs: now + 2500,
+        isEliminated: false,
+        isCurrentPlayer: true
+      },
+      opponents: [
+        {
+          playerId: "player-2",
+          displayName: "player-2",
+          avatarUrl: null,
+          handCount: 7,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: false
+        }
+      ]
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot
+    });
+
+    const sayUnoButton = document.querySelector<HTMLButtonElement>("#say-uno-button");
+    expect(sayUnoButton?.disabled).toBe(false);
+    sayUnoButton?.click();
+
+    const sayUnoMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "command" && message.command.type === "say-uno");
+
+    expect(sayUnoMessage).toMatchObject({
+      type: "command",
+      command: {
+        type: "say-uno"
+      }
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 2,
+      events: [
+        {
+          type: "player-eliminated",
+          playerId: "player-2",
+          handCount: 26,
+          reason: "hand-limit"
+        }
+      ]
+    });
+
+    expect(document.querySelector("[data-testid='event-modal']")?.textContent).toContain("已出局");
+
+    document.querySelector<HTMLButtonElement>("#close-event-modal-button")?.click();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 3,
+      snapshot: {
+        ...snapshot,
+        snapshotVersion: 3,
+        status: "finished",
+        winnerPlayerIds: ["player-1"]
+      }
+    });
+
+    expect(document.querySelector("[data-testid='event-modal']")?.textContent).toContain("获胜");
+  });
+
+  it("renders latest multi-card plays and active draw chains on the discard pile", async () => {
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const red1 = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+    const blue2 = {
+      id: "blue-2",
+      kind: "number",
+      color: "blue",
+      number: 2,
+      isBlack: false,
+      displayName: "blue 2"
+    };
+    const green3 = {
+      id: "green-3",
+      kind: "number",
+      color: "green",
+      number: 3,
+      isBlack: false,
+      displayName: "green 3"
+    };
+    const redDrawTwo = {
+      id: "red-draw-two",
+      kind: "draw-two",
+      color: "red",
+      drawValue: 2,
+      isBlack: false,
+      displayName: "red +2"
+    };
+    const blackDrawSix = {
+      id: "black-draw-six",
+      kind: "wild-draw-six",
+      drawValue: 6,
+      isBlack: true,
+      displayName: "black +6"
+    };
+    const snapshot = {
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      status: "in-progress",
+      mode: "no-challenge",
+      currentPlayerId: "player-1",
+      currentColor: "red",
+      direction: "clockwise",
+      topCard: green3,
+      discardPile: [red1, blue2, green3],
+      drawPileCount: 80,
+      drawStack: {
+        active: false,
+        amount: 0,
+        previousDrawValue: null,
+        previousDrawKind: null,
+        targetPlayerId: null
+      },
+      drawUntilColor: {
+        active: false,
+        color: null,
+        targetPlayerId: null
+      },
+      normalDrawOffer: {
+        active: false,
+        playerId: null,
+        cardId: null
+      },
+      challengeWindow: {
+        active: false,
+        targetPlayerId: null
+      },
+      winnerPlayerIds: [],
+      self: {
+        playerId: "player-1",
+        displayName: "player-1",
+        avatarUrl: null,
+        hand: [],
+        handCount: 0,
+        hasCalledUno: false,
+        unoPendingSinceMs: null,
+        unoProtectionStartedAtMs: null,
+        unoProtectionEndsAtMs: null,
+        isEliminated: false,
+        isCurrentPlayer: true
+      },
+      opponents: []
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      events: [
+        {
+          type: "cards-played",
+          playerId: "player-1",
+          cardIds: ["red-1", "blue-2", "green-3"],
+          topCardId: "green-3"
+        }
+      ]
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot
+    });
+
+    expect(document.querySelector("[data-testid='latest-play-group']")?.className).toContain("sequence");
+    expect(document.querySelectorAll(".latest-play-card")).toHaveLength(3);
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 2,
+      snapshot: {
+        ...snapshot,
+        snapshotVersion: 2,
+        topCard: blackDrawSix,
+        discardPile: [red1, redDrawTwo, blackDrawSix],
+        drawStack: {
+          active: true,
+          amount: 8,
+          previousDrawValue: 6,
+          previousDrawKind: "wild-draw-six",
+          targetPlayerId: "player-1"
+        }
+      }
+    });
+
+    expect(document.querySelector("[data-testid='active-draw-chain']")).not.toBeNull();
+    expect(document.querySelectorAll(".draw-chain-card")).toHaveLength(2);
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 3,
+      events: [
+        {
+          type: "draw-stack-cleared",
+          reason: "resolved"
+        }
+      ]
+    });
+
+    expect(document.querySelector("[data-testid='draw-stack-burst']")).not.toBeNull();
   });
 });
 

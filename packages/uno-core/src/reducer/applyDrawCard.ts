@@ -6,7 +6,8 @@ import {
   giveCardsToPlayer,
   hasBlackCardInHand,
   openNormalDrawOffer,
-  openChallengeWindow
+  openChallengeWindow,
+  startUnoProtectionWindows
 } from "./effects";
 import { ERROR_CODES, rejectCommand } from "./errors";
 import { drawCardsFromState } from "./drawCardsFromState";
@@ -163,6 +164,7 @@ export function applyDrawCardCommand(
 
   if (nextPlayerId !== null) {
     nextState.currentPlayerId = nextPlayerId;
+    startUnoProtectionWindows(nextState, now);
     events.push({
       type: "turn-advanced",
       previousPlayerId: command.playerId,

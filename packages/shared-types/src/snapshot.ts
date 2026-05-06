@@ -1,4 +1,4 @@
-import type { Card, CardColor } from "./card";
+import type { Card, CardColor, DrawCardKind } from "./card";
 import type {
   GameMode,
   GameStatus,
@@ -16,7 +16,11 @@ export interface PlayerGameSnapshotPlayerPublic {
   avatarUrl?: string | null;
   handCount: number;
   hasCalledUno: boolean;
+  unoPendingSinceMs: number | null;
+  unoProtectionStartedAtMs: number | null;
+  unoProtectionEndsAtMs: number | null;
   isEliminated: boolean;
+  hasLeftRoom: boolean;
   isCurrentPlayer: boolean;
 }
 
@@ -40,6 +44,7 @@ export interface PlayerGameSnapshot {
     active: boolean;
     amount: number;
     previousDrawValue: number | null;
+    previousDrawKind: DrawCardKind | null;
     targetPlayerId: PlayerId | null;
   };
   drawUntilColor: {

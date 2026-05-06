@@ -37,7 +37,10 @@ export function createInitialGame(
       handCount: 0,
       hasCalledUno: false,
       unoPendingSinceMs: null,
+      unoProtectionStartedAtMs: null,
+      unoProtectionEndsAtMs: null,
       isEliminated: false,
+      hasLeftRoom: false,
       eliminationReason: null,
       ...(player.displayName === undefined
         ? {}
@@ -102,6 +105,7 @@ export function createInitialGame(
       active: false,
       amount: 0,
       previousDrawValue: null,
+      previousDrawKind: null,
       targetPlayerId: null
     },
     drawUntilColor: {

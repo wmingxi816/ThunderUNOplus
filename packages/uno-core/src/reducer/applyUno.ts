@@ -1,7 +1,6 @@
 import type { GameState } from "../gameState";
 import {
   UNO_PENALTY_DRAW_COUNT,
-  UNO_PROTECTION_WINDOW_MS,
   cloneGameState,
   findPlayer,
   giveCardsToPlayer
@@ -131,14 +130,23 @@ export function applyReportUnoCommand(
   }
 
   const now = command.timestampMs ?? state.now;
+  const protectionEndsAt = target.unoProtectionEndsAtMs;
 
-  if (now - target.unoPendingSinceMs < UNO_PROTECTION_WINDOW_MS) {
-    return rejectCommand(
-      state,
-      command,
-      ERROR_CODES.unoReportFailed,
-      "UNO protection window has not ended yet."
-    );
+  if (protectionEndsAt === null || now < protectionEndsAt) {
+    const nextState = cloneGameState(state);
+    nextState.now = now;
+
+    return {
+      state: nextState,
+      events: [
+        {
+          type: "uno-report-failed-protected",
+          targetPlayerId: command.targetPlayerId,
+          reporterPlayerId: command.playerId,
+          protectionEndsAtMs: protectionEndsAt
+        }
+      ]
+    };
   }
 
   let nextState = cloneGameState(state);

@@ -1,4 +1,4 @@
-import type { Card, CardColor, DrawValue } from "./card";
+import type { Card, CardColor, DrawCardKind, DrawValue } from "./card";
 import type {
   GameMode,
   GameStatus,
@@ -23,6 +23,7 @@ export interface DrawStackState {
   active: boolean;
   amount: number;
   previousDrawValue: DrawValue | null;
+  previousDrawKind: DrawCardKind | null;
   targetPlayerId: PlayerId | null;
 }
 

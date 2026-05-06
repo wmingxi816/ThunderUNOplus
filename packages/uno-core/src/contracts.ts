@@ -4,7 +4,7 @@
  * 虽然 Phase 2A 还没有完整实现一个 engine 对象，
  * 但这些接口先把后续阶段要遵守的边界固定下来。
  */
-import type { Card } from "./card";
+import type { Card, DrawCardKind } from "./card";
 import type { CreateInitialGameParams, GameState } from "./gameState";
 import type { CardColor } from "./card";
 import { RULE_SOURCE_OF_TRUTH } from "./config";
@@ -22,6 +22,7 @@ export interface CanStackDrawCardContractInput {
   nextCard: Card;
   currentColor?: CardColor;
   previousDrawValue: number;
+  previousDrawKind?: DrawCardKind | null;
 }
 
 /** 多张牌校验函数共用的轻量返回结构。 */

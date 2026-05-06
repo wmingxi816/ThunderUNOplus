@@ -173,7 +173,8 @@ export function findReportableUnoTarget(
         player.handCount === 1 &&
         !player.hasCalledUno &&
         player.unoPendingSinceMs !== null &&
-        state.now - player.unoPendingSinceMs >= 5_000
+        player.unoProtectionEndsAtMs !== null &&
+        state.now >= player.unoProtectionEndsAtMs
       );
     }) ?? null
   );

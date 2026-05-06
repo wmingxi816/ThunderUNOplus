@@ -271,6 +271,60 @@ describe("messageHandler", () => {
     expect(fixture.room.players).toHaveLength(2);
   });
 
+  it("playing 中主动 leave-room 会标记 left，且不能再自动 reconnect", () => {
+    const fixture = createStartedRoomFixture(3);
+    const leaver = fixture.room.players[1]!;
+    const leaverConnection = fixture.connectionRegistry.getConnectionByPlayerId(leaver.playerId)!;
+    const watcherConnection = fixture.connections.find(
+      (connection) => connection.connectionId !== leaverConnection.connectionId
+    )!;
+
+    handleClientMessage({
+      connection: leaverConnection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "leave-room",
+        requestId: "req-battle-leave-1",
+        roomId: fixture.room.roomId,
+        playerId: leaver.playerId,
+        timestampMs: 1000
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    expect(leaver.hasLeftRoom).toBe(true);
+    expect(fixture.room.gameState?.players.find((player) => player.id === leaver.playerId)?.hasLeftRoom).toBe(true);
+    expect(watcherConnection.sentMessages.some((message) => {
+      return message.type === "snapshot" &&
+        message.snapshot.opponents.some((player) => {
+          return player.playerId === leaver.playerId && player.hasLeftRoom;
+        });
+    })).toBe(true);
+
+    const newConnection = createMockConnection({
+      connectionId: "conn-left-reconnect",
+      userId: leaver.userId
+    });
+    fixture.connectionRegistry.registerConnection(newConnection);
+
+    handleClientMessage({
+      connection: newConnection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "reconnect",
+        requestId: "req-left-reconnect-1",
+        roomId: fixture.room.roomId,
+        userId: leaver.userId,
+        timestampMs: 1000
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    expect(newConnection.sentMessages.some((message) => message.type === "error")).toBe(true);
+  });
+
   it("最后一名玩家 leave-room 后会收到 room-closed", () => {
     const context = createTestServerContext();
     const ownerConnection = createMockConnection({

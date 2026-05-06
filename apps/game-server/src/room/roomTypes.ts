@@ -17,6 +17,7 @@ export interface ServerRoomPlayer {
   nickname: string;
   avatarUrl: string | null;
   connected: boolean;
+  hasLeftRoom: boolean;
   joinedAt: UnixMs;
 }
 
@@ -62,6 +63,7 @@ export interface JoinRoomResult {
 export interface LeaveRoomParams {
   roomId: string;
   playerId: string;
+  markLeft?: boolean;
 }
 
 export interface LeaveRoomResult {

@@ -1,4 +1,4 @@
-import type { Card, CardColor } from "../card";
+import type { Card, CardColor, DrawCardKind } from "../card";
 import type { GamePlayerState, GameState } from "../gameState";
 import { canPlayCard } from "../rules/canPlayCard";
 import { canStackDrawCard } from "../rules/canStackDrawCard";
@@ -17,6 +17,7 @@ import {
   finishGame,
   markPlayerEliminatedIfNeeded,
   removeCardsFromHand,
+  startUnoProtectionWindows,
   syncPlayerHandState
 } from "./effects";
 import { ERROR_CODES, rejectCommand } from "./errors";
@@ -83,13 +84,16 @@ export function applyPlayCardCommand(
     }
   } else if (state.drawStack.active) {
     const previousDrawValue = state.drawStack.previousDrawValue;
+    const previousDrawKind = state.drawStack.previousDrawKind;
 
     if (
       previousDrawValue === null ||
+      previousDrawKind === null ||
       !canStackDrawCard({
         nextCard: card,
         currentColor: state.currentColor,
-        previousDrawValue
+        previousDrawValue,
+        previousDrawKind
       })
     ) {
       return rejectCommand(
@@ -554,6 +558,9 @@ function resolveTopCardEffect(
     case "wild-reverse-draw-four":
     case "wild-draw-six":
     case "wild-draw-ten":
+      if (!isDrawCard(card)) {
+        throw new Error("Draw card effect expected a draw card.");
+      }
       resolveDrawCardEffect(state, playerId, card, events);
       return;
     default: {
@@ -584,6 +591,7 @@ function resolveAdvance(
   }
 
   state.currentPlayerId = nextPlayerId;
+  startUnoProtectionWindows(state, state.now);
   events.push({
     type: "turn-advanced",
     previousPlayerId: playerId,
@@ -594,7 +602,7 @@ function resolveAdvance(
 function resolveDrawCardEffect(
   state: GameState,
   playerId: string,
-  card: Card,
+  card: Card & { kind: DrawCardKind },
   events: GameEvent[]
 ): void {
   if (card.kind === "wild-reverse-draw-four") {
@@ -620,9 +628,11 @@ function resolveDrawCardEffect(
     active: true,
     amount: nextAmount,
     previousDrawValue: drawValue,
+    previousDrawKind: card.kind,
     targetPlayerId
   };
   state.currentPlayerId = targetPlayerId;
+  startUnoProtectionWindows(state, state.now);
 
   events.push({
     type: "draw-stack-updated",
@@ -654,6 +664,7 @@ function resolvePenaltyDraw(
     targetPlayerId
   };
   state.currentPlayerId = targetPlayerId;
+  startUnoProtectionWindows(state, state.now);
 
   events.push({
     type: "draw-until-color-started",
