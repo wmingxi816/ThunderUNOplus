@@ -40,6 +40,7 @@ export interface CreateRoomParams {
   nickname: string;
   avatarUrl?: string | null;
   mode: GameMode;
+  roomId?: string;
 }
 
 export interface CreateRoomResult {
@@ -80,6 +81,25 @@ export interface StartGameParams {
 }
 
 export interface StartGameResult {
+  room: RoomRuntime;
+}
+
+export interface RestartGameParams {
+  roomId: string;
+  playerId: string;
+  seed?: string | number;
+}
+
+export interface RestartGameResult {
+  room: RoomRuntime;
+}
+
+export interface ContinueGameParams {
+  roomId: string;
+  playerId: string;
+}
+
+export interface ContinueGameResult {
   room: RoomRuntime;
 }
 

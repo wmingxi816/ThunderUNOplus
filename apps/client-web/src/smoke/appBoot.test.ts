@@ -71,8 +71,10 @@ describe("client-web smoke", () => {
     expect(nickname?.startsWith("\u73A9\u5BB6")).toBe(true);
     expect(nickname?.slice(2)).toMatch(/^\d{4}$/);
     expect(document.querySelector("#create-room-button")).not.toBeNull();
+    expect(document.querySelector("#create-custom-room-button")).not.toBeNull();
     expect(document.querySelector("#join-room-button")).not.toBeNull();
     expect(document.querySelector("#room-id-input")).not.toBeNull();
+    expect(document.querySelectorAll(".room-code-digit")).toHaveLength(6);
     expect(document.querySelector("#error-line")).not.toBeNull();
     expect(document.querySelector(".status")).not.toBeNull();
 
@@ -92,6 +94,34 @@ describe("client-web smoke", () => {
       type: "reconnect",
       roomId: "room-123",
       userId: "user-123"
+    });
+  });
+
+  it("sends custom room ids and join ids from the six digit room code inputs", async () => {
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    document.querySelectorAll<HTMLInputElement>("[data-room-code-index]").forEach((input, index) => {
+      input.value = String(index + 1);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    document.querySelector<HTMLButtonElement>("#create-custom-room-button")?.click();
+    document.querySelector<HTMLButtonElement>("#join-room-button")?.click();
+
+    const messages = socket?.sentMessages.map((message) => JSON.parse(message)) ?? [];
+
+    expect(messages.find((message) => message.type === "create-room")).toMatchObject({
+      type: "create-room",
+      roomId: "123456"
+    });
+    expect(messages.find((message) => message.type === "join-room")).toMatchObject({
+      type: "join-room",
+      roomId: "123456"
     });
   });
 
@@ -499,7 +529,7 @@ describe("client-web smoke", () => {
       snapshotVersion: 1,
       status: "in-progress",
       mode: "no-challenge",
-      currentPlayerId: "player-1",
+      currentPlayerId: "player-2",
       currentColor: "red",
       direction: "clockwise",
       topCard,
@@ -533,7 +563,7 @@ describe("client-web smoke", () => {
         unoProtectionStartedAtMs: null,
         unoProtectionEndsAtMs: null,
         isEliminated: false,
-        isCurrentPlayer: true
+        isCurrentPlayer: false
       },
       opponents: []
     };
@@ -631,7 +661,7 @@ describe("client-web smoke", () => {
       snapshotVersion: 1,
       status: "in-progress",
       mode: "no-challenge",
-      currentPlayerId: "player-1",
+      currentPlayerId: "player-2",
       currentColor: "red",
       direction: "clockwise",
       topCard,
@@ -670,7 +700,7 @@ describe("client-web smoke", () => {
         unoProtectionStartedAtMs: now - 500,
         unoProtectionEndsAtMs: now + 2500,
         isEliminated: false,
-        isCurrentPlayer: true
+        isCurrentPlayer: false
       },
       opponents: [
         {
@@ -683,7 +713,7 @@ describe("client-web smoke", () => {
           unoProtectionStartedAtMs: null,
           unoProtectionEndsAtMs: null,
           isEliminated: false,
-          isCurrentPlayer: false
+          isCurrentPlayer: true
         }
       ]
     };

@@ -38,12 +38,12 @@ export function applyDrawCardCommand(
     );
   }
 
-  if (player.isEliminated) {
+  if (player.isEliminated || player.isRoundWinner) {
     return rejectCommand(
       state,
       command,
       ERROR_CODES.playerEliminated,
-      "Eliminated players cannot draw."
+      "Inactive players cannot draw."
     );
   }
 
@@ -135,7 +135,12 @@ export function applyDrawCardCommand(
     currentColor: nextState.currentColor
   });
 
-  if (canPlayDrawnCard && nextState.status !== "finished" && !nextPlayer.isEliminated) {
+  if (
+    canPlayDrawnCard &&
+    nextState.status !== "finished" &&
+    !nextPlayer.isEliminated &&
+    !nextPlayer.isRoundWinner
+  ) {
     openNormalDrawOffer(nextState, command.playerId, drawnCard.id, events);
 
     if (nextState.mode === "with-challenge") {

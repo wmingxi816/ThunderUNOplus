@@ -22,11 +22,13 @@ import { getCardAssetPath, getCardBackAssetPath } from "./cards/cardAssets";
 import { WsClient, type ConnectionStatus } from "./network/wsClient";
 import {
   buildCommandMessage,
+  buildContinueGameMessage,
   buildCreateRoomMessage,
   buildJoinRoomMessage,
   buildLeaveRoomMessage,
   buildPingMessage,
   buildReconnectMessage,
+  buildRestartGameMessage,
   buildSetReadyMessage,
   buildStartGameMessage,
   type ClientCommandInput,
@@ -58,6 +60,7 @@ interface AppState {
   eventModal: EventModalState | null;
   uiToast: UiToastState | null;
   snapshotRecoveryRoomId: RoomId | null;
+  roomCodeDigits: string[];
 }
 
 interface CardsPlayedAnimationEvent {
@@ -170,7 +173,8 @@ const state: AppState = {
   challengePrompt: null,
   eventModal: null,
   uiToast: null,
-  snapshotRecoveryRoomId: null
+  snapshotRecoveryRoomId: null,
+  roomCodeDigits: ["", "", "", "", "", ""]
 };
 
 const wsClient = new WsClient({
@@ -207,6 +211,9 @@ const wsClient = new WsClient({
 });
 
 render();
+window.addEventListener("resize", () => {
+  window.requestAnimationFrame(syncHandOverlapLayout);
+});
 
 function handleServerMessage(message: ServerMessage): void {
   switch (message.type) {
@@ -300,6 +307,10 @@ function render(): void {
   bindConnectionPanel();
   bindLobbyPanel();
   bindBattlePanel();
+
+  if (isBattleView) {
+    window.requestAnimationFrame(syncHandOverlapLayout);
+  }
 }
 
 function renderConnectionPanel(): string {
@@ -382,16 +393,12 @@ function renderLobbyPanel(): string {
           </label>
           <label>
             <span>房间号</span>
-            <input
-              id="room-id-input"
-              data-testid="join-room-input"
-              value="${escapeHtml(state.roomId ?? "")}"
-              autocomplete="off"
-            />
+            ${renderRoomCodeInputs()}
           </label>
         </div>
         <div class="button-row lobby-actions">
-          <button id="create-room-button" data-testid="create-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>创建房间</button>
+          <button id="create-custom-room-button" data-testid="create-custom-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>自定义房间号</button>
+          <button id="create-room-button" data-testid="create-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>生成房间号</button>
           <button id="join-room-button" data-testid="join-room-button" class="secondary" ${canJoinRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>加入房间</button>
           <button id="leave-room-button" data-testid="leave-room-button" class="secondary" ${isConnected && state.roomId !== null ? "" : `disabled title="${escapeHtml(isConnected ? "当前不在房间中。" : "未连接服务端。")}"`}>离开</button>
         </div>
@@ -417,6 +424,31 @@ function renderLobbyPanel(): string {
   `;
 }
 
+function renderRoomCodeInputs(): string {
+  return `
+    <div class="room-code-inputs" data-testid="join-room-input" aria-label="6 位房间号">
+      ${state.roomCodeDigits
+        .map((digit, index) => {
+          return `
+            <input
+              class="room-code-digit"
+              data-testid="room-code-digit-${String(index)}"
+              data-room-code-index="${String(index)}"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="1"
+              value="${escapeHtml(digit)}"
+              autocomplete="off"
+              aria-label="房间号第 ${String(index + 1)} 位"
+            />
+          `;
+        })
+        .join("")}
+    </div>
+    <input id="room-id-input" type="hidden" value="${escapeHtml(getRoomCodeValue())}" />
+  `;
+}
+
 function getLobbyDisabledReason(isConnected: boolean): string {
   if (!isConnected) {
     return "未连接服务端。";
@@ -427,6 +459,20 @@ function getLobbyDisabledReason(isConnected: boolean): string {
   }
 
   return "当前不可操作。";
+}
+
+function getRoomCodeValue(): string {
+  return state.roomCodeDigits.join("");
+}
+
+function setRoomCodeFromText(text: string): void {
+  const digits = text.replace(/\D/g, "").slice(0, 6).split("");
+  state.roomCodeDigits = Array.from({ length: 6 }, (_, index) => digits[index] ?? "");
+}
+
+function showRoomCodeInputError(message: string): void {
+  state.lastError = message;
+  showToast(message, "warning");
 }
 
 function renderEmptyLobbyState(): string {
@@ -611,16 +657,21 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
   const isMyTurn = snapshot.currentPlayerId === state.playerId;
   const isGameFinished = snapshot.status === "finished";
   const isConnected = state.connectionStatus === "open";
-  const canTakeTurnAction = isConnected && isMyTurn && !isGameFinished;
+  const canTakeTurnAction =
+    isConnected &&
+    isMyTurn &&
+    !isGameFinished &&
+    !snapshot.self.isEliminated &&
+    !snapshot.self.isRoundWinner;
   const canUseOpponentAction = isConnected && !isGameFinished;
   const canSayUno =
     isConnected &&
-    isMyTurn &&
     !isGameFinished &&
     snapshot.self.handCount === 1 &&
     !snapshot.self.hasCalledUno &&
     snapshot.self.unoPendingSinceMs !== null &&
-    !snapshot.self.isEliminated;
+    !snapshot.self.isEliminated &&
+    !snapshot.self.isRoundWinner;
   const hand = snapshot.self.hand;
   const selectedCards = getSelectedCards(hand, state.selectedCardIds);
   const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand, {
@@ -680,7 +731,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
               id="say-uno-button"
               data-testid="say-uno-button"
               class="secondary"
-              ${canSayUno ? `title="喊 UNO"` : `disabled title="${escapeHtml(getSayUnoDisabledReason(snapshot, isConnected, isGameFinished, isMyTurn))}"`}
+              ${canSayUno ? `title="喊 UNO"` : `disabled title="${escapeHtml(getSayUnoDisabledReason(snapshot, isConnected, isGameFinished))}"`}
             >UNO</button>
             ${renderSelectionPanel(snapshot, canTakeTurnAction, isGameFinished, isMyTurn, isConnected)}
           </div>
@@ -692,9 +743,10 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
             ${renderActionGuide(snapshot, canTakeTurnAction, isGameFinished, isConnected)}
             <div class="cards" data-testid="hand-area">
               ${hand
-                .map((card) =>
+                .map((card, index) =>
                   renderCardButtonV2(
                     card,
+                    index,
                     snapshot,
                     canTakeTurnAction,
                     selectedCards,
@@ -757,8 +809,9 @@ function renderEventModal(snapshot: PlayerGameSnapshot): string {
         <p>${escapeHtml(notice.message)}</p>
         ${
           finishedNotice !== null
-            ? `<p class="muted">当前版本暂不支持房内重开。</p>
-               <button id="finish-reset-button-modal" class="secondary">返回大厅</button>`
+            ? renderRoundDecisionControls(snapshot)
+            : hasRoundDecisionReason(snapshot)
+              ? renderRoundDecisionControls(snapshot)
             : notice.dismissible
               ? `<button id="close-event-modal-button" class="secondary">知道了</button>`
               : ""
@@ -766,6 +819,36 @@ function renderEventModal(snapshot: PlayerGameSnapshot): string {
       </section>
     </div>
   `;
+}
+
+function renderRoundDecisionControls(snapshot: PlayerGameSnapshot): string {
+  if (!canCurrentPlayerMakeRoundDecision(snapshot)) {
+    return `<p class="muted">等待房主选择继续游戏或重开一把。</p>`;
+  }
+
+  return `
+    <div class="challenge-actions">
+      <button id="restart-game-button" data-testid="restart-game-button">重开一把</button>
+      <button id="continue-game-button" data-testid="continue-game-button" class="secondary">继续游戏</button>
+    </div>
+  `;
+}
+
+function hasRoundDecisionReason(snapshot: PlayerGameSnapshot): boolean {
+  return (
+    snapshot.status === "finished" ||
+    snapshot.self.isEliminated ||
+    snapshot.self.isRoundWinner ||
+    snapshot.opponents.some((player) => player.isEliminated || player.isRoundWinner)
+  );
+}
+
+function canCurrentPlayerMakeRoundDecision(snapshot: PlayerGameSnapshot): boolean {
+  return (
+    state.room?.hostPlayerId === state.playerId &&
+    state.playerId !== null &&
+    hasRoundDecisionReason(snapshot)
+  );
 }
 
 function buildFinishedNotice(snapshot: PlayerGameSnapshot): EventModalState | null {
@@ -799,7 +882,7 @@ function renderOpponent(
     : getReportUnoDisabledReason(player, enabled);
 
   return `
-    <div class="opponent seat ${seatClass} ${player.isCurrentPlayer ? "current" : ""}">
+    <div class="opponent seat ${seatClass} ${player.isCurrentPlayer ? "current" : ""} ${getSeatOutcomeClass(player)}">
       <span class="seat-badge ${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
       <img
         class="avatar"
@@ -824,7 +907,7 @@ function renderSelfSeat(snapshot: PlayerGameSnapshot): string {
   const status = getPlayerSeatStatus(snapshot, snapshot.self, true);
 
   return `
-    <div class="self-seat seat ${snapshot.self.isCurrentPlayer ? "current" : ""}">
+    <div class="self-seat seat ${snapshot.self.isCurrentPlayer ? "current" : ""} ${getSeatOutcomeClass(snapshot.self)}">
       <span class="seat-badge ${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
       <img
         class="avatar"
@@ -847,7 +930,7 @@ function getPlayerSeatStatus(
   player: SnapshotSeatPlayer,
   isSelf: boolean
 ): { label: string; detail: string; tone: string } {
-  if (snapshot.winnerPlayerIds.includes(player.playerId)) {
+  if (player.isRoundWinner || snapshot.winnerPlayerIds.includes(player.playerId)) {
     return { label: "赢家", detail: "本局获胜", tone: "success" };
   }
 
@@ -926,11 +1009,24 @@ function getUnoProtectionRemainingMs(player: SnapshotSeatPlayer): number {
 function canReportUnoTarget(player: PlayerGameSnapshot["opponents"][number]): boolean {
   return (
     !player.isEliminated &&
+    !player.isRoundWinner &&
     !player.hasLeftRoom &&
     player.handCount === 1 &&
     !player.hasCalledUno &&
     player.unoPendingSinceMs !== null
   );
+}
+
+function getSeatOutcomeClass(player: SnapshotSeatPlayer): string {
+  if (player.isRoundWinner) {
+    return "round-winner";
+  }
+
+  if (player.isEliminated) {
+    return "round-eliminated";
+  }
+
+  return "";
 }
 
 function getReportUnoLabel(player: PlayerGameSnapshot["opponents"][number]): string {
@@ -1389,8 +1485,7 @@ function getTurnActionDisabledReason(snapshot: PlayerGameSnapshot): string {
 function getSayUnoDisabledReason(
   snapshot: PlayerGameSnapshot,
   isConnected: boolean,
-  isGameFinished: boolean,
-  isMyTurn: boolean
+  isGameFinished: boolean
 ): string {
   if (isGameFinished) {
     return "本局已结束。";
@@ -1404,8 +1499,8 @@ function getSayUnoDisabledReason(
     return "你已出局。";
   }
 
-  if (!isMyTurn) {
-    return "只能在自己的回合喊 UNO。";
+  if (snapshot.self.isRoundWinner) {
+    return "你已获胜。";
   }
 
   if (snapshot.self.handCount !== 1) {
@@ -1582,31 +1677,54 @@ function canContinueDrawStack(card: Card, snapshot: PlayerGameSnapshot): boolean
     return false;
   }
 
-  if (card.kind !== "draw-two" && card.kind !== "draw-four" && card.kind !== "wild-reverse-draw-four" && card.kind !== "wild-draw-six" && card.kind !== "wild-draw-ten") {
+  if (!isDrawStackKindName(card.kind) || !isDrawStackKindName(previousDrawKind)) {
     return false;
   }
 
-  if (card.kind === "draw-two" || card.kind === "draw-four") {
-    if (
-      isBlackDrawKindName(previousDrawKind) &&
-      card.drawValue !== undefined &&
-      card.drawValue >= previousDrawValue
-    ) {
-      return false;
-    }
-
-    return card.drawValue === previousDrawValue || card.color === snapshot.currentColor;
+  if (card.kind === "draw-two") {
+    return previousDrawKind === "draw-two";
   }
 
-  return card.drawValue !== undefined && card.drawValue >= previousDrawValue;
+  if (card.kind === "draw-four") {
+    return previousDrawKind === "draw-four";
+  }
+
+  return (
+    card.drawValue !== undefined &&
+    getDrawStackRankName(card.kind) >= getDrawStackRankName(previousDrawKind) &&
+    card.drawValue >= previousDrawValue
+  );
 }
 
-function isBlackDrawKindName(kind: string): boolean {
+type DrawStackKindName =
+  | "draw-two"
+  | "draw-four"
+  | "wild-reverse-draw-four"
+  | "wild-draw-six"
+  | "wild-draw-ten";
+
+function isDrawStackKindName(kind: string): kind is DrawStackKindName {
   return (
+    kind === "draw-two" ||
+    kind === "draw-four" ||
     kind === "wild-reverse-draw-four" ||
     kind === "wild-draw-six" ||
     kind === "wild-draw-ten"
   );
+}
+
+function getDrawStackRankName(kind: DrawStackKindName): number {
+  switch (kind) {
+    case "draw-two":
+      return 2;
+    case "draw-four":
+    case "wild-reverse-draw-four":
+      return 4;
+    case "wild-draw-six":
+      return 6;
+    case "wild-draw-ten":
+      return 10;
+  }
 }
 
 function canPlaySingleCardLike(card: Card, snapshot: PlayerGameSnapshot): boolean {
@@ -1657,6 +1775,7 @@ function renderDrawAmountFact(snapshot: PlayerGameSnapshot): string {
 
 function renderCardButtonV2(
   card: Card,
+  index: number,
   snapshot: PlayerGameSnapshot,
   canTakeTurnAction: boolean,
   selectedCards: readonly Card[],
@@ -1687,6 +1806,8 @@ function renderCardButtonV2(
     <button
       class="${classes.join(" ")}"
       data-card-id="${escapeHtml(card.id)}"
+      data-card-index="${String(index)}"
+      style="--card-index: ${String(index)}"
       data-card-state="${escapeHtml(info.baseState)}"
       data-card-relation="${escapeHtml(info.relationState ?? "")}"
       aria-pressed="${info.relationState === "selected" ? "true" : "false"}"
@@ -1736,7 +1857,7 @@ function getHandCardPresentation(
   }
 
   const tentativeSelection = [...selectedCards, card];
-  const compatibleKinds = getSelectionPotentialKinds(tentativeSelection, snapshot.self.hand);
+  const compatibleKinds = getSelectionPotentialKinds(tentativeSelection, snapshot.self.hand, snapshot);
 
   if (compatibleKinds.length > 0) {
     return {
@@ -1849,7 +1970,8 @@ type ComboKind = "sequence" | "multiple-number" | "discard-same-color";
 
 function getSelectionPotentialKinds(
   cards: readonly Card[],
-  hand: readonly Card[]
+  hand: readonly Card[],
+  snapshot?: PlayerGameSnapshot
 ): ComboKind[] {
   const kinds: ComboKind[] = [];
 
@@ -1861,7 +1983,7 @@ function getSelectionPotentialKinds(
     kinds.push("multiple-number");
   }
 
-  if (canSelectionPotentiallyBeDiscardSameColor(cards, hand)) {
+  if (canSelectionPotentiallyBeDiscardSameColor(cards, hand, snapshot)) {
     kinds.push("discard-same-color");
   }
 
@@ -1874,7 +1996,7 @@ function canCardJoinAnyCombo(card: Card, snapshot: PlayerGameSnapshot): boolean 
   }
 
   if (card.kind !== "number") {
-    return getSelectionPotentialKinds([card], snapshot.self.hand).includes("discard-same-color");
+    return getSelectionPotentialKinds([card], snapshot.self.hand, snapshot).includes("discard-same-color");
   }
 
   return (
@@ -1993,7 +2115,8 @@ function canSelectionPotentiallyBeMultipleNumber(
 
 function canSelectionPotentiallyBeDiscardSameColor(
   cards: readonly Card[],
-  hand: readonly Card[]
+  hand: readonly Card[],
+  snapshot?: PlayerGameSnapshot
 ): boolean {
   if (cards.length === 0) {
     return false;
@@ -2024,7 +2147,15 @@ function canSelectionPotentiallyBeDiscardSameColor(
     (card) => card.kind === "discard-same-color" && card.color === color
   );
 
-  return sameColorCards.length >= Math.max(2, cards.length) && sameColorMainCards.length > 0;
+  if (sameColorCards.length < Math.max(2, cards.length) || sameColorMainCards.length === 0) {
+    return false;
+  }
+
+  if (snapshot === undefined) {
+    return true;
+  }
+
+  return sameColorMainCards.some((mainCard) => canPlaySingleCardLike(mainCard, snapshot));
 }
 
 function getSelectionPotentialMessage(kinds: readonly ComboKind[]): string {
@@ -2048,7 +2179,7 @@ function describeSelectionMismatch(
   selectedCards: readonly Card[],
   snapshot: PlayerGameSnapshot
 ): string {
-  const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand);
+  const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand, snapshot);
 
   if (potentialKinds.includes("sequence")) {
     return "这张牌不能和已选牌组成顺子";
@@ -2199,7 +2330,7 @@ function getPlaySelectionPreview(
       };
     }
 
-    const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand);
+    const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand, snapshot);
 
     if (potentialKinds.length > 0) {
       return {
@@ -2232,7 +2363,7 @@ function getPlaySelectionPreview(
     };
   }
 
-  const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand);
+  const potentialKinds = getSelectionPotentialKinds(selectedCards, snapshot.self.hand, snapshot);
 
   if (potentialKinds.length > 0) {
     return {
@@ -3034,6 +3165,8 @@ function bindConnectionPanel(): void {
 }
 
 function bindLobbyPanel(): void {
+  bindRoomCodeInputs();
+
   document.querySelector("#create-room-button")?.addEventListener("click", () => {
     const mode = readSelectValue("#mode", "no-challenge") as GameMode;
     const message = buildCreateRoomMessage({
@@ -3044,11 +3177,30 @@ function bindLobbyPanel(): void {
     sendSafely(message);
   });
 
-  document.querySelector("#join-room-button")?.addEventListener("click", () => {
-    const roomId = readInputValue("#room-id-input").trim();
+  document.querySelector("#create-custom-room-button")?.addEventListener("click", () => {
+    const mode = readSelectValue("#mode", "no-challenge") as GameMode;
+    const roomId = getRoomCodeValue();
 
-    if (roomId.length === 0) {
-      state.lastError = "请输入房间号。";
+    if (roomId.length !== 6) {
+      showRoomCodeInputError("请输入 6 位房间号。");
+      render();
+      return;
+    }
+
+    const message = buildCreateRoomMessage({
+      userId: state.userId,
+      nickname: state.nickname,
+      mode,
+      roomId
+    });
+    sendSafely(message);
+  });
+
+  document.querySelector("#join-room-button")?.addEventListener("click", () => {
+    const roomId = getRoomCodeValue();
+
+    if (roomId.length !== 6) {
+      showRoomCodeInputError("请输入 6 位房间号。");
       render();
       return;
     }
@@ -3198,6 +3350,35 @@ function bindBattlePanel(): void {
     resetRoomContext();
     pushLog("已返回大厅，请重新创建或加入房间");
     render();
+  });
+
+  document.querySelector("#restart-game-button")?.addEventListener("click", () => {
+    if (state.roomId === null || state.playerId === null) {
+      return;
+    }
+
+    state.eventModal = null;
+    sendSafely(
+      buildRestartGameMessage({
+        roomId: state.roomId,
+        playerId: state.playerId,
+        seed: readInputValue("#seed-input")
+      })
+    );
+  });
+
+  document.querySelector("#continue-game-button")?.addEventListener("click", () => {
+    if (state.roomId === null || state.playerId === null) {
+      return;
+    }
+
+    state.eventModal = null;
+    sendSafely(
+      buildContinueGameMessage({
+        roomId: state.roomId,
+        playerId: state.playerId
+      })
+    );
   });
 
   document.querySelector("#challenge-no-button")?.addEventListener("click", () => {
@@ -3502,6 +3683,106 @@ function toggleSelectedCard(cardId: string): void {
   }
 }
 
+function syncHandOverlapLayout(): void {
+  const cards = document.querySelector<HTMLElement>(".battle-action-dock .cards");
+
+  if (cards === null) {
+    return;
+  }
+
+  const cardButtons = [...cards.querySelectorAll<HTMLElement>(".card-button")];
+
+  if (cardButtons.length === 0) {
+    cards.classList.remove("cards-overlap");
+    cards.style.removeProperty("--hand-overlap-height");
+    return;
+  }
+
+  for (const cardButton of cardButtons) {
+    cardButton.style.removeProperty("left");
+    cardButton.style.removeProperty("z-index");
+  }
+
+  const containerWidth = cards.clientWidth;
+  const firstCard = cardButtons[0]!;
+  const cardWidth = firstCard.getBoundingClientRect().width;
+  const normalGap = 8;
+  const normalWidth = cardWidth * cardButtons.length + normalGap * (cardButtons.length - 1);
+
+  if (normalWidth <= containerWidth || cardButtons.length <= 1) {
+    cards.classList.remove("cards-overlap");
+    cards.style.removeProperty("--hand-overlap-height");
+    return;
+  }
+
+  const step = Math.max(18, (containerWidth - cardWidth) / (cardButtons.length - 1));
+  const cardHeight = firstCard.getBoundingClientRect().height;
+
+  cards.classList.add("cards-overlap");
+  cards.style.setProperty("--hand-overlap-height", `${String(Math.ceil(cardHeight + 26))}px`);
+
+  cardButtons.forEach((cardButton, index) => {
+    cardButton.style.left = `${String(Math.max(0, step * index))}px`;
+    cardButton.style.zIndex = String(index + 1);
+  });
+}
+
+function bindRoomCodeInputs(): void {
+  document.querySelectorAll<HTMLInputElement>("[data-room-code-index]").forEach((input) => {
+    input.addEventListener("beforeinput", (event) => {
+      if (event.data !== null && /\D/.test(event.data)) {
+        event.preventDefault();
+        showRoomCodeInputError("请输入数字。");
+        render();
+      }
+    });
+
+    input.addEventListener("input", () => {
+      const index = Number(input.dataset.roomCodeIndex ?? "0");
+      const rawValue = input.value;
+
+      if (/\D/.test(rawValue)) {
+        showRoomCodeInputError("请输入数字。");
+      }
+
+      const digit = rawValue.replace(/\D/g, "").slice(-1);
+      state.roomCodeDigits[index] = digit;
+      input.value = digit;
+
+      if (digit !== "" && index < 5) {
+        document
+          .querySelector<HTMLInputElement>(`[data-room-code-index="${String(index + 1)}"]`)
+          ?.focus();
+      }
+    });
+
+    input.addEventListener("keydown", (event) => {
+      const index = Number(input.dataset.roomCodeIndex ?? "0");
+
+      if (event.key === "Backspace" && input.value === "" && index > 0) {
+        state.roomCodeDigits[index - 1] = "";
+        document
+          .querySelector<HTMLInputElement>(`[data-room-code-index="${String(index - 1)}"]`)
+          ?.focus();
+        render();
+      }
+    });
+
+    input.addEventListener("paste", (event) => {
+      const text = event.clipboardData?.getData("text") ?? "";
+
+      event.preventDefault();
+
+      if (/\D/.test(text)) {
+        showRoomCodeInputError("请输入数字。");
+      }
+
+      setRoomCodeFromText(text);
+      render();
+    });
+  });
+}
+
 function translateUnoReportFailedMessage(fallbackMessage: string): string {
   if (fallbackMessage.includes("called UNO")) {
     return "对方已经喊过 UNO，不能抓。";
@@ -3530,7 +3811,9 @@ function handleHandCardClick(cardId: string): void {
   const canTakeTurnAction =
     state.connectionStatus === "open" &&
     state.playerId === state.snapshot.currentPlayerId &&
-    state.snapshot.status !== "finished";
+    state.snapshot.status !== "finished" &&
+    !state.snapshot.self.isEliminated &&
+    !state.snapshot.self.isRoundWinner;
   const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand, {
     currentColor: state.snapshot.currentColor,
     topCard: state.snapshot.topCard
@@ -3641,6 +3924,7 @@ function normalizePlayerGameSnapshot(snapshot: unknown): PlayerGameSnapshot {
       unoProtectionStartedAtMs: self.unoProtectionStartedAtMs ?? null,
       unoProtectionEndsAtMs: self.unoProtectionEndsAtMs ?? null,
       isEliminated: self.isEliminated ?? false,
+      isRoundWinner: self.isRoundWinner ?? false,
       hasLeftRoom: self.hasLeftRoom ?? false,
       isCurrentPlayer: self.isCurrentPlayer ?? false
     }
@@ -3658,6 +3942,7 @@ function normalizeSnapshotPublicPlayer(
     unoProtectionStartedAtMs: player.unoProtectionStartedAtMs ?? null,
     unoProtectionEndsAtMs: player.unoProtectionEndsAtMs ?? null,
     isEliminated: player.isEliminated ?? false,
+    isRoundWinner: player.isRoundWinner ?? false,
     hasLeftRoom: player.hasLeftRoom ?? false,
     isCurrentPlayer: player.isCurrentPlayer ?? false
   };

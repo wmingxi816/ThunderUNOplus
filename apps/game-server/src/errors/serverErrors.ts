@@ -12,6 +12,9 @@ export const GAME_SERVER_ERROR_CODES = [
   "game-already-started",
   "invalid-player-count",
   "players-not-ready",
+  "invalid-room-id",
+  "room-id-taken",
+  "round-decision-not-available",
   "player-id-mismatch",
   "connection-not-found"
 ] as const satisfies readonly ProtocolErrorCode[];

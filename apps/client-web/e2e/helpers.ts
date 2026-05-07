@@ -25,9 +25,12 @@ export async function createRoom(page: Page): Promise<string> {
 }
 
 export async function joinRoom(page: Page, roomId: string): Promise<void> {
-  await page.getByTestId("join-room-input").fill(roomId);
+  for (let index = 0; index < roomId.length; index += 1) {
+    await page.getByTestId(`room-code-digit-${String(index)}`).fill(roomId[index] ?? "");
+  }
   await page.getByTestId("join-room-button").click();
   await expect(page.getByTestId("room-id")).toHaveText(roomId);
+  await page.getByTestId("ready-button").click();
 }
 
 export async function startGame(page: Page): Promise<void> {

@@ -281,14 +281,28 @@ label span {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+.room-code-inputs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(2.4rem, 1fr));
+  gap: 0.45rem;
+}
+
+.lobby-control .room-code-digit {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
 .lobby-actions {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-flow: row;
   grid-auto-columns: auto;
 }
 
-.lobby-actions button:first-child {
-  grid-column: 1 / -1;
+.lobby-actions button {
   min-height: 3.15rem;
   font-size: 1rem;
 }
@@ -818,6 +832,30 @@ label span {
 
 .seat.current .seat-badge {
   animation: current-seat-breathe 2.4s ease-in-out infinite;
+}
+
+.seat.round-eliminated {
+  border-color: rgba(232, 75, 75, 0.78);
+  box-shadow:
+    0 0 0 2px rgba(232, 75, 75, 0.38),
+    0 0.75rem 2rem rgba(0, 0, 0, 0.32);
+}
+
+.seat.round-eliminated .avatar {
+  border-color: #ff7a7a;
+  box-shadow: 0 0 0 3px rgba(232, 75, 75, 0.24);
+}
+
+.seat.round-winner {
+  border-color: rgba(99, 221, 139, 0.82);
+  box-shadow:
+    0 0 0 2px rgba(99, 221, 139, 0.36),
+    0 0.75rem 2rem rgba(0, 0, 0, 0.32);
+}
+
+.seat.round-winner .avatar {
+  border-color: #63dd8b;
+  box-shadow: 0 0 0 3px rgba(99, 221, 139, 0.22);
 }
 
 .seat-top {
@@ -1391,10 +1429,32 @@ label span {
   gap: 0.55rem;
   max-height: 30rem;
   padding: 4rem 0.25rem 0.55rem;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.battle-action-dock .cards::-webkit-scrollbar {
+  display: none;
+}
+
+.battle-action-dock .cards.cards-overlap {
+  position: relative;
+  display: block;
+  min-height: var(--hand-overlap-height, 11rem);
+  max-height: var(--hand-overlap-height, 11rem);
+}
+
+.battle-action-dock .cards.cards-overlap .card-button {
+  position: absolute;
+  bottom: 0.55rem;
+  width: clamp(4.7rem, 7vw, 6.6rem);
+}
+
+.battle-action-dock .cards.cards-overlap .card-button:hover,
+.battle-action-dock .cards.cards-overlap .card-button.selected {
+  z-index: 99 !important;
 }
 
 .card-button {

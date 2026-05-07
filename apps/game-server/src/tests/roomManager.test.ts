@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { GameServerError } from "../errors/serverErrors";
 import {
   createTestServerContext,
+  createStartedRoomFixture,
   createWaitingRoomFixture,
   registerMockConnections
 } from "./testUtils";
@@ -20,6 +21,61 @@ describe("RoomManager", () => {
     });
 
     expect(result.room.roomId).toMatch(/^\d{6}$/);
+  });
+
+  it("createRoom 支持未占用的 6 位自定义 roomId", () => {
+    const { connectionRegistry, roomManager } = createTestServerContext();
+    const [connection] = registerMockConnections(connectionRegistry, 1);
+
+    const result = roomManager.createRoom({
+      userId: connection!.userId,
+      connectionId: connection!.connectionId,
+      nickname: "Owner",
+      avatarUrl: null,
+      mode: "no-challenge",
+      roomId: "123456"
+    });
+
+    expect(result.room.roomId).toBe("123456");
+  });
+
+  it("createRoom 会拒绝格式错误或已占用的自定义 roomId", () => {
+    const { connectionRegistry, roomManager } = createTestServerContext();
+    const [firstConnection, secondConnection, thirdConnection] = registerMockConnections(
+      connectionRegistry,
+      3
+    );
+
+    expect(() => {
+      roomManager.createRoom({
+        userId: firstConnection!.userId,
+        connectionId: firstConnection!.connectionId,
+        nickname: "Owner",
+        avatarUrl: null,
+        mode: "no-challenge",
+        roomId: "ABC123"
+      });
+    }).toThrowError(GameServerError);
+
+    roomManager.createRoom({
+      userId: secondConnection!.userId,
+      connectionId: secondConnection!.connectionId,
+      nickname: "Owner 2",
+      avatarUrl: null,
+      mode: "no-challenge",
+      roomId: "654321"
+    });
+
+    expect(() => {
+      roomManager.createRoom({
+        userId: thirdConnection!.userId,
+        connectionId: thirdConnection!.connectionId,
+        nickname: "Owner 3",
+        avatarUrl: null,
+        mode: "no-challenge",
+        roomId: "654321"
+      });
+    }).toThrowError(GameServerError);
   });
 
   it("createRoom 后房主 seatIndex 为 0", () => {
@@ -216,5 +272,64 @@ describe("RoomManager", () => {
     });
 
     expect(fixture.room.gameState).not.toBeNull();
+  });
+
+  it("restartGame 会保留房间和玩家并重新开局", () => {
+    const fixture = createStartedRoomFixture(3);
+    const previousGameState = fixture.room.gameState;
+
+    fixture.room.gameState!.players[1]!.isEliminated = true;
+
+    const result = fixture.roomManager.restartGame({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      seed: 2002
+    });
+
+    expect(result.room).toBe(fixture.room);
+    expect(result.room.players).toHaveLength(3);
+    expect(result.room.gameState).not.toBe(previousGameState);
+    expect(result.room.gameState!.players.every((player) => !player.isEliminated)).toBe(true);
+  });
+
+  it("continueGame 会让胜利玩家留座但跳过其回合", () => {
+    const fixture = createStartedRoomFixture(3);
+    const gameState = fixture.room.gameState!;
+    const winner = gameState.players[0]!;
+
+    gameState.status = "finished";
+    gameState.currentPlayerId = winner.id;
+    gameState.winnerPlayerIds = [winner.id];
+    winner.isRoundWinner = true;
+    fixture.room.status = "finished";
+
+    const result = fixture.roomManager.continueGame({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId
+    });
+
+    expect(result.room.status).toBe("playing");
+    expect(result.room.gameState!.status).toBe("in-progress");
+    expect(result.room.gameState!.currentPlayerId).not.toBe(winner.id);
+    expect(result.room.gameState!.players[0]!.isRoundWinner).toBe(true);
+  });
+
+  it("非房主不能 restartGame 或 continueGame", () => {
+    const fixture = createStartedRoomFixture(3);
+    fixture.room.gameState!.players[1]!.isEliminated = true;
+
+    expect(() => {
+      fixture.roomManager.restartGame({
+        roomId: fixture.room.roomId,
+        playerId: fixture.room.players[1]!.playerId
+      });
+    }).toThrowError(GameServerError);
+
+    expect(() => {
+      fixture.roomManager.continueGame({
+        roomId: fixture.room.roomId,
+        playerId: fixture.room.players[1]!.playerId
+      });
+    }).toThrowError(GameServerError);
   });
 });

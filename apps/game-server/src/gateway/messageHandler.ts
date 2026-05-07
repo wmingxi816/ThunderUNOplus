@@ -1,9 +1,11 @@
 import type {
   ClientCreateRoomMessage,
+  ClientContinueGameMessage,
   ClientJoinRoomMessage,
   ClientLeaveRoomMessage,
   ClientMessage,
   ClientReconnectMessage,
+  ClientRestartGameMessage,
   ClientSetReadyMessage,
   ClientStartGameMessage
 } from "@thunder-uno/protocol";
@@ -58,6 +60,12 @@ export function handleClientMessage(params: HandleClientMessageParams): {
       case "set-ready":
         handleSetReady({ ...params, message });
         return { ok: true, messageType: "set-ready" };
+      case "restart-game":
+        handleRestartGame({ ...params, message });
+        return { ok: true, messageType: "restart-game" };
+      case "continue-game":
+        handleContinueGame({ ...params, message });
+        return { ok: true, messageType: "continue-game" };
       case "leave-room":
         handleLeaveRoom({ ...params, message });
         return { ok: true, messageType: "leave-room" };
@@ -96,7 +104,8 @@ function handleCreateRoom(params: {
     connectionId: params.connection.connectionId,
     nickname: params.message.nickname,
     avatarUrl: params.message.avatarUrl ?? null,
-    mode: params.message.mode
+    mode: params.message.mode,
+    ...(params.message.roomId === undefined ? {} : { roomId: params.message.roomId })
   });
 
   broadcastRoomState(
@@ -189,6 +198,45 @@ function handleStartGame(params: {
   }
 }
 
+function handleRestartGame(params: {
+  connection: ServerConnection;
+  message: ClientRestartGameMessage;
+  roomManager: RoomManager;
+  connectionRegistry: ConnectionRegistry;
+}): void {
+  const result = params.roomManager.restartGame({
+    roomId: params.message.roomId,
+    playerId: params.message.playerId,
+    ...(params.message.seed === undefined ? {} : { seed: params.message.seed })
+  });
+
+  broadcastRoomState(
+    result.room,
+    params.connectionRegistry,
+    params.message.requestId
+  );
+  sendSnapshotsToRoom(result.room, params.connectionRegistry);
+}
+
+function handleContinueGame(params: {
+  connection: ServerConnection;
+  message: ClientContinueGameMessage;
+  roomManager: RoomManager;
+  connectionRegistry: ConnectionRegistry;
+}): void {
+  const result = params.roomManager.continueGame({
+    roomId: params.message.roomId,
+    playerId: params.message.playerId
+  });
+
+  broadcastRoomState(
+    result.room,
+    params.connectionRegistry,
+    params.message.requestId
+  );
+  sendSnapshotsToRoom(result.room, params.connectionRegistry);
+}
+
 function handleLeaveRoom(params: {
   connection: ServerConnection;
   message: ClientLeaveRoomMessage;
@@ -241,6 +289,12 @@ function handleReconnect(params: {
   }
 
   if (result.room.gameState !== null) {
+    sendRoomStateToPlayer(
+      result.room,
+      params.connectionRegistry,
+      result.player.playerId,
+      params.message.requestId
+    );
     sendSnapshotToPlayer(
       result.room,
       params.connectionRegistry,

@@ -24,6 +24,7 @@ export interface ClientCreateRoomMessage {
   nickname: string;
   avatarUrl?: string | null;
   mode: GameMode;
+  roomId?: RoomId;
   timestampMs: UnixMs;
 }
 
@@ -75,6 +76,25 @@ export interface ClientSetReadyMessage {
   timestampMs: UnixMs;
 }
 
+export interface ClientRestartGameMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "restart-game";
+  requestId: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  seed?: ShuffleSeed;
+  timestampMs: UnixMs;
+}
+
+export interface ClientContinueGameMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "continue-game";
+  requestId: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  timestampMs: UnixMs;
+}
+
 export interface ClientLeaveRoomMessage {
   protocolVersion: typeof PROTOCOL_VERSION;
   type: "leave-room";
@@ -100,6 +120,8 @@ export type ClientMessage =
   | ClientJoinRoomMessage
   | ClientStartGameMessage
   | ClientSetReadyMessage
+  | ClientRestartGameMessage
+  | ClientContinueGameMessage
   | ClientLeaveRoomMessage
   | ClientReconnectMessage;
 

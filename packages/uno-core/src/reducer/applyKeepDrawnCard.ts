@@ -37,12 +37,12 @@ export function applyKeepDrawnCardCommand(
     );
   }
 
-  if (player.isEliminated) {
+  if (player.isEliminated || player.isRoundWinner) {
     return rejectCommand(
       state,
       command,
       ERROR_CODES.playerEliminated,
-      "Eliminated players cannot keep a drawn card."
+      "Inactive players cannot keep a drawn card."
     );
   }
 

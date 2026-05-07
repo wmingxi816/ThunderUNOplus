@@ -2,7 +2,7 @@ import type { GamePlayerState, GameState, TurnDirection } from "../gameState";
 
 /** 判断玩家当前是否仍参与回合流转。 */
 export function isActivePlayer(player: GamePlayerState): boolean {
-  return !player.isEliminated && !player.hasLeftRoom;
+  return !player.isEliminated && !player.isRoundWinner && !player.hasLeftRoom;
 }
 
 /** 返回按座位顺序排列的未淘汰玩家 id。 */

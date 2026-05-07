@@ -63,6 +63,7 @@ export function createPlayerGameSnapshot(
       unoProtectionStartedAtMs: self.unoProtectionStartedAtMs,
       unoProtectionEndsAtMs: self.unoProtectionEndsAtMs,
       isEliminated: self.isEliminated,
+      isRoundWinner: self.isRoundWinner,
       hasLeftRoom: self.hasLeftRoom,
       isCurrentPlayer: self.id === state.currentPlayerId,
       hand: [...self.hand],
@@ -82,6 +83,7 @@ export function createPlayerGameSnapshot(
           unoProtectionStartedAtMs: player.unoProtectionStartedAtMs,
           unoProtectionEndsAtMs: player.unoProtectionEndsAtMs,
           isEliminated: player.isEliminated,
+          isRoundWinner: player.isRoundWinner,
           hasLeftRoom: player.hasLeftRoom,
           isCurrentPlayer: player.id === state.currentPlayerId,
           ...(player.displayName === undefined

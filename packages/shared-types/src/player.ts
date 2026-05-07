@@ -46,6 +46,7 @@ export interface GamePlayerState {
   unoProtectionStartedAtMs: UnixMs | null;
   unoProtectionEndsAtMs: UnixMs | null;
   isEliminated: boolean;
+  isRoundWinner: boolean;
   hasLeftRoom: boolean;
   eliminationReason: PlayerEliminationReason | null;
 }

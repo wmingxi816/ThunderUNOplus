@@ -54,6 +54,7 @@ export function createPlayerState(
     unoProtectionStartedAtMs: null,
     unoProtectionEndsAtMs: null,
     isEliminated: false,
+    isRoundWinner: false,
     hasLeftRoom: false,
     eliminationReason: null,
     ...overrides

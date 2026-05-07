@@ -1,11 +1,13 @@
 import { PROTOCOL_VERSION } from "@thunder-uno/protocol";
 import type {
   ClientCommandMessage,
+  ClientContinueGameMessage,
   ClientCreateRoomMessage,
   ClientJoinRoomMessage,
   ClientLeaveRoomMessage,
   ClientPingMessage,
   ClientReconnectMessage,
+  ClientRestartGameMessage,
   ClientSetReadyMessage,
   ClientStartGameMessage
 } from "@thunder-uno/protocol";
@@ -26,6 +28,7 @@ export function buildCreateRoomMessage(params: {
   userId: string;
   nickname: string;
   mode: GameMode;
+  roomId?: RoomId;
   requestId?: string;
 }): ClientCreateRoomMessage {
   return {
@@ -35,6 +38,7 @@ export function buildCreateRoomMessage(params: {
     userId: params.userId,
     nickname: params.nickname,
     mode: params.mode,
+    ...(params.roomId === undefined ? {} : { roomId: params.roomId }),
     timestampMs: Date.now()
   };
 }
@@ -88,6 +92,40 @@ export function buildSetReadyMessage(params: {
     roomId: params.roomId,
     playerId: params.playerId,
     ready: params.ready,
+    timestampMs: Date.now()
+  };
+}
+
+export function buildRestartGameMessage(params: {
+  roomId: RoomId;
+  playerId: PlayerId;
+  seed?: string;
+  requestId?: string;
+}): ClientRestartGameMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "restart-game",
+    requestId: params.requestId ?? createRequestId("restart"),
+    roomId: params.roomId,
+    playerId: params.playerId,
+    ...(params.seed === undefined || params.seed.trim() === ""
+      ? {}
+      : { seed: params.seed }),
+    timestampMs: Date.now()
+  };
+}
+
+export function buildContinueGameMessage(params: {
+  roomId: RoomId;
+  playerId: PlayerId;
+  requestId?: string;
+}): ClientContinueGameMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "continue-game",
+    requestId: params.requestId ?? createRequestId("continue"),
+    roomId: params.roomId,
+    playerId: params.playerId,
     timestampMs: Date.now()
   };
 }

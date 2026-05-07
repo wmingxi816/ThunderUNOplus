@@ -19,7 +19,7 @@ test("reconnects into an active game after reload", async ({ browser }) => {
   await waitForBattleView(pageC);
 
   await pageB.reload();
-  await expect(pageB.getByTestId("join-room-input")).toHaveValue(roomId);
+  await expect(pageB.getByTestId("connect-button")).toHaveText("重连");
   await pageB.getByTestId("connect-button").click();
 
   await expect(pageB.getByTestId("connection-status")).toHaveText("open");

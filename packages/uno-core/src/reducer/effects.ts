@@ -104,7 +104,7 @@ export function syncPlayerHandState(
 ): void {
   player.handCount = player.hand.length;
 
-  if (player.isEliminated) {
+  if (player.isEliminated || player.isRoundWinner) {
     player.hasCalledUno = false;
     player.unoPendingSinceMs = null;
     player.unoProtectionStartedAtMs = null;
@@ -257,6 +257,7 @@ export function markPlayerEliminated(
   events: GameEvent[]
 ): void {
   player.isEliminated = true;
+  player.isRoundWinner = false;
   player.hasLeftRoom = false;
   player.eliminationReason = reason;
   player.hasCalledUno = false;
@@ -339,7 +340,9 @@ export function finalizeRemainingWinner(
     return;
   }
 
-  const winner = state.players.find((player) => !player.isEliminated && !player.hasLeftRoom);
+  const winner = state.players.find(
+    (player) => !player.isEliminated && !player.isRoundWinner && !player.hasLeftRoom
+  );
 
   if (winner === undefined) {
     return;
@@ -355,10 +358,25 @@ export function finishGame(
   events: GameEvent[]
 ): void {
   state.status = "finished";
-  state.winnerPlayerIds = [...winnerPlayerIds];
+  const winnerIdSet = new Set(state.winnerPlayerIds);
+
+  for (const winnerPlayerId of winnerPlayerIds) {
+    winnerIdSet.add(winnerPlayerId);
+    const winner = state.players.find((player) => player.id === winnerPlayerId);
+
+    if (winner !== undefined) {
+      winner.isRoundWinner = true;
+      winner.hasCalledUno = false;
+      winner.unoPendingSinceMs = null;
+      winner.unoProtectionStartedAtMs = null;
+      winner.unoProtectionEndsAtMs = null;
+    }
+  }
+
+  state.winnerPlayerIds = [...winnerIdSet];
   events.push({
     type: "game-finished",
-    winnerPlayerIds: [...winnerPlayerIds]
+    winnerPlayerIds: [...state.winnerPlayerIds]
   });
 }
 
@@ -372,6 +390,7 @@ export function startUnoProtectionWindows(state: GameState, now: number): void {
   for (const player of state.players) {
     if (
       player.isEliminated ||
+      player.isRoundWinner ||
       player.hasLeftRoom ||
       player.handCount !== 1 ||
       player.hasCalledUno ||

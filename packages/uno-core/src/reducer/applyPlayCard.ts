@@ -679,7 +679,9 @@ function resolvePenaltyDraw(
 }
 
 function rotateHandsByDirection(state: GameState, events: GameEvent[]): void {
-  const activePlayers = state.players.filter((player) => !player.isEliminated);
+  const activePlayers = state.players.filter(
+    (player) => !player.isEliminated && !player.isRoundWinner
+  );
 
   if (activePlayers.length <= 1) {
     return;
@@ -688,7 +690,7 @@ function rotateHandsByDirection(state: GameState, events: GameEvent[]): void {
   const orderedPlayers = state.playerOrder
     .map((playerId) => state.players.find((player) => player.id === playerId))
     .filter((player): player is NonNullable<typeof player> => player !== undefined)
-    .filter((player) => !player.isEliminated);
+    .filter((player) => !player.isEliminated && !player.isRoundWinner);
 
   const originalHands = new Map<string, Card[]>();
 
@@ -749,6 +751,12 @@ function assertPlayableCurrentPlayer(
   if (player.isEliminated) {
     return new Error(ERROR_CODES.playerEliminated, {
       cause: "Eliminated players cannot perform turn actions."
+    });
+  }
+
+  if (player.isRoundWinner) {
+    return new Error(ERROR_CODES.playerEliminated, {
+      cause: "Round winners cannot perform further turn actions."
     });
   }
 

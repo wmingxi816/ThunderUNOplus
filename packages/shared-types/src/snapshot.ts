@@ -20,6 +20,7 @@ export interface PlayerGameSnapshotPlayerPublic {
   unoProtectionStartedAtMs: number | null;
   unoProtectionEndsAtMs: number | null;
   isEliminated: boolean;
+  isRoundWinner: boolean;
   hasLeftRoom: boolean;
   isCurrentPlayer: boolean;
 }

@@ -49,7 +49,12 @@ export function applyChallengeDrawCommand(
     );
   }
 
-  if (challenger.isEliminated || target.isEliminated) {
+  if (
+    challenger.isEliminated ||
+    challenger.isRoundWinner ||
+    target.isEliminated ||
+    target.isRoundWinner
+  ) {
     return rejectCommand(
       state,
       command,

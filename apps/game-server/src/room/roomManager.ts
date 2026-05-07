@@ -11,12 +11,16 @@ import { GameServerError } from "../errors/serverErrors";
 import type {
   CreateRoomParams,
   CreateRoomResult,
+  ContinueGameParams,
+  ContinueGameResult,
   JoinRoomParams,
   JoinRoomResult,
   LeaveRoomParams,
   LeaveRoomResult,
   ReconnectPlayerParams,
   ReconnectPlayerResult,
+  RestartGameParams,
+  RestartGameResult,
   RoomRuntime,
   SetPlayerReadyParams,
   SetPlayerReadyResult,
@@ -34,6 +38,7 @@ interface RoomManagerOptions {
 
 const MIN_ROOM_PLAYER_COUNT = 3;
 const MAX_ROOM_PLAYER_COUNT = 8;
+const CUSTOM_ROOM_ID_PATTERN = /^\d{6}$/;
 const ROOM_AVATAR_POOL = Array.from(
   { length: MAX_ROOM_PLAYER_COUNT },
   (_, index) => `/avatars/avatar-${String(index + 1)}.png`
@@ -61,7 +66,7 @@ export class RoomManager {
   createRoom(params: CreateRoomParams): CreateRoomResult {
     this.assertConnectionExists(params.connectionId);
 
-    const roomId = this.createRoomId(new Set(this.rooms.keys()));
+    const roomId = this.resolveNewRoomId(params.roomId);
     const createdAt = this.now();
     const ownerPlayer = this.buildRoomPlayer({
       userId: params.userId,
@@ -294,30 +299,101 @@ export class RoomManager {
       );
     }
 
-    const nextSnapshotVersion = room.snapshotVersion + 1;
-    const now = this.now();
-
-    room.gameState = createInitialGame({
-      roomId: room.roomId,
-      players: this.getPlayersInSeatOrder(room.players).map((player) => {
-        return {
-          id: player.playerId,
-          displayName: player.nickname,
-          avatarUrl: player.avatarUrl
-        };
-      }),
-      mode: room.mode,
-      now,
-      snapshotVersion: nextSnapshotVersion,
-      ...(params.seed === undefined ? {} : { seed: params.seed })
-    });
-    room.status = "playing";
-    room.snapshotVersion = room.gameState.snapshotVersion;
-    room.updatedAt = now;
+    this.startNewGameForRoom(room, params.seed);
 
     return {
       room
     };
+  }
+
+  restartGame(params: RestartGameParams): RestartGameResult {
+    const room = this.getRequiredRoom(params.roomId);
+    this.assertRoomOwner(room, params.playerId);
+
+    if (room.gameState === null) {
+      throw new GameServerError(
+        "game-not-started",
+        `Room ${params.roomId} has no game to restart.`,
+        params.roomId
+      );
+    }
+
+    if (!this.hasRoundDecisionReason(room)) {
+      throw new GameServerError(
+        "round-decision-not-available",
+        `Room ${params.roomId} cannot be restarted yet.`,
+        params.roomId
+      );
+    }
+
+    this.startNewGameForRoom(room, params.seed);
+
+    return { room };
+  }
+
+  continueGame(params: ContinueGameParams): ContinueGameResult {
+    const room = this.getRequiredRoom(params.roomId);
+    this.assertRoomOwner(room, params.playerId);
+
+    if (room.gameState === null) {
+      throw new GameServerError(
+        "game-not-started",
+        `Room ${params.roomId} has no game to continue.`,
+        params.roomId
+      );
+    }
+
+    if (!this.hasRoundDecisionReason(room)) {
+      throw new GameServerError(
+        "round-decision-not-available",
+        `Room ${params.roomId} cannot be continued yet.`,
+        params.roomId
+      );
+    }
+
+    const gameState = room.gameState;
+    const now = this.now();
+    const activePlayerCount = gameState.players.filter(
+      (player) => !player.isEliminated && !player.isRoundWinner && !player.hasLeftRoom
+    ).length;
+
+    if (activePlayerCount < 2) {
+      throw new GameServerError(
+        "invalid-player-count",
+        `Room ${params.roomId} does not have enough active players to continue.`,
+        params.roomId
+      );
+    }
+
+    gameState.now = now;
+
+    if (gameState.status === "finished") {
+      gameState.status = "in-progress";
+    }
+
+    const currentPlayer = gameState.players.find(
+      (player) => player.id === gameState.currentPlayerId
+    );
+
+    if (
+      currentPlayer === undefined ||
+      currentPlayer.isEliminated ||
+      currentPlayer.isRoundWinner ||
+      currentPlayer.hasLeftRoom
+    ) {
+      const nextPlayerId = this.getNextRoomActivePlayerId(gameState.currentPlayerId, gameState);
+
+      if (nextPlayerId !== null) {
+        gameState.currentPlayerId = nextPlayerId;
+      }
+    }
+
+    gameState.snapshotVersion += 1;
+    room.status = "playing";
+    room.snapshotVersion = gameState.snapshotVersion;
+    room.updatedAt = now;
+
+    return { room };
   }
 
   reconnectPlayer(params: ReconnectPlayerParams): ReconnectPlayerResult {
@@ -407,6 +483,115 @@ export class RoomManager {
         `Connection ${connectionId} was not found.`
       );
     }
+  }
+
+  private assertRoomOwner(room: RoomRuntime, playerId: string): void {
+    if (room.ownerPlayerId !== playerId) {
+      throw new GameServerError(
+        "not-room-owner",
+        `Player ${playerId} is not the room owner.`,
+        room.roomId
+      );
+    }
+  }
+
+  private resolveNewRoomId(requestedRoomId: string | undefined): string {
+    if (requestedRoomId === undefined) {
+      return this.createRoomId(new Set(this.rooms.keys()));
+    }
+
+    if (!CUSTOM_ROOM_ID_PATTERN.test(requestedRoomId)) {
+      throw new GameServerError(
+        "invalid-room-id",
+        "Custom room id must be exactly 6 digits.",
+        requestedRoomId
+      );
+    }
+
+    if (this.rooms.has(requestedRoomId)) {
+      throw new GameServerError(
+        "room-id-taken",
+        `Room id ${requestedRoomId} is already taken.`,
+        requestedRoomId
+      );
+    }
+
+    return requestedRoomId;
+  }
+
+  private startNewGameForRoom(room: RoomRuntime, seed?: string | number): void {
+    const nextSnapshotVersion = room.snapshotVersion + 1;
+    const now = this.now();
+
+    for (const player of room.players) {
+      player.isReady = player.playerId === room.ownerPlayerId;
+      player.hasLeftRoom = false;
+    }
+
+    room.gameState = createInitialGame({
+      roomId: room.roomId,
+      players: this.getPlayersInSeatOrder(room.players).map((player) => {
+        return {
+          id: player.playerId,
+          displayName: player.nickname,
+          avatarUrl: player.avatarUrl
+        };
+      }),
+      mode: room.mode,
+      now,
+      snapshotVersion: nextSnapshotVersion,
+      ...(seed === undefined ? {} : { seed })
+    });
+    room.status = "playing";
+    room.snapshotVersion = room.gameState.snapshotVersion;
+    room.updatedAt = now;
+  }
+
+  private hasRoundDecisionReason(room: RoomRuntime): boolean {
+    const gameState = room.gameState;
+
+    if (gameState === null) {
+      return false;
+    }
+
+    return (
+      gameState.status === "finished" ||
+      gameState.players.some((player) => player.isEliminated || player.isRoundWinner)
+    );
+  }
+
+  private getNextRoomActivePlayerId(
+    fromPlayerId: string,
+    gameState: NonNullable<RoomRuntime["gameState"]>
+  ): string | null {
+    const startIndex = gameState.playerOrder.indexOf(fromPlayerId);
+
+    if (startIndex < 0) {
+      return gameState.players.find(
+        (player) => !player.isEliminated && !player.isRoundWinner && !player.hasLeftRoom
+      )?.id ?? null;
+    }
+
+    const delta = gameState.direction === "clockwise" ? 1 : -1;
+    let cursor = startIndex;
+
+    for (let index = 0; index < gameState.playerOrder.length; index += 1) {
+      cursor =
+        (cursor + delta + gameState.playerOrder.length) % gameState.playerOrder.length;
+      const playerId = gameState.playerOrder[cursor];
+      const player = gameState.players.find((candidate) => candidate.id === playerId);
+
+      if (
+        player !== undefined &&
+        !player.isEliminated &&
+        !player.isRoundWinner &&
+        !player.hasLeftRoom
+      ) {
+        return player.id;
+      }
+    }
+
+    return null;
   }
 
   private getRequiredRoom(roomId: string): RoomRuntime {

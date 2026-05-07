@@ -216,6 +216,74 @@ describe("applyCommand - 基础出牌与回合推进", () => {
     });
   });
 
+  it("黑色 +6 后普通 +2 即使同色也不能叠加", () => {
+    const oldTop = blackCard("wild-six-top", "wild-draw-six");
+    const blueDrawTwo = coloredCard("blue-draw-two", "blue", "draw-two");
+    const state = createGameState({
+      currentPlayerId: "p2",
+      currentColor: "blue",
+      topCard: oldTop,
+      discardPile: [oldTop],
+      players: [
+        createPlayerState("p1", []),
+        createPlayerState("p2", [blueDrawTwo]),
+        createPlayerState("p3", [])
+      ],
+      drawStack: {
+        active: true,
+        amount: 6,
+        previousDrawValue: 6,
+        previousDrawKind: "wild-draw-six",
+        targetPlayerId: "p2"
+      }
+    });
+
+    const result = applyCommand(state, {
+      type: "play-card",
+      playerId: "p2",
+      cardId: blueDrawTwo.id
+    });
+
+    expect(result.events[0]).toMatchObject({
+      type: "command-rejected",
+      code: "CARD_NOT_PLAYABLE"
+    });
+  });
+
+  it("普通 +4 后普通 +2 即使同色也不能叠加", () => {
+    const redDrawFour = coloredCard("red-draw-four", "red", "draw-four");
+    const redDrawTwo = coloredCard("red-draw-two", "red", "draw-two");
+    const state = createGameState({
+      currentPlayerId: "p2",
+      currentColor: "red",
+      topCard: redDrawFour,
+      discardPile: [redDrawFour],
+      players: [
+        createPlayerState("p1", []),
+        createPlayerState("p2", [redDrawTwo]),
+        createPlayerState("p3", [])
+      ],
+      drawStack: {
+        active: true,
+        amount: 4,
+        previousDrawValue: 4,
+        previousDrawKind: "draw-four",
+        targetPlayerId: "p2"
+      }
+    });
+
+    const result = applyCommand(state, {
+      type: "play-card",
+      playerId: "p2",
+      cardId: redDrawTwo.id
+    });
+
+    expect(result.events[0]).toMatchObject({
+      type: "command-rejected",
+      code: "CARD_NOT_PLAYABLE"
+    });
+  });
+
   it("黑色 +6 可以接入任意加牌链", () => {
     const redDrawTwo = coloredCard("red-draw-two", "red", "draw-two");
     const wildSix = blackCard("wild-six", "wild-draw-six");

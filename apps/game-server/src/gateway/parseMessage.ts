@@ -1,11 +1,13 @@
 import type {
   ClientCommandMessage,
+  ClientContinueGameMessage,
   ClientCreateRoomMessage,
   ClientJoinRoomMessage,
   ClientLeaveRoomMessage,
   ClientMessage,
   ClientPingMessage,
   ClientReconnectMessage,
+  ClientRestartGameMessage,
   ClientSetReadyMessage,
   ClientStartGameMessage
 } from "@thunder-uno/protocol";
@@ -19,6 +21,8 @@ const CLIENT_MESSAGE_TYPES = new Set<ClientMessage["type"]>([
   "join-room",
   "start-game",
   "set-ready",
+  "restart-game",
+  "continue-game",
   "leave-room",
   "command",
   "reconnect"
@@ -76,6 +80,10 @@ export function parseMessage(rawMessage: RawData): ClientMessage {
       return parseStartGameMessage(parsed);
     case "set-ready":
       return parseSetReadyMessage(parsed);
+    case "restart-game":
+      return parseRestartGameMessage(parsed);
+    case "continue-game":
+      return parseContinueGameMessage(parsed);
     case "leave-room":
       return parseLeaveRoomMessage(parsed);
     case "command":
@@ -138,6 +146,7 @@ function parseCreateRoomMessage(
     nickname: requireString(record, "nickname"),
     mode: requireGameMode(record, "mode"),
     timestampMs: requireNumber(record, "timestampMs"),
+    ...readOptionalRoomId(record),
     ...readOptionalAvatarUrl(record)
   };
 }
@@ -179,6 +188,33 @@ function parseSetReadyMessage(record: Record<string, unknown>): ClientSetReadyMe
     roomId: requireString(record, "roomId"),
     playerId: requireString(record, "playerId"),
     ready: requireBoolean(record, "ready"),
+    timestampMs: requireNumber(record, "timestampMs")
+  };
+}
+
+function parseRestartGameMessage(
+  record: Record<string, unknown>
+): ClientRestartGameMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "restart-game",
+    requestId: requireString(record, "requestId"),
+    roomId: requireString(record, "roomId"),
+    playerId: requireString(record, "playerId"),
+    ...readOptionalSeed(record),
+    timestampMs: requireNumber(record, "timestampMs")
+  };
+}
+
+function parseContinueGameMessage(
+  record: Record<string, unknown>
+): ClientContinueGameMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "continue-game",
+    requestId: requireString(record, "requestId"),
+    roomId: requireString(record, "roomId"),
+    playerId: requireString(record, "playerId"),
     timestampMs: requireNumber(record, "timestampMs")
   };
 }
@@ -246,6 +282,22 @@ function readOptionalAvatarUrl(
   }
 
   throw new ParseMessageError("invalid-message", "avatarUrl must be a string or null.");
+}
+
+function readOptionalRoomId(
+  record: Record<string, unknown>
+): { roomId?: string } {
+  const roomId = record.roomId;
+
+  if (roomId === undefined) {
+    return {};
+  }
+
+  if (typeof roomId === "string") {
+    return { roomId };
+  }
+
+  throw new ParseMessageError("invalid-message", "roomId must be a string.");
 }
 
 function readOptionalSeed(

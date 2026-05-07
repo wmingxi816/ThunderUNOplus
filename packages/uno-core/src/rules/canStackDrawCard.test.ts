@@ -37,7 +37,7 @@ describe("canStackDrawCard", () => {
     ).toBe(true);
   });
 
-  // 跨加牌值接链是被禁止的，除非后续规则明确靠颜色放行。
+  // 跨加牌值接链是被禁止的，不能再靠颜色放行。
   it("rejects red +2 followed by blue +4", () => {
     const nextCard = createColoredActionCard("next", "blue", "draw-four");
 
@@ -51,7 +51,7 @@ describe("canStackDrawCard", () => {
     ).toBe(false);
   });
 
-  it("allows red +2 to be followed by red +4 by current color", () => {
+  it("rejects red +2 followed by red +4 even when current color matches", () => {
     const nextCard = createColoredActionCard("next", "red", "draw-four");
 
     expect(
@@ -61,11 +61,11 @@ describe("canStackDrawCard", () => {
         previousDrawValue: 2,
         previousDrawKind: "draw-two"
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  // 黑色加牌牌是通用续链牌，不受前一张具体加牌值限制。
-  it("always allows a black draw card to continue the draw chain", () => {
+  // 黑色加牌牌可以升级续链。
+  it("allows black draw cards to upgrade the draw chain", () => {
     const nextCard = createBlackCard("next", "wild-draw-six");
 
     expect(
@@ -91,8 +91,8 @@ describe("canStackDrawCard", () => {
     ).toBe(true);
   });
 
-  // 黑色 +6 指定蓝色后，蓝 +2 可以接，红 +2 不能接。
-  it("allows blue +2 after black +6 only when the current color is blue", () => {
+  // 黑色 +6 后，普通 +2 不能靠指定颜色接链。
+  it("rejects colored +2 after black +6 even when the current color matches", () => {
     const nextCard = createColoredActionCard("next", "blue", "draw-two");
 
     expect(
@@ -102,12 +102,25 @@ describe("canStackDrawCard", () => {
         previousDrawValue: 6,
         previousDrawKind: "wild-draw-six"
       })
-    ).toBe(true);
+    ).toBe(false);
 
     expect(
       canStackDrawCard({
         nextCard,
         currentColor: "red",
+        previousDrawValue: 6,
+        previousDrawKind: "wild-draw-six"
+      })
+    ).toBe(false);
+  });
+
+  it("rejects colored +4 after black +6 even when the current color matches", () => {
+    const nextCard = createColoredActionCard("next", "blue", "draw-four");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "blue",
         previousDrawValue: 6,
         previousDrawKind: "wild-draw-six"
       })
@@ -175,6 +188,19 @@ describe("canStackDrawCard", () => {
     ).toBe(false);
   });
 
+  it("rejects ordinary wild cards after black +6", () => {
+    const nextCard = createBlackCard("next", "wild");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "blue",
+        previousDrawValue: 6,
+        previousDrawKind: "wild-draw-six"
+      })
+    ).toBe(false);
+  });
+
   it("rejects colored +4 after black reverse +4 even when color matches", () => {
     const nextCard = createColoredActionCard("next", "red", "draw-four");
 
@@ -186,6 +212,58 @@ describe("canStackDrawCard", () => {
         previousDrawKind: "wild-reverse-draw-four"
       })
     ).toBe(false);
+  });
+
+  it("rejects colored +2 after colored +4 even when color matches", () => {
+    const nextCard = createColoredActionCard("next", "red", "draw-two");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "red",
+        previousDrawValue: 4,
+        previousDrawKind: "draw-four"
+      })
+    ).toBe(false);
+  });
+
+  it("rejects colored +2 after black reverse +4 even when color matches", () => {
+    const nextCard = createColoredActionCard("next", "red", "draw-two");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "red",
+        previousDrawValue: 4,
+        previousDrawKind: "wild-reverse-draw-four"
+      })
+    ).toBe(false);
+  });
+
+  it("rejects black reverse +4 after black +6", () => {
+    const nextCard = createBlackCard("next", "wild-reverse-draw-four");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "green",
+        previousDrawValue: 6,
+        previousDrawKind: "wild-draw-six"
+      })
+    ).toBe(false);
+  });
+
+  it("allows black +10 after black +6", () => {
+    const nextCard = createBlackCard("next", "wild-draw-ten");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "green",
+        previousDrawValue: 6,
+        previousDrawKind: "wild-draw-six"
+      })
+    ).toBe(true);
   });
 
   it("rejects black +6 after black +10", () => {

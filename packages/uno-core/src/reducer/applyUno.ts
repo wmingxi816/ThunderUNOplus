@@ -38,12 +38,12 @@ export function applySayUnoCommand(
     );
   }
 
-  if (player.isEliminated) {
+  if (player.isEliminated || player.isRoundWinner) {
     return rejectCommand(
       state,
       command,
       ERROR_CODES.playerEliminated,
-      "Eliminated players cannot call UNO."
+      "Inactive players cannot call UNO."
     );
   }
 
@@ -107,7 +107,12 @@ export function applyReportUnoCommand(
     );
   }
 
-  if (reporter.isEliminated || target.isEliminated) {
+  if (
+    reporter.isEliminated ||
+    reporter.isRoundWinner ||
+    target.isEliminated ||
+    target.isRoundWinner
+  ) {
     return rejectCommand(
       state,
       command,
