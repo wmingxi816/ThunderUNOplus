@@ -166,6 +166,7 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             seatIndex: 0,
             isHost: true,
+            isReady: true,
             connectionStatus: "connected"
           }
         ]
@@ -196,6 +197,7 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             seatIndex: 0,
             isHost: true,
+            isReady: true,
             connectionStatus: "connected"
           },
           {
@@ -204,6 +206,7 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             seatIndex: 1,
             isHost: false,
+            isReady: true,
             connectionStatus: "connected"
           },
           {
@@ -212,6 +215,7 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             seatIndex: 2,
             isHost: false,
+            isReady: true,
             connectionStatus: "connected"
           }
         ]
@@ -251,6 +255,7 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             seatIndex: 0,
             isHost: true,
+            isReady: true,
             connectionStatus: "connected"
           },
           {
@@ -259,6 +264,7 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             seatIndex: 1,
             isHost: false,
+            isReady: true,
             connectionStatus: "connected"
           },
           {
@@ -267,6 +273,7 @@ describe("client-web smoke", () => {
             avatarUrl: null,
             seatIndex: 2,
             isHost: false,
+            isReady: true,
             connectionStatus: "connected"
           }
         ]
@@ -391,6 +398,68 @@ describe("client-web smoke", () => {
     });
     expect(document.querySelector("[data-testid='battle-view']")).toBeNull();
     expect(document.querySelector("[data-testid='lobby-view']")).not.toBeNull();
+  });
+
+  it("sends set-ready when a non-host clicks the ready button", async () => {
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      snapshotVersion: 1,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "lobby",
+        mode: "no-challenge",
+        hostPlayerId: "player-host",
+        snapshotVersion: 1,
+        players: [
+          {
+            playerId: "player-host",
+            displayName: "房主",
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            connectionStatus: "connected"
+          },
+          {
+            playerId: "player-2",
+            displayName: "玩家2",
+            avatarUrl: null,
+            seatIndex: 1,
+            isHost: false,
+            isReady: false,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const readyButton = document.querySelector<HTMLButtonElement>("#ready-button");
+    expect(readyButton?.disabled).toBe(false);
+    expect(readyButton?.textContent).toBe("准备");
+
+    readyButton?.click();
+
+    const readyMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "set-ready");
+
+    expect(readyMessage).toMatchObject({
+      type: "set-ready",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      ready: true
+    });
   });
 
   it("marks newly drawn self cards and renders a draw animation", async () => {

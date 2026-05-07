@@ -6,6 +6,7 @@ import type {
   ClientMessage,
   ClientPingMessage,
   ClientReconnectMessage,
+  ClientSetReadyMessage,
   ClientStartGameMessage
 } from "@thunder-uno/protocol";
 import { PROTOCOL_VERSION } from "@thunder-uno/protocol";
@@ -17,6 +18,7 @@ const CLIENT_MESSAGE_TYPES = new Set<ClientMessage["type"]>([
   "create-room",
   "join-room",
   "start-game",
+  "set-ready",
   "leave-room",
   "command",
   "reconnect"
@@ -72,6 +74,8 @@ export function parseMessage(rawMessage: RawData): ClientMessage {
       return parseJoinRoomMessage(parsed);
     case "start-game":
       return parseStartGameMessage(parsed);
+    case "set-ready":
+      return parseSetReadyMessage(parsed);
     case "leave-room":
       return parseLeaveRoomMessage(parsed);
     case "command":
@@ -163,6 +167,18 @@ function parseStartGameMessage(
     roomId: requireString(record, "roomId"),
     playerId: requireString(record, "playerId"),
     ...readOptionalSeed(record),
+    timestampMs: requireNumber(record, "timestampMs")
+  };
+}
+
+function parseSetReadyMessage(record: Record<string, unknown>): ClientSetReadyMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "set-ready",
+    requestId: requireString(record, "requestId"),
+    roomId: requireString(record, "roomId"),
+    playerId: requireString(record, "playerId"),
+    ready: requireBoolean(record, "ready"),
     timestampMs: requireNumber(record, "timestampMs")
   };
 }
@@ -263,6 +279,16 @@ function requireNumber(record: Record<string, unknown>, key: string): number {
 
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new ParseMessageError("invalid-message", `${key} must be a finite number.`);
+  }
+
+  return value;
+}
+
+function requireBoolean(record: Record<string, unknown>, key: string): boolean {
+  const value = record[key];
+
+  if (typeof value !== "boolean") {
+    throw new ParseMessageError("invalid-message", `${key} must be a boolean.`);
   }
 
   return value;

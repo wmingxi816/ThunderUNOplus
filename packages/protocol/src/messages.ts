@@ -65,6 +65,16 @@ export interface ClientStartGameMessage {
   timestampMs: UnixMs;
 }
 
+export interface ClientSetReadyMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "set-ready";
+  requestId: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  ready: boolean;
+  timestampMs: UnixMs;
+}
+
 export interface ClientLeaveRoomMessage {
   protocolVersion: typeof PROTOCOL_VERSION;
   type: "leave-room";
@@ -89,6 +99,7 @@ export type ClientMessage =
   | ClientPingMessage
   | ClientJoinRoomMessage
   | ClientStartGameMessage
+  | ClientSetReadyMessage
   | ClientLeaveRoomMessage
   | ClientReconnectMessage;
 

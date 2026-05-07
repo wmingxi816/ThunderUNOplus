@@ -18,6 +18,8 @@ import type {
   ReconnectPlayerParams,
   ReconnectPlayerResult,
   RoomRuntime,
+  SetPlayerReadyParams,
+  SetPlayerReadyResult,
   ServerRoomPlayer,
   StartGameParams,
   StartGameResult
@@ -116,6 +118,8 @@ export class RoomManager {
       existingPlayer.connectionId = params.connectionId;
       existingPlayer.connected = true;
       existingPlayer.hasLeftRoom = false;
+      existingPlayer.isReady =
+        existingPlayer.playerId === room.ownerPlayerId ? true : existingPlayer.isReady;
       existingPlayer.nickname = params.nickname;
       existingPlayer.avatarUrl = params.avatarUrl ?? existingPlayer.avatarUrl;
       room.updatedAt = this.now();
@@ -150,6 +154,7 @@ export class RoomManager {
       avatarUrl: this.resolveAvatarUrl(room.players, params.avatarUrl ?? null),
       joinedAt: this.now()
     });
+    player.isReady = false;
 
     room.players.push(player);
     room.updatedAt = this.now();
@@ -205,6 +210,7 @@ export class RoomManager {
       // 等待房间里如果房主离开，就把房主转给 seatIndex 最小的剩余玩家。
       if (room.ownerPlayerId === player.playerId) {
         room.ownerPlayerId = room.players[0]!.playerId;
+        room.players[0]!.isReady = true;
       }
 
       room.updatedAt = this.now();
@@ -276,6 +282,18 @@ export class RoomManager {
       );
     }
 
+    const unreadyPlayers = room.players.filter((player) => {
+      return player.playerId !== room.ownerPlayerId && !player.isReady;
+    });
+
+    if (unreadyPlayers.length > 0) {
+      throw new GameServerError(
+        "players-not-ready",
+        `Players not ready: ${unreadyPlayers.map((player) => player.nickname).join(", ")}.`,
+        params.roomId
+      );
+    }
+
     const nextSnapshotVersion = room.snapshotVersion + 1;
     const now = this.now();
 
@@ -340,6 +358,36 @@ export class RoomManager {
     };
   }
 
+  setPlayerReady(params: SetPlayerReadyParams): SetPlayerReadyResult {
+    const room = this.getRequiredRoom(params.roomId);
+
+    if (room.status !== "waiting") {
+      throw new GameServerError(
+        "room-not-waiting",
+        `Room ${params.roomId} is not waiting for players.`,
+        params.roomId
+      );
+    }
+
+    const player = room.players.find((candidate) => candidate.playerId === params.playerId);
+
+    if (player === undefined) {
+      throw new GameServerError(
+        "player-not-in-room",
+        `Player ${params.playerId} does not belong to room ${params.roomId}.`,
+        params.roomId
+      );
+    }
+
+    player.isReady = player.playerId === room.ownerPlayerId ? true : params.ready;
+    room.updatedAt = this.now();
+
+    return {
+      room,
+      player
+    };
+  }
+
   getRoom(roomId: string): RoomRuntime | null {
     return this.rooms.get(roomId) ?? null;
   }
@@ -392,6 +440,7 @@ export class RoomManager {
       avatarUrl: params.avatarUrl,
       connected: true,
       hasLeftRoom: false,
+      isReady: params.seatIndex === 0,
       joinedAt: params.joinedAt
     };
   }

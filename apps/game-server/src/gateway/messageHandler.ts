@@ -4,6 +4,7 @@ import type {
   ClientLeaveRoomMessage,
   ClientMessage,
   ClientReconnectMessage,
+  ClientSetReadyMessage,
   ClientStartGameMessage
 } from "@thunder-uno/protocol";
 import type { RawData } from "ws";
@@ -54,6 +55,9 @@ export function handleClientMessage(params: HandleClientMessageParams): {
       case "start-game":
         handleStartGame({ ...params, message });
         return { ok: true, messageType: "start-game" };
+      case "set-ready":
+        handleSetReady({ ...params, message });
+        return { ok: true, messageType: "set-ready" };
       case "leave-room":
         handleLeaveRoom({ ...params, message });
         return { ok: true, messageType: "leave-room" };
@@ -129,6 +133,25 @@ function handleJoinRoom(params: {
   if (result.room.gameState !== null) {
     sendSnapshotsToRoom(result.room, params.connectionRegistry);
   }
+}
+
+function handleSetReady(params: {
+  connection: ServerConnection;
+  message: ClientSetReadyMessage;
+  roomManager: RoomManager;
+  connectionRegistry: ConnectionRegistry;
+}): void {
+  const result = params.roomManager.setPlayerReady({
+    roomId: params.message.roomId,
+    playerId: params.message.playerId,
+    ready: params.message.ready
+  });
+
+  broadcastRoomState(
+    result.room,
+    params.connectionRegistry,
+    params.message.requestId
+  );
 }
 
 function handleStartGame(params: {

@@ -6,6 +6,7 @@ import type {
   ClientLeaveRoomMessage,
   ClientPingMessage,
   ClientReconnectMessage,
+  ClientSetReadyMessage,
   ClientStartGameMessage
 } from "@thunder-uno/protocol";
 import type { GameCommand, GameMode, PlayerId, RoomId } from "@thunder-uno/shared-types";
@@ -70,6 +71,23 @@ export function buildStartGameMessage(params: {
     ...(params.seed === undefined || params.seed.trim() === ""
       ? {}
       : { seed: params.seed }),
+    timestampMs: Date.now()
+  };
+}
+
+export function buildSetReadyMessage(params: {
+  roomId: RoomId;
+  playerId: PlayerId;
+  ready: boolean;
+  requestId?: string;
+}): ClientSetReadyMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "set-ready",
+    requestId: params.requestId ?? createRequestId("ready"),
+    roomId: params.roomId,
+    playerId: params.playerId,
+    ready: params.ready,
     timestampMs: Date.now()
   };
 }

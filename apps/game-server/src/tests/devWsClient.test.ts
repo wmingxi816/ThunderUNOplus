@@ -131,6 +131,7 @@ async function createStartedClients(
     const client = createdClients[index]!;
     await client.connect();
     await client.joinRoom(roomState.roomId);
+    await client.setReady(true);
   }
 
   await Promise.all(

@@ -84,13 +84,46 @@ describe("reconnect integration", () => {
     const secondPlayerId = readyRoomState.room.players.find(
       (player) => player.displayName === "玩家2"
     )!.playerId;
+    const thirdPlayerId = readyRoomState.room.players.find(
+      (player) => player.displayName === "玩家3"
+    )!.playerId;
+
+    second.sendJson({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "set-ready",
+      requestId: "req-ready-2",
+      roomId: readyRoomState.roomId,
+      playerId: secondPlayerId,
+      ready: true,
+      timestampMs: 1000
+    });
+
+    third.sendJson({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "set-ready",
+      requestId: "req-ready-3",
+      roomId: readyRoomState.roomId,
+      playerId: thirdPlayerId,
+      ready: true,
+      timestampMs: 1000
+    });
+
+    const allReadyRoomState = await first.waitForMessage((event) => {
+      return event.type === "room-state" &&
+        event.room.players.length === 3 &&
+        event.room.players.every((player) => player.isReady);
+    });
+
+    if (allReadyRoomState.type !== "room-state") {
+      throw new Error("Expected ready room-state message.");
+    }
 
     first.sendJson({
       protocolVersion: PROTOCOL_VERSION,
       type: "start-game",
       requestId: "req-start-game-1",
-      roomId: readyRoomState.roomId,
-      playerId: readyRoomState.room.hostPlayerId,
+      roomId: allReadyRoomState.roomId,
+      playerId: allReadyRoomState.room.hostPlayerId,
       timestampMs: 1000
     });
 
@@ -120,7 +153,7 @@ describe("reconnect integration", () => {
       protocolVersion: PROTOCOL_VERSION,
       type: "reconnect",
       requestId: "req-reconnect-1",
-      roomId: readyRoomState.roomId,
+      roomId: allReadyRoomState.roomId,
       userId: "dev-user-002",
       timestampMs: 1000
     });

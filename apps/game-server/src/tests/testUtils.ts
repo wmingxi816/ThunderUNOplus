@@ -94,6 +94,11 @@ export function createWaitingRoomFixture(
       nickname: `Player ${String(index + 1)}`,
       avatarUrl: null
     });
+    context.roomManager.setPlayerReady({
+      roomId: room.roomId,
+      playerId: room.players[index]!.playerId,
+      ready: true
+    });
   }
 
   return {

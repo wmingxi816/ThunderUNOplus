@@ -46,6 +46,32 @@ describe("RoomManager", () => {
     expect(fixture.room.players.map((player) => player.seatIndex)).toEqual([0, 1, 2]);
   });
 
+  it("新加入玩家默认未准备，房主默认视为已准备", () => {
+    const { connectionRegistry, roomManager } = createTestServerContext();
+    const [ownerConnection, joinerConnection] = registerMockConnections(
+      connectionRegistry,
+      2
+    );
+    const room = roomManager.createRoom({
+      userId: ownerConnection!.userId,
+      connectionId: ownerConnection!.connectionId,
+      nickname: "Owner",
+      avatarUrl: null,
+      mode: "no-challenge"
+    }).room;
+
+    roomManager.joinRoom({
+      roomId: room.roomId,
+      userId: joinerConnection!.userId,
+      connectionId: joinerConnection!.connectionId,
+      nickname: "Joiner",
+      avatarUrl: null
+    });
+
+    expect(room.players[0]!.isReady).toBe(true);
+    expect(room.players[1]!.isReady).toBe(false);
+  });
+
   it("满 8 人后不能继续加入", () => {
     const fixture = createWaitingRoomFixture(8);
     const extraConnection = registerMockConnections(
@@ -107,6 +133,51 @@ describe("RoomManager", () => {
         playerId: fixture.room.ownerPlayerId
       });
     }).toThrowError(GameServerError);
+  });
+
+  it("有人未准备时不能 startGame", () => {
+    const { connectionRegistry, roomManager } = createTestServerContext();
+    const connections = registerMockConnections(connectionRegistry, 3);
+    const room = roomManager.createRoom({
+      userId: connections[0]!.userId,
+      connectionId: connections[0]!.connectionId,
+      nickname: "Owner",
+      avatarUrl: null,
+      mode: "no-challenge"
+    }).room;
+
+    for (let index = 1; index < connections.length; index += 1) {
+      roomManager.joinRoom({
+        roomId: room.roomId,
+        userId: connections[index]!.userId,
+        connectionId: connections[index]!.connectionId,
+        nickname: `Player ${String(index + 1)}`,
+        avatarUrl: null
+      });
+    }
+
+    expect(() => {
+      roomManager.startGame({
+        roomId: room.roomId,
+        playerId: room.ownerPlayerId
+      });
+    }).toThrowError(GameServerError);
+
+    for (const player of room.players.filter((candidate) => !candidate.isReady)) {
+      roomManager.setPlayerReady({
+        roomId: room.roomId,
+        playerId: player.playerId,
+        ready: true
+      });
+    }
+
+    expect(() => {
+      roomManager.startGame({
+        roomId: room.roomId,
+        playerId: room.ownerPlayerId,
+        seed: 1001
+      });
+    }).not.toThrow();
   });
 
   it("3 到 8 人可以 startGame", () => {

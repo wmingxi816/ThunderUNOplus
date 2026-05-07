@@ -18,6 +18,7 @@ export interface ServerRoomPlayer {
   avatarUrl: string | null;
   connected: boolean;
   hasLeftRoom: boolean;
+  isReady: boolean;
   joinedAt: UnixMs;
 }
 
@@ -80,6 +81,17 @@ export interface StartGameParams {
 
 export interface StartGameResult {
   room: RoomRuntime;
+}
+
+export interface SetPlayerReadyParams {
+  roomId: string;
+  playerId: string;
+  ready: boolean;
+}
+
+export interface SetPlayerReadyResult {
+  room: RoomRuntime;
+  player: ServerRoomPlayer;
 }
 
 export interface ReconnectPlayerParams {

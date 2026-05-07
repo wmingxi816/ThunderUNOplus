@@ -3,7 +3,8 @@ import {
   buildCommandMessage,
   buildCreateRoomMessage,
   buildJoinRoomMessage,
-  buildReconnectMessage
+  buildReconnectMessage,
+  buildSetReadyMessage
 } from "./clientMessages";
 
 describe("client message builders", () => {
@@ -65,6 +66,23 @@ describe("client message builders", () => {
       requestId: "req-reconnect",
       roomId: "ROOM1",
       userId: "web-user-1"
+    });
+  });
+
+  it("builds ready messages", () => {
+    const message = buildSetReadyMessage({
+      requestId: "req-ready",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      ready: true
+    });
+
+    expect(message).toMatchObject({
+      type: "set-ready",
+      requestId: "req-ready",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      ready: true
     });
   });
 });

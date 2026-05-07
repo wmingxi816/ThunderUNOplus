@@ -27,6 +27,7 @@ import {
   buildLeaveRoomMessage,
   buildPingMessage,
   buildReconnectMessage,
+  buildSetReadyMessage,
   buildStartGameMessage,
   type ClientCommandInput,
   createUserId
@@ -49,6 +50,7 @@ interface AppState {
   colorPickerCardId: string | null;
   latestCardsPlayedEvent: CardsPlayedAnimationEvent | null;
   latestPlayGroupEvent: CardsPlayedAnimationEvent | null;
+  latestPlayGroupAnimationKey: string | null;
   flyingCard: FlyingCardAnimation | null;
   drawFlyingCard: DrawFlyingCardAnimation | null;
   drawStackBurst: DrawStackBurstAnimation | null;
@@ -63,6 +65,7 @@ interface CardsPlayedAnimationEvent {
   cardIds: string[];
   topCardId: string;
   receivedAt: number;
+  animationKey: string;
 }
 
 interface FlyingCardAnimation {
@@ -126,6 +129,7 @@ const USER_ID_STORAGE_KEY = "thunder-uno.userId";
 const USER_NICKNAME_STORAGE_KEY = "thunder-uno.nickname";
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
+const LOBBY_MAX_PLAYER_SLOTS = 8;
 
 const root = document.querySelector<HTMLDivElement>("#app");
 let unoProtectionRenderTimer: number | null = null;
@@ -159,6 +163,7 @@ const state: AppState = {
   colorPickerCardId: null,
   latestCardsPlayedEvent: null,
   latestPlayGroupEvent: null,
+  latestPlayGroupAnimationKey: null,
   flyingCard: null,
   drawFlyingCard: null,
   drawStackBurst: null,
@@ -262,23 +267,33 @@ function handleServerMessage(message: ServerMessage): void {
 }
 
 function render(): void {
-  appRoot.innerHTML = `
-    <main class="shell">
-      <section class="topbar">
-        <div>
-          <p class="eyebrow">HTML Web Client</p>
-          <h1>雷霆UNOplus</h1>
-        </div>
-        <span
-          class="status status-${state.connectionStatus}"
-          data-testid="connection-status"
-        >${state.connectionStatus}</span>
-      </section>
+  const snapshot = state.snapshot;
+  const isBattleView = snapshot !== null;
+  document.body.classList.toggle("battle-active", isBattleView);
 
-      ${renderConnectionPanel()}
-      ${renderToastPanel()}
-      ${state.snapshot === null ? renderLobbyPanel() : renderBattlePanel(state.snapshot)}
-      ${renderLogPanel()}
+  appRoot.innerHTML = `
+    <main class="shell ${isBattleView ? "shell-battle" : ""}">
+      ${
+        isBattleView
+          ? renderBattlePanel(snapshot)
+          : `
+            <section class="topbar">
+              <div>
+                <p class="eyebrow">HTML Web Client</p>
+                <h1>雷霆UNOplus</h1>
+              </div>
+              <span
+                class="status status-${state.connectionStatus}"
+                data-testid="connection-status"
+              >${state.connectionStatus}</span>
+            </section>
+
+            ${renderConnectionPanel()}
+            ${renderToastPanel()}
+            ${renderLobbyPanel()}
+            ${renderLogPanel()}
+          `
+      }
     </main>
   `;
 
@@ -344,11 +359,19 @@ function renderLobbyPanel(): string {
   const isConnected = state.connectionStatus === "open";
   const canCreateRoom = isConnected && state.roomId === null;
   const canJoinRoom = isConnected && state.roomId === null;
+  const lobbySummary =
+    room === null
+      ? "等待连接"
+      : `${String(room.players.length)}/${String(LOBBY_MAX_PLAYER_SLOTS)} 人`;
 
   return `
-    <section class="layout" data-testid="lobby-view">
-      <div class="panel" data-testid="lobby-control-panel">
-        <h2>房间</h2>
+    <section class="layout lobby-layout" data-testid="lobby-view">
+      <div class="panel lobby-control" data-testid="lobby-control-panel">
+        <div class="lobby-panel-heading">
+          <p class="eyebrow">Matchmaking</p>
+          <h2>组局大厅</h2>
+          <span>${escapeHtml(lobbySummary)}</span>
+        </div>
         <div class="form-grid">
           <label>
             <span>模式</span>
@@ -367,17 +390,26 @@ function renderLobbyPanel(): string {
             />
           </label>
         </div>
-        <div class="button-row">
+        <div class="button-row lobby-actions">
           <button id="create-room-button" data-testid="create-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>创建房间</button>
           <button id="join-room-button" data-testid="join-room-button" class="secondary" ${canJoinRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>加入房间</button>
           <button id="leave-room-button" data-testid="leave-room-button" class="secondary" ${isConnected && state.roomId !== null ? "" : `disabled title="${escapeHtml(isConnected ? "当前不在房间中。" : "未连接服务端。")}"`}>离开</button>
         </div>
+        <div class="lobby-hints" aria-hidden="true">
+          <span>3 人开局</span>
+          <span>8 人上限</span>
+          <span>服务端裁定</span>
+        </div>
       </div>
-      <div class="panel" data-testid="lobby-status-panel">
-        <h2>等待</h2>
+      <div class="panel lobby-status" data-testid="lobby-status-panel">
+        <div class="lobby-panel-heading">
+          <p class="eyebrow">Room</p>
+          <h2>等待席</h2>
+          <span>${escapeHtml(state.connectionStatus)}</span>
+        </div>
         ${
           room === null
-            ? `<p class="muted">连接服务端后创建或加入房间。</p>`
+            ? renderEmptyLobbyState()
             : renderRoomState(room)
         }
       </div>
@@ -397,17 +429,46 @@ function getLobbyDisabledReason(isConnected: boolean): string {
   return "当前不可操作。";
 }
 
+function renderEmptyLobbyState(): string {
+  return `
+    <div class="empty-lobby">
+      <strong>未进入房间</strong>
+      <p class="muted">连接服务端后创建或加入房间。</p>
+      <div class="empty-seat-grid" aria-hidden="true">
+        ${Array.from({ length: 6 }, (_, index) => `<span>${String(index + 1)}</span>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderRoomState(room: PlayerRoomSnapshot): string {
+  const readyStatus = getLobbyReadyStatus(room);
+  const isHost = room.hostPlayerId === state.playerId;
+  const selfPlayer = room.players.find((player) => player.playerId === state.playerId);
   const canStart =
     state.connectionStatus === "open" &&
-    room.hostPlayerId === state.playerId &&
-    room.players.length >= 3;
+    isHost &&
+    readyStatus.canStart;
+  const canToggleReady =
+    state.connectionStatus === "open" &&
+    !isHost &&
+    state.playerId !== null &&
+    selfPlayer !== undefined;
   const hostPlayer = room.players.find((player) => player.isHost);
+  const openSlotCount = Math.max(LOBBY_MAX_PLAYER_SLOTS - room.players.length, 0);
 
   return `
     <div class="room-meta">
-      <strong data-testid="room-id">${escapeHtml(room.roomCode)}</strong>
-      <span>${escapeHtml(room.mode)} · ${escapeHtml(room.status)} · 房主：${escapeHtml(hostPlayer?.displayName ?? hostPlayer?.playerId ?? "未知")}</span>
+      <div>
+        <span class="room-code-label">房间号</span>
+        <strong data-testid="room-id">${escapeHtml(room.roomCode)}</strong>
+      </div>
+      <div class="room-chip-row">
+        <span>${escapeHtml(getModeLabel(room.mode))}</span>
+        <span>${escapeHtml(getRoomStatusLabel(room.status))}</span>
+        <span>${escapeHtml(readyStatus.label)}</span>
+      </div>
+      <p>房主：${escapeHtml(hostPlayer?.displayName ?? hostPlayer?.playerId ?? "未知")}</p>
     </div>
     <div class="players">
       ${room.players
@@ -424,18 +485,90 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
                 alt="${escapeHtml(player.displayName ?? player.playerId)}"
               />
               <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
-              <small>${player.isHost ? "房主" : `座位 ${String(player.seatIndex + 1)}`}</small>
+              <small>${escapeHtml(getRoomPlayerReadyLabel(player))}</small>
             </div>
           `;
         })
         .join("")}
+      ${Array.from({ length: openSlotCount }, (_, index) => {
+        const seatNumber = room.players.length + index + 1;
+
+        return `
+          <div class="player-pill player-pill-empty" aria-hidden="true">
+            <span class="avatar avatar-empty">${String(seatNumber)}</span>
+            <span>空位</span>
+            <small>座位 ${String(seatNumber)}</small>
+          </div>
+        `;
+      }).join("")}
     </div>
     <label class="seed-line">
       <span>可选种子</span>
       <input id="seed-input" autocomplete="off" />
     </label>
-    <button id="start-game-button" data-testid="start-game-button" ${canStart ? "" : `disabled title="${escapeHtml(getStartGameDisabledReason(room))}"`}>开始游戏</button>
+    ${
+      isHost
+        ? `<button id="start-game-button" data-testid="start-game-button" ${canStart ? "" : `disabled title="${escapeHtml(getStartGameDisabledReason(room))}"`}>开始游戏</button>`
+        : `<button id="ready-button" data-testid="ready-button" ${canToggleReady ? "" : `disabled title="${escapeHtml(getReadyDisabledReason(room))}"`}>${escapeHtml(selfPlayer?.isReady === true ? "取消准备" : "准备")}</button>`
+    }
   `;
+}
+
+function getRoomPlayerReadyLabel(player: PlayerRoomSnapshot["players"][number]): string {
+  if (player.isHost) {
+    return "房主";
+  }
+
+  return player.isReady ? "已准备" : "未准备";
+}
+
+function getLobbyReadyStatus(room: PlayerRoomSnapshot): {
+  canStart: boolean;
+  label: string;
+  unreadyPlayers: PlayerRoomSnapshot["players"];
+} {
+  const nonHostPlayers = room.players.filter((player) => !player.isHost);
+  const unreadyPlayers = nonHostPlayers.filter((player) => !player.isReady);
+
+  if (room.players.length < 3) {
+    return {
+      canStart: false,
+      label: "等待玩家",
+      unreadyPlayers
+    };
+  }
+
+  if (unreadyPlayers.length === 0) {
+    return {
+      canStart: true,
+      label: "所有玩家已准备",
+      unreadyPlayers
+    };
+  }
+
+  return {
+    canStart: false,
+    label: `${unreadyPlayers
+      .map((player) => player.displayName ?? player.playerId)
+      .join("、")}未准备`,
+    unreadyPlayers
+  };
+}
+
+function getModeLabel(mode: GameMode): string {
+  return mode === "with-challenge" ? "有质疑" : "无质疑";
+}
+
+function getRoomStatusLabel(status: PlayerRoomSnapshot["status"]): string {
+  if (status === "lobby") {
+    return "等待中";
+  }
+
+  if (status === "playing") {
+    return "对局中";
+  }
+
+  return "已结束";
 }
 
 function getStartGameDisabledReason(room: PlayerRoomSnapshot): string {
@@ -451,7 +584,27 @@ function getStartGameDisabledReason(room: PlayerRoomSnapshot): string {
     return "至少 3 人才能开始。";
   }
 
+  const readyStatus = getLobbyReadyStatus(room);
+
+  if (readyStatus.unreadyPlayers.length > 0) {
+    return `${readyStatus.unreadyPlayers
+      .map((player) => player.displayName ?? player.playerId)
+      .join("、")}未准备。`;
+  }
+
   return "当前不能开始。";
+}
+
+function getReadyDisabledReason(room: PlayerRoomSnapshot): string {
+  if (state.connectionStatus !== "open") {
+    return "未连接服务端。";
+  }
+
+  if (room.hostPlayerId === state.playerId) {
+    return "房主无需准备。";
+  }
+
+  return "当前不能准备。";
 }
 
 function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
@@ -477,25 +630,18 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
   const challengePrompt = getVisibleChallengePrompt(snapshot, isConnected, isGameFinished);
 
   return `
-    <section class="battle ${isMyTurn ? "my-turn" : "other-turn"}" data-testid="battle-view">
-      ${
-        isGameFinished
-          ? `
-            <div class="panel finish-banner" data-testid="game-finished-banner">
-              <h2>对局结束</h2>
-              <p class="muted">获胜者：${snapshot.winnerPlayerIds
-                .map((playerId) => escapeHtml(lookupPlayerName(snapshot, playerId)))
-                .join(" · ") || "未知"}</p>
-              <p class="muted">当前版本暂不支持房内重开，请重新创建房间。</p>
-              <button id="finish-reset-button" data-testid="reconnect-button" class="secondary">返回大厅</button>
-            </div>
-          `
-          : ""
-      }
-      ${renderBattleHud(snapshot, isMyTurn)}
-      ${renderNormalDrawOfferPrompt(snapshot, canTakeTurnAction)}
-      ${renderEventModal(snapshot)}
+    <section class="battle battle-immersive ${isMyTurn ? "my-turn" : "other-turn"}" data-testid="battle-view">
       <div class="table-zone battle-stage">
+        ${renderBattleHud(snapshot, isMyTurn)}
+        <p
+          id="battle-error-line"
+          data-testid="error-line"
+          class="battle-error-line"
+          aria-live="polite"
+        >${state.lastError === null ? "" : escapeHtml(state.lastError)}</p>
+        ${renderToastPanel()}
+        ${renderNormalDrawOfferPrompt(snapshot, canTakeTurnAction)}
+        ${renderEventModal(snapshot)}
         <div class="battle-table">
           <div class="opponents" data-testid="opponents-area">
             ${snapshot.opponents
@@ -528,35 +674,37 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
           ${challengePrompt === null ? "" : renderChallengePrompt(snapshot, challengePrompt)}
           ${renderSelfSeat(snapshot)}
         </div>
-        <div class="actions ${canTakeTurnAction ? "is-active" : ""}">
-          <button
-            id="say-uno-button"
-            data-testid="say-uno-button"
-            class="secondary"
-            ${canSayUno ? `title="喊 UNO"` : `disabled title="${escapeHtml(getSayUnoDisabledReason(snapshot, isConnected, isGameFinished, isMyTurn))}"`}
-          >UNO</button>
+        <div class="battle-action-dock">
+          <div class="actions ${canTakeTurnAction ? "is-active" : ""}">
+            <button
+              id="say-uno-button"
+              data-testid="say-uno-button"
+              class="secondary"
+              ${canSayUno ? `title="喊 UNO"` : `disabled title="${escapeHtml(getSayUnoDisabledReason(snapshot, isConnected, isGameFinished, isMyTurn))}"`}
+            >UNO</button>
+            ${renderSelectionPanel(snapshot, canTakeTurnAction, isGameFinished, isMyTurn, isConnected)}
+          </div>
+          <div class="hand">
+            <div class="hand-header">
+              <h2>${escapeHtml(snapshot.self.displayName ?? "我")} 的手牌</h2>
+              <span>${String(snapshot.self.hand.length)} 张</span>
+            </div>
+            ${renderActionGuide(snapshot, canTakeTurnAction, isGameFinished, isConnected)}
+            <div class="cards" data-testid="hand-area">
+              ${hand
+                .map((card) =>
+                  renderCardButtonV2(
+                    card,
+                    snapshot,
+                    canTakeTurnAction,
+                    selectedCards,
+                    sequenceCandidateCardIds
+                  )
+                )
+                .join("")}
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="hand">
-        <div class="hand-header">
-          <h2>${escapeHtml(snapshot.self.displayName ?? "我")} 的手牌</h2>
-          <span>${String(snapshot.self.hand.length)} 张</span>
-        </div>
-        ${renderActionGuide(snapshot, canTakeTurnAction, isGameFinished, isConnected)}
-        <div class="cards" data-testid="hand-area">
-          ${hand
-            .map((card) =>
-              renderCardButtonV2(
-                card,
-                snapshot,
-                canTakeTurnAction,
-                selectedCards,
-                sequenceCandidateCardIds
-              )
-            )
-            .join("")}
-        </div>
-        ${renderSelectionPanel(snapshot, canTakeTurnAction, isGameFinished, isMyTurn, isConnected)}
       </div>
     </section>
     ${renderColorPickerPanel(snapshot.self.hand, canTakeTurnAction)}
@@ -956,6 +1104,13 @@ function renderLatestPlayedGroup(group: ReturnType<typeof getLatestPlayedGroup>)
 
   const groupClass =
     group.cards.length > 1 ? `latest-play-group ${group.mode}` : "latest-play-group single";
+  const event = state.latestPlayGroupEvent;
+  const shouldAnimate =
+    event !== null && state.latestPlayGroupAnimationKey === event.animationKey;
+
+  if (shouldAnimate) {
+    state.latestPlayGroupAnimationKey = null;
+  }
 
   return `
     <div class="${escapeHtml(groupClass)}" data-testid="latest-play-group">
@@ -965,7 +1120,7 @@ function renderLatestPlayedGroup(group: ReturnType<typeof getLatestPlayedGroup>)
 
           return `
             <img
-              class="discard-card top-discard-card latest-play-card"
+              class="discard-card top-discard-card latest-play-card${shouldAnimate ? " play-card-landing" : ""}"
               src="${getCardAssetPath(card)}"
               alt="${escapeHtml(card.displayName)}"
               style="--fan-x: ${String(fan.x)}px; --fan-y: ${String(fan.y)}px; --fan-rotate: ${String(fan.rotate)}deg; --fan-index: ${String(index)};"
@@ -1129,6 +1284,10 @@ function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): strin
       <span class="hud-item">颜色：${renderCurrentColorBadge(snapshot.currentColor)}</span>
       <span class="hud-item">方向：${renderDirectionIndicator(snapshot.direction)}</span>
       <span class="hud-item">牌堆 ${String(snapshot.drawPileCount)} 张</span>
+      <span
+        class="hud-item battle-connection-status status-${state.connectionStatus}"
+        data-testid="connection-status"
+      >${state.connectionStatus}</span>
       ${renderBattleStatusChips(snapshot)}
       <button
         id="battle-leave-room-button"
@@ -2332,11 +2491,6 @@ function renderSelectionPanel(
     <div class="selection-panel">
       <div class="selection-summary">
         <strong>已选 ${String(selectedCards.length)} 张</strong>
-        <span>${
-          selectedCards.length === 0
-            ? "请选择一张或多张手牌"
-            : selectedCards.map((card) => escapeHtml(card.displayName)).join(" · ")
-        }</span>
       </div>
       <div class="selection-actions">
         <button
@@ -2346,7 +2500,6 @@ function renderSelectionPanel(
         >${escapeHtml(preview.label)}</button>
         <button id="clear-selection-button" class="secondary">清空</button>
       </div>
-      <p class="muted">${escapeHtml(preview.message)}</p>
     </div>
   `;
 }
@@ -2708,14 +2861,17 @@ function handleGameEvents(events: readonly GameEvent[]): void {
   for (const event of events) {
     if (event.type === "cards-played") {
       state.recentDrawnCardIds = [];
+      const receivedAt = Date.now();
       const playedEvent = {
         playerId: event.playerId,
         cardIds: [...event.cardIds],
         topCardId: event.topCardId,
-        receivedAt: Date.now()
+        receivedAt,
+        animationKey: `${event.topCardId}-${String(receivedAt)}`
       };
       state.latestCardsPlayedEvent = playedEvent;
       state.latestPlayGroupEvent = playedEvent;
+      state.latestPlayGroupAnimationKey = playedEvent.animationKey;
       showToast(`${lookupNameFromKnownState(event.playerId)} \u51fa\u724c\u6210\u529f`, "success");
     }
 
@@ -2915,6 +3071,26 @@ function bindLobbyPanel(): void {
         roomId: state.roomId,
         playerId: state.playerId,
         seed: readInputValue("#seed-input")
+      })
+    );
+  });
+
+  document.querySelector("#ready-button")?.addEventListener("click", () => {
+    if (state.roomId === null || state.playerId === null || state.room === null) {
+      return;
+    }
+
+    const selfPlayer = state.room.players.find((player) => player.playerId === state.playerId);
+
+    if (selfPlayer === undefined || selfPlayer.isHost) {
+      return;
+    }
+
+    sendSafely(
+      buildSetReadyMessage({
+        roomId: state.roomId,
+        playerId: state.playerId,
+        ready: !selfPlayer.isReady
       })
     );
   });
@@ -3404,6 +3580,7 @@ function resetRoomContext(): void {
   state.recentDrawnCardIds = [];
   state.latestCardsPlayedEvent = null;
   state.latestPlayGroupEvent = null;
+  state.latestPlayGroupAnimationKey = null;
   state.flyingCard = null;
   state.drawFlyingCard = null;
   state.drawStackBurst = null;

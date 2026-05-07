@@ -72,6 +72,7 @@ export interface RoomSnapshotPlayer {
   avatarUrl?: string | null;
   seatIndex: number;
   isHost: boolean;
+  isReady: boolean;
   connectionStatus: PlayerConnectionStatus;
 }
 

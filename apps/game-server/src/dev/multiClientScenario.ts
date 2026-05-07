@@ -75,6 +75,8 @@ export async function runMultiClientScenario(
         options.verbose,
         `[join-room] user=${client.userId} player=${client.playerId ?? "unknown"} seat=${String(seatIndex ?? -1)}`
       );
+      await client.setReady(true);
+      log(logs, options.verbose, `[ready] player=${client.playerId ?? "unknown"}`);
     }
 
     await waitForAllRoomPlayerCounts(clients, options.players);

@@ -96,6 +96,7 @@ describe("protocol - messages", () => {
             avatarUrl: null,
             seatIndex: 0,
             isHost: true,
+            isReady: true,
             connectionStatus: "connected"
           }
         ]

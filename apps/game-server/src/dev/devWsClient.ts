@@ -220,6 +220,40 @@ export class DevWsClient {
     return response;
   }
 
+  async setReady(ready: boolean): Promise<ServerRoomStateMessage> {
+    const requestId = this.nextRequestId("set-ready");
+    const startIndex = this.receivedMessages.length;
+    const roomId = this.requireRoomId();
+    const playerId = this.requirePlayerId();
+
+    this.send({
+      protocolVersion: PROTOCOL_VERSION,
+      type: "set-ready",
+      requestId,
+      roomId,
+      playerId,
+      ready,
+      timestampMs: Date.now()
+    });
+
+    const response = (await this.waitForMessage(
+      (candidate) => {
+        return (
+          (candidate.type === "room-state" || candidate.type === "error") &&
+          candidate.requestId === requestId
+        );
+      },
+      2_000,
+      startIndex
+    )) as ServerRoomStateMessage | ServerErrorMessage;
+
+    if (response.type === "error") {
+      throw createClientError(response);
+    }
+
+    return response;
+  }
+
   async sendCommand(
     command: GameCommand
   ): Promise<ServerEventsMessage | ServerErrorMessage> {

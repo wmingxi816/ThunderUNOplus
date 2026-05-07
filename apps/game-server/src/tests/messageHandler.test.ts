@@ -164,6 +164,36 @@ describe("messageHandler", () => {
     expect(joinerConnection.sentMessages.some((message) => message.type === "room-state")).toBe(true);
   });
 
+  it("set-ready 会更新准备状态并广播 room-state", () => {
+    const fixture = createWaitingRoomFixture(3);
+    const player = fixture.room.players[1]!;
+    const connection = fixture.connectionRegistry.getConnectionByPlayerId(player.playerId)!;
+    player.isReady = false;
+
+    handleClientMessage({
+      connection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "set-ready",
+        requestId: "req-ready-1",
+        roomId: fixture.room.roomId,
+        playerId: player.playerId,
+        ready: true,
+        timestampMs: 1000
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    expect(player.isReady).toBe(true);
+    expect(connection.sentMessages.some((message) => {
+      return message.type === "room-state" &&
+        message.room.players.some((roomPlayer) => {
+          return roomPlayer.playerId === player.playerId && roomPlayer.isReady;
+        });
+    })).toBe(true);
+  });
+
   it("start-game 会向每位玩家发送各自 snapshot", () => {
     const fixture = createWaitingRoomFixture(3);
     const ownerPlayerId = fixture.room.ownerPlayerId;
