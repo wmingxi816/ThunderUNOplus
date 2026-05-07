@@ -208,7 +208,8 @@ label span {
 }
 
 .lobby-control,
-.lobby-status {
+.lobby-status,
+.rules-guide {
   position: relative;
   min-height: 100%;
 }
@@ -226,6 +227,65 @@ label span {
     linear-gradient(135deg, rgba(101, 209, 122, 0.12), transparent 32%),
     linear-gradient(315deg, rgba(68, 140, 255, 0.1), transparent 35%),
     rgba(23, 25, 32, 0.94);
+}
+
+.rules-guide {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 1rem;
+  background:
+    linear-gradient(135deg, rgba(115, 183, 255, 0.12), transparent 28%),
+    linear-gradient(315deg, rgba(248, 214, 78, 0.1), transparent 34%),
+    rgba(23, 25, 32, 0.94);
+}
+
+.rules-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.rule-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(10, 12, 17, 0.48);
+  overflow: hidden;
+}
+
+.rule-card summary {
+  display: grid;
+  gap: 0.22rem;
+  min-height: 4.4rem;
+  padding: 0.85rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.rule-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.rule-card summary span {
+  color: #73b7ff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.rule-card summary strong {
+  color: #f6f1e8;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.rule-card ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0 0.95rem 0.95rem 1.9rem;
+  color: #d9deea;
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .lobby-panel-heading {
@@ -1891,6 +1951,7 @@ label span {
   .connection-panel,
   .layout,
   .form-grid,
+  .rules-guide-grid,
   .center-table {
     grid-template-columns: 1fr;
   }

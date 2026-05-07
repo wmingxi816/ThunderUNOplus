@@ -75,6 +75,8 @@ describe("client-web smoke", () => {
     expect(document.querySelector("#join-room-button")).not.toBeNull();
     expect(document.querySelector("#room-id-input")).not.toBeNull();
     expect(document.querySelectorAll(".room-code-digit")).toHaveLength(6);
+    expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("规则讲解");
+    expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("加牌链");
     expect(document.querySelector("#error-line")).not.toBeNull();
     expect(document.querySelector(".status")).not.toBeNull();
 

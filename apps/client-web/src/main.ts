@@ -127,12 +127,77 @@ interface HandCardPresentation {
   sequenceCandidate: boolean;
 }
 
+interface RuleGuideSection {
+  kicker: string;
+  title: string;
+  items: string[];
+  open?: boolean;
+}
+
 const LAST_ROOM_STORAGE_KEY = "thunder-uno.lastRoomId";
 const USER_ID_STORAGE_KEY = "thunder-uno.userId";
 const USER_NICKNAME_STORAGE_KEY = "thunder-uno.nickname";
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
+const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
+  {
+    kicker: "开局",
+    title: "房间与基础流程",
+    open: true,
+    items: [
+      "3 到 8 人进入同一房间后，非房主需要先准备，房主才能开始。",
+      "每位玩家开局 7 张手牌，第一张桌面牌不会是黑色牌。",
+      "当前颜色、当前方向和当前玩家都由服务端快照决定。"
+    ]
+  },
+  {
+    kicker: "接牌",
+    title: "单牌接牌",
+    items: [
+      "数字牌可按同色或同数字接牌。",
+      "带颜色技能牌可按同色或同技能类型接牌。",
+      "黑色牌需要选择后续颜色，下一家按指定颜色继续。"
+    ]
+  },
+  {
+    kicker: "加牌",
+    title: "加牌链",
+    items: [
+      "只有普通 +2、普通 +4、反转变色 +4、变色 +6、变色 +10 能响应加牌链。",
+      "普通 +2 只能接普通 +2，普通 +4 只能接普通 +4。",
+      "黑色加牌可以升级叠加；+6 后不能再接普通 +2、普通 +4 或黑色反转 +4。",
+      "选择结算加牌链后，目标玩家摸累计张数并结束本轮。"
+    ]
+  },
+  {
+    kicker: "组合",
+    title: "顺子、连对与同色丢弃",
+    items: [
+      "顺子至少 5 张数字牌，数字必须连续，下一家接顺子中最大的牌。",
+      "连对由同色同数字的多张数字牌组成。",
+      "同色丢弃必须先选主牌，附带牌只丢弃不触发技能。"
+    ]
+  },
+  {
+    kicker: "UNO",
+    title: "UNO 与抓 UNO",
+    items: [
+      "手牌变成 1 张时会进入待喊 UNO 状态。",
+      "即使回合已经推进，只要仍处于待喊状态，也可以立即点击 UNO。",
+      "未喊 UNO 且保护期结束后，其他玩家可以抓 UNO，目标罚摸 6 张。"
+    ]
+  },
+  {
+    kicker: "结算",
+    title: "淘汰、胜利与续局",
+    items: [
+      "手牌超过 25 张会被淘汰，淘汰玩家不再参与回合。",
+      "玩家打出最后一张牌会成为本局胜利玩家。",
+      "出现淘汰或胜利后，房主可以选择继续游戏或重开一把。"
+    ]
+  }
+];
 
 const root = document.querySelector<HTMLDivElement>("#app");
 let unoProtectionRenderTimer: number | null = null;
@@ -420,7 +485,37 @@ function renderLobbyPanel(): string {
             : renderRoomState(room)
         }
       </div>
+      ${renderRulesGuidePanel()}
     </section>
+  `;
+}
+
+function renderRulesGuidePanel(): string {
+  return `
+    <section class="panel rules-guide" data-testid="rules-guide">
+      <div class="lobby-panel-heading">
+        <p class="eyebrow">Rules</p>
+        <h2>规则讲解</h2>
+        <span>服务端裁定</span>
+      </div>
+      <div class="rules-guide-grid">
+        ${RULE_GUIDE_SECTIONS.map(renderRuleGuideSection).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderRuleGuideSection(section: RuleGuideSection): string {
+  return `
+    <details class="rule-card" ${section.open ? "open" : ""}>
+      <summary>
+        <span>${escapeHtml(section.kicker)}</span>
+        <strong>${escapeHtml(section.title)}</strong>
+      </summary>
+      <ul>
+        ${section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ul>
+    </details>
   `;
 }
 
