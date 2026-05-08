@@ -71,22 +71,32 @@ describe("client-web smoke", () => {
     expect(nickname?.startsWith("\u73A9\u5BB6")).toBe(true);
     expect(nickname?.slice(2)).toMatch(/^\d{4}$/);
     expect(document.querySelector("#create-room-button")).not.toBeNull();
-    expect(document.querySelector("#create-custom-room-button")).not.toBeNull();
+    expect(document.querySelector("#create-custom-room-button")).toBeNull();
     expect(document.querySelector("#join-room-button")).not.toBeNull();
     expect(document.querySelector("#room-id-input")).not.toBeNull();
     expect(document.querySelectorAll(".room-code-digit")).toHaveLength(6);
     expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("规则讲解");
-    expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("加牌链");
+    expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("基础玩法");
+    expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("卡牌介绍");
+    expect(document.querySelectorAll(".rule-entry-button")).toHaveLength(4);
     expect(document.querySelector("#error-line")).not.toBeNull();
     expect(document.querySelector(".status")).not.toBeNull();
 
     const connectButton = document.querySelector<HTMLButtonElement>("#connect-button");
     expect(connectButton).not.toBeNull();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(connectButton?.textContent).toBe("\u91cd\u65b0\u8fde\u63a5");
+    expect(connectButton?.classList.contains("connection-action-retry")).toBe(true);
     connectButton?.click();
+    expect(FakeWebSocket.instances).toHaveLength(1);
 
     const socket = FakeWebSocket.instances[0];
     expect(socket).toBeDefined();
     socket?.triggerOpen();
+    expect(document.querySelector<HTMLButtonElement>("#connect-button")?.textContent).toBe("\u5df2\u8fde\u63a5");
+    expect(
+      document.querySelector<HTMLButtonElement>("#connect-button")?.classList.contains("connection-action-open")
+    ).toBe(true);
 
     const reconnectMessage = socket?.sentMessages
       .map((message) => JSON.parse(message))
@@ -99,7 +109,207 @@ describe("client-web smoke", () => {
     });
   });
 
-  it("sends custom room ids and join ids from the six digit room code inputs", async () => {
+  it("opens the lobby rules guide and maps card intro buttons to rule images", async () => {
+    await import("../main");
+
+    expect(document.querySelector<HTMLButtonElement>("[data-rule-entry='challenge']")?.disabled).toBe(false);
+    document.querySelector<HTMLButtonElement>("[data-rule-entry='challenge']")?.click();
+    expect(document.querySelector<HTMLImageElement>(".rule-image-viewer img")?.getAttribute("src")).toBe(
+      "/rules/\u8d28\u7591\u73a9\u6cd5.png"
+    );
+
+    document.querySelector<HTMLButtonElement>("#rule-back-button")?.click();
+    document.querySelector<HTMLButtonElement>("[data-rule-entry='cards']")?.click();
+
+    expect(document.querySelector("[data-testid='rule-modal']")?.textContent).toContain("卡牌介绍");
+    expect(document.querySelectorAll("[data-rule-card]")).toHaveLength(12);
+    expect(document.querySelectorAll(".rule-card-index")).toHaveLength(12);
+
+    document.querySelector<HTMLButtonElement>("[data-rule-card='draw-two']")?.click();
+    expect(document.querySelector("[data-testid='rule-modal']")?.textContent).toContain("2. ");
+    expect(document.querySelector<HTMLImageElement>(".rule-image-viewer img")?.getAttribute("src")).toBe(
+      "/rules/卡牌规则23.png"
+    );
+
+    document.querySelector<HTMLButtonElement>("#rule-next-card-button")?.click();
+    expect(document.querySelector("[data-testid='rule-modal']")?.textContent).toContain("3. ");
+    expect(document.querySelector<HTMLImageElement>(".rule-image-viewer img")?.getAttribute("src")).toBe(
+      "/rules/卡牌规则23.png"
+    );
+    expect(document.querySelector<HTMLButtonElement>("#rule-prev-card-button")?.textContent).toBe("‹");
+    expect(document.querySelector<HTMLButtonElement>("#rule-next-card-button")?.textContent).toBe("›");
+    expect(document.querySelector("#rule-prev-button")).toBeNull();
+    expect(document.querySelector("#rule-next-button")).toBeNull();
+  });
+
+  it("lets non-host players stay or leave from the finished game modal", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      snapshotVersion: 1,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "playing",
+        mode: "no-challenge",
+        hostPlayerId: "player-host",
+        snapshotVersion: 1,
+        players: [
+          {
+            playerId: "player-host",
+            displayName: "host",
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            connectionStatus: "connected"
+          },
+          {
+            playerId: "player-2",
+            displayName: "guest",
+            avatarUrl: null,
+            seatIndex: 1,
+            isHost: false,
+            isReady: true,
+            connectionStatus: "connected"
+          },
+          {
+            playerId: "player-3",
+            displayName: "winner",
+            avatarUrl: null,
+            seatIndex: 2,
+            isHost: false,
+            isReady: true,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const topCard = {
+      id: "blue-1",
+      kind: "number",
+      color: "blue",
+      number: 1,
+      isBlack: false,
+      displayName: "blue 1"
+    };
+    const buildFinishedSnapshot = (winnerPlayerIds: string[]) => ({
+      roomId: "ROOM1",
+      snapshotVersion: 2,
+      status: "finished",
+      mode: "no-challenge",
+      currentPlayerId: "player-2",
+      currentColor: "blue",
+      direction: "clockwise",
+      topCard,
+      discardPile: [topCard],
+      drawPileCount: 80,
+      drawStack: {
+        active: false,
+        amount: 0,
+        previousDrawValue: null,
+        previousDrawKind: null,
+        targetPlayerId: null
+      },
+      drawUntilColor: {
+        active: false,
+        color: null,
+        targetPlayerId: null
+      },
+      challengeWindow: {
+        active: false,
+        targetPlayerId: null
+      },
+      winnerPlayerIds,
+      self: {
+        playerId: "player-2",
+        displayName: "guest",
+        avatarUrl: null,
+        hand: [],
+        handCount: 0,
+        hasCalledUno: false,
+        unoPendingSinceMs: null,
+        unoProtectionStartedAtMs: null,
+        unoProtectionEndsAtMs: null,
+        isEliminated: false,
+        isCurrentPlayer: true
+      },
+      opponents: [
+        {
+          playerId: "player-host",
+          displayName: "host",
+          avatarUrl: null,
+          handCount: 7,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: false
+        },
+        {
+          playerId: "player-3",
+          displayName: "winner",
+          avatarUrl: null,
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: false
+        }
+      ]
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      snapshotVersion: 2,
+      snapshot: buildFinishedSnapshot(["player-host"])
+    });
+
+    expect(document.querySelector("[data-testid='restart-game-button']")).toBeNull();
+    expect(document.querySelector("[data-testid='stay-in-room-button']")).not.toBeNull();
+    expect(document.querySelector("[data-testid='finish-leave-room-button']")).not.toBeNull();
+
+    document.querySelector<HTMLButtonElement>("[data-testid='stay-in-room-button']")?.click();
+    expect(document.querySelector("[data-testid='event-modal']")).toBeNull();
+    expect(document.querySelector("[data-testid='battle-view']")).not.toBeNull();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      snapshotVersion: 3,
+      snapshot: buildFinishedSnapshot(["player-3"])
+    });
+    document.querySelector<HTMLButtonElement>("[data-testid='finish-leave-room-button']")?.click();
+
+    const leaveRoomMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "leave-room" && message.roomId === "ROOM1");
+
+    expect(leaveRoomMessage).toMatchObject({
+      type: "leave-room",
+      roomId: "ROOM1",
+      playerId: "player-2"
+    });
+    expect(document.querySelector("[data-testid='lobby-view']")).not.toBeNull();
+  });
+
+  it("generates room ids on the server and joins from the six digit room code inputs", async () => {
     await import("../main");
 
     document.querySelector<HTMLButtonElement>("#connect-button")?.click();
@@ -107,24 +317,75 @@ describe("client-web smoke", () => {
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
 
+    document.querySelector<HTMLButtonElement>("#create-room-button")?.click();
+
     document.querySelectorAll<HTMLInputElement>("[data-room-code-index]").forEach((input, index) => {
       input.value = String(index + 1);
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    document.querySelector<HTMLButtonElement>("#create-custom-room-button")?.click();
     document.querySelector<HTMLButtonElement>("#join-room-button")?.click();
 
     const messages = socket?.sentMessages.map((message) => JSON.parse(message)) ?? [];
+    const createRoomMessage = messages.find((message) => message.type === "create-room");
 
-    expect(messages.find((message) => message.type === "create-room")).toMatchObject({
-      type: "create-room",
-      roomId: "123456"
-    });
+    expect(document.querySelector("#create-custom-room-button")).toBeNull();
+    expect(createRoomMessage).toMatchObject({ type: "create-room" });
+    expect(createRoomMessage).not.toHaveProperty("roomId");
     expect(messages.find((message) => message.type === "join-room")).toMatchObject({
       type: "join-room",
       roomId: "123456"
     });
+  });
+
+  it("fills the room code inputs with the server confirmed generated room id", async () => {
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    document.querySelector<HTMLButtonElement>("#create-room-button")?.click();
+
+    const createRoomMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "create-room");
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "135790",
+      playerId: "player-host",
+      snapshotVersion: 0,
+      room: {
+        roomId: "135790",
+        roomCode: "135790",
+        status: "lobby",
+        mode: createRoomMessage.mode,
+        hostPlayerId: "player-host",
+        snapshotVersion: 0,
+        players: [
+          {
+            playerId: "player-host",
+            displayName: createRoomMessage.nickname,
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const roomCode = Array.from(
+      document.querySelectorAll<HTMLInputElement>("[data-room-code-index]")
+    )
+      .map((input) => input.value)
+      .join("");
+
+    expect(roomCode).toBe("135790");
   });
 
   it("does not reuse a cloned tab identity on normal navigation", async () => {
@@ -411,6 +672,12 @@ describe("client-web smoke", () => {
 
     expect(document.querySelector("[data-testid='battle-view']")).not.toBeNull();
     expect(document.querySelector("[data-testid='lobby-view']")).toBeNull();
+    expect(document.querySelector("[data-testid='battle-rule-button']")).not.toBeNull();
+    document.querySelector<HTMLButtonElement>("[data-testid='battle-rule-button']")?.click();
+    expect(document.querySelector("[data-testid='rule-modal']")?.textContent).toContain("基础玩法");
+    expect(document.querySelector("[data-testid='rule-modal']")?.textContent).toContain("质疑规则");
+    expect(document.querySelector<HTMLButtonElement>("[data-rule-entry='challenge']")?.disabled).toBe(true);
+    document.querySelector<HTMLButtonElement>("#close-rule-modal-button")?.click();
     expect(document.querySelector(".direction-indicator")?.textContent).toContain("顺");
     expect(document.querySelector("[data-testid='battle-view']")?.textContent).not.toContain("clockwise");
     expect(document.querySelector(".seat.current .seat-badge")?.textContent).toContain("轮到你");

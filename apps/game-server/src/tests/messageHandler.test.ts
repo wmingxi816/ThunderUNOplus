@@ -112,6 +112,49 @@ describe("messageHandler", () => {
     expect(connection.sentMessages.some((message) => message.type === "room-state")).toBe(true);
   });
 
+  it("create-room 会把 6 位自定义房间号同步到服务端房间", () => {
+    const context = createTestServerContext();
+    const connection = createMockConnection({
+      connectionId: "conn-001",
+      userId: "dev-user-001"
+    });
+    context.connectionRegistry.registerConnection(connection);
+
+    handleClientMessage({
+      connection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "create-room",
+        requestId: "req-create-custom-1",
+        userId: "dev-user-001",
+        nickname: "玩家1",
+        avatarUrl: null,
+        mode: "no-challenge",
+        roomId: "246810",
+        timestampMs: 1000
+      }),
+      roomManager: context.roomManager,
+      connectionRegistry: context.connectionRegistry
+    });
+
+    const room = context.roomManager.getRoom("246810");
+    const roomStateMessage = connection.sentMessages.find((message) => {
+      return message.type === "room-state";
+    });
+
+    expect(room).not.toBeNull();
+    expect(context.roomManager.listRooms()[0]?.roomId).toBe("246810");
+    expect(connection.roomId).toBe("246810");
+    expect(roomStateMessage).toMatchObject({
+      type: "room-state",
+      roomId: "246810",
+      room: {
+        roomId: "246810",
+        roomCode: "246810"
+      }
+    });
+  });
+
   it("join-room 会加入房间并广播 room-state", () => {
     const context = createTestServerContext();
     const ownerConnection = createMockConnection({

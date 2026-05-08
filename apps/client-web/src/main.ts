@@ -48,6 +48,7 @@ interface AppState {
   lastError: string | null;
   log: string[];
   selectedCardIds: string[];
+  handCardMotion: Record<string, "select" | "deselect">;
   recentDrawnCardIds: string[];
   colorPickerCardId: string | null;
   latestCardsPlayedEvent: CardsPlayedAnimationEvent | null;
@@ -58,7 +59,9 @@ interface AppState {
   drawStackBurst: DrawStackBurstAnimation | null;
   challengePrompt: ChallengePromptState | null;
   eventModal: EventModalState | null;
+  ruleModal: RuleModalView | null;
   uiToast: UiToastState | null;
+  dismissedFinishedNoticeKey: string | null;
   snapshotRecoveryRoomId: RoomId | null;
   roomCodeDigits: string[];
 }
@@ -125,6 +128,36 @@ interface HandCardPresentation {
   reason: string;
   canSelect: boolean;
   sequenceCandidate: boolean;
+}
+
+type RuleEntryId = "basic" | "special" | "challenge" | "cards";
+type RuleImageGroupId = Exclude<RuleEntryId, "cards">;
+
+type RuleModalView =
+  | { type: "home" }
+  | { type: "image-group"; groupId: RuleImageGroupId; pageIndex: number }
+  | { type: "card-list" }
+  | { type: "card-rule"; cardId: string; pageIndex: number };
+
+interface RuleEntryButton {
+  id: RuleEntryId;
+  label: string;
+  tone: "red" | "yellow" | "green" | "blue";
+}
+
+interface RuleImageGroup {
+  id: RuleImageGroupId;
+  title: string;
+  images: string[];
+  requiresChallengeMode?: boolean;
+}
+
+interface RuleCardIntro {
+  id: string;
+  index: number;
+  title: string;
+  cardImage: string;
+  ruleImages: string[];
 }
 
 interface RuleGuideSection {
@@ -199,6 +232,117 @@ const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
   }
 ];
 
+const RULE_ENTRY_BUTTONS: RuleEntryButton[] = [
+  { id: "basic", label: "基础玩法", tone: "red" },
+  { id: "special", label: "特色玩法", tone: "yellow" },
+  { id: "challenge", label: "质疑规则", tone: "green" },
+  { id: "cards", label: "卡牌介绍", tone: "blue" }
+];
+const RULE_IMAGE_GROUPS: RuleImageGroup[] = [
+  {
+    id: "basic",
+    title: "基础玩法",
+    images: ["/rules/基础规则1.png", "/rules/基础规则2.png"]
+  },
+  {
+    id: "special",
+    title: "特色玩法",
+    images: ["/rules/特色玩法（顺子）.png"]
+  },
+  {
+    id: "challenge",
+    title: "质疑规则",
+    images: ["/rules/质疑玩法.png"],
+    requiresChallengeMode: true
+  }
+];
+const RULE_CARD_INTROS: RuleCardIntro[] = [
+  {
+    id: "number",
+    index: 1,
+    title: "普通牌",
+    cardImage: "/cards/21_blue_1.png",
+    ruleImages: ["/rules/卡牌规则1.png"]
+  },
+  {
+    id: "draw-two",
+    index: 2,
+    title: "普通 +2",
+    cardImage: "/cards/52_blue_plus2.png",
+    ruleImages: ["/rules/卡牌规则23.png"]
+  },
+  {
+    id: "draw-four",
+    index: 3,
+    title: "普通 +4",
+    cardImage: "/cards/53_blue_plus4.png",
+    ruleImages: ["/rules/卡牌规则23.png"]
+  },
+  {
+    id: "skip",
+    index: 4,
+    title: "禁",
+    cardImage: "/cards/54_blue_skip.png",
+    ruleImages: ["/rules/卡牌规则4.png"]
+  },
+  {
+    id: "reverse",
+    index: 5,
+    title: "反转",
+    cardImage: "/cards/57_blue_reverse.png",
+    ruleImages: ["/rules/卡牌规则5.png"]
+  },
+  {
+    id: "discard-same-color",
+    index: 6,
+    title: "同色丢弃",
+    cardImage: "/cards/56_blue_discard.png",
+    ruleImages: ["/rules/卡牌规则6.png"]
+  },
+  {
+    id: "swap-hands",
+    index: 7,
+    title: "交换手牌",
+    cardImage: "/cards/55_blue_swap.png",
+    ruleImages: ["/rules/卡牌规则7.png"]
+  },
+  {
+    id: "wild",
+    index: 8,
+    title: "变色",
+    cardImage: "/cards/68_black_wild.png",
+    ruleImages: ["/rules/卡牌规则8.png"]
+  },
+  {
+    id: "penalty-draw",
+    index: 9,
+    title: "罚抽",
+    cardImage: "/cards/64_black_faces.png",
+    ruleImages: ["/rules/卡牌规则9.png"]
+  },
+  {
+    id: "wild-reverse-draw-four",
+    index: 10,
+    title: "反转变色 +4",
+    cardImage: "/cards/66_black_plus4_swap.png",
+    ruleImages: ["/rules/卡牌规则10.png"]
+  },
+  {
+    id: "wild-draw-six",
+    index: 11,
+    title: "变色 +6",
+    cardImage: "/cards/65_black_plus6.png",
+    ruleImages: ["/rules/卡牌规则11.png"]
+  },
+  {
+    id: "wild-draw-ten",
+    index: 12,
+    title: "变色 +10",
+    cardImage: "/cards/67_black_plus10.png",
+    ruleImages: ["/rules/卡牌规则12.png"]
+  }
+];
+
 const root = document.querySelector<HTMLDivElement>("#app");
 let unoProtectionRenderTimer: number | null = null;
 
@@ -227,6 +371,7 @@ const state: AppState = {
   lastError: null,
   log: [],
   selectedCardIds: [],
+  handCardMotion: {},
   recentDrawnCardIds: [],
   colorPickerCardId: null,
   latestCardsPlayedEvent: null,
@@ -237,7 +382,9 @@ const state: AppState = {
   drawStackBurst: null,
   challengePrompt: null,
   eventModal: null,
+  ruleModal: null,
   uiToast: null,
+  dismissedFinishedNoticeKey: null,
   snapshotRecoveryRoomId: null,
   roomCodeDigits: ["", "", "", "", "", ""]
 };
@@ -276,6 +423,7 @@ const wsClient = new WsClient({
 });
 
 render();
+connectUsingCurrentInputs();
 window.addEventListener("resize", () => {
   window.requestAnimationFrame(syncHandOverlapLayout);
 });
@@ -287,6 +435,7 @@ function handleServerMessage(message: ServerMessage): void {
       state.playerId = message.playerId;
       state.room = message.room;
       state.lastError = null;
+      setRoomCodeFromText(message.roomId);
       clearSelectedCards();
       setSessionStoredValue(LAST_ROOM_STORAGE_KEY, message.roomId);
 
@@ -296,6 +445,9 @@ function handleServerMessage(message: ServerMessage): void {
     case "snapshot":
       const previousSnapshot = state.snapshot;
       const snapshot = normalizePlayerGameSnapshot(message.snapshot);
+      if (snapshot.status !== "finished") {
+        state.dismissedFinishedNoticeKey = null;
+      }
       syncRecentDrawnCards(previousSnapshot, snapshot);
       syncFlyingCardAnimation(snapshot);
       state.roomId = message.roomId;
@@ -303,6 +455,7 @@ function handleServerMessage(message: ServerMessage): void {
       state.snapshot = snapshot;
       state.snapshotRecoveryRoomId = null;
       state.lastError = null;
+      setRoomCodeFromText(message.roomId);
       clearSelectedCards();
       setSessionStoredValue(LAST_ROOM_STORAGE_KEY, message.roomId);
       syncChallengePrompt(state.snapshot);
@@ -366,12 +519,14 @@ function render(): void {
             ${renderLogPanel()}
           `
       }
+      ${renderRuleModal()}
     </main>
   `;
 
   bindConnectionPanel();
   bindLobbyPanel();
   bindBattlePanel();
+  bindRuleControls();
 
   if (isBattleView) {
     window.requestAnimationFrame(syncHandOverlapLayout);
@@ -379,12 +534,11 @@ function render(): void {
 }
 
 function renderConnectionPanel(): string {
-  const connectLabel =
-    state.roomId !== null && state.connectionStatus !== "open"
-      ? "重连"
-      : state.connectionStatus === "open"
-        ? "重新连接"
-        : "连接";
+  const connectLabel = state.connectionStatus === "open" ? "已连接" : "重新连接";
+  const connectButtonClass =
+    state.connectionStatus === "open"
+      ? "connection-action connection-action-open"
+      : "connection-action connection-action-retry";
 
   return `
     <section class="panel connection-panel">
@@ -407,7 +561,7 @@ function renderConnectionPanel(): string {
         />
       </label>
       <div class="button-row">
-        <button id="connect-button" data-testid="connect-button">${connectLabel}</button>
+        <button id="connect-button" data-testid="connect-button" class="${connectButtonClass}">${connectLabel}</button>
         <button id="disconnect-button" class="secondary">断开</button>
         <button id="ping-button" class="secondary">Ping</button>
       </div>
@@ -462,7 +616,6 @@ function renderLobbyPanel(): string {
           </label>
         </div>
         <div class="button-row lobby-actions">
-          <button id="create-custom-room-button" data-testid="create-custom-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>自定义房间号</button>
           <button id="create-room-button" data-testid="create-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>生成房间号</button>
           <button id="join-room-button" data-testid="join-room-button" class="secondary" ${canJoinRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>加入房间</button>
           <button id="leave-room-button" data-testid="leave-room-button" class="secondary" ${isConnected && state.roomId !== null ? "" : `disabled title="${escapeHtml(isConnected ? "当前不在房间中。" : "未连接服务端。")}"`}>离开</button>
@@ -496,26 +649,225 @@ function renderRulesGuidePanel(): string {
       <div class="lobby-panel-heading">
         <p class="eyebrow">Rules</p>
         <h2>规则讲解</h2>
-        <span>服务端裁定</span>
+        <span>图片讲解</span>
       </div>
-      <div class="rules-guide-grid">
-        ${RULE_GUIDE_SECTIONS.map(renderRuleGuideSection).join("")}
-      </div>
+      ${renderRuleEntryButtons("lobby")}
     </section>
   `;
 }
 
-function renderRuleGuideSection(section: RuleGuideSection): string {
+function renderRuleEntryButtons(context: "lobby" | "modal"): string {
   return `
-    <details class="rule-card" ${section.open ? "open" : ""}>
-      <summary>
-        <span>${escapeHtml(section.kicker)}</span>
-        <strong>${escapeHtml(section.title)}</strong>
-      </summary>
-      <ul>
-        ${section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-      </ul>
-    </details>
+    <div class="rule-entry-grid rule-entry-grid-${context}">
+      ${RULE_ENTRY_BUTTONS.map((entry) => {
+        const disabledReason = getRuleEntryDisabledReason(entry.id, context);
+        const disabled = disabledReason === null ? "" : `disabled title="${escapeHtml(disabledReason)}"`;
+        return `
+          <button
+            class="rule-entry-button rule-entry-${entry.tone}"
+            data-rule-entry="${escapeHtml(entry.id)}"
+            data-testid="rule-entry-${escapeHtml(entry.id)}"
+            ${disabled}
+          >
+            ${escapeHtml(entry.label)}
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function getRuleEntryDisabledReason(
+  entryId: RuleEntryId,
+  context: "lobby" | "modal"
+): string | null {
+  if (context === "lobby" || entryId !== "challenge") {
+    return null;
+  }
+
+  const mode = getCurrentRuleMode();
+  if (mode === "with-challenge") {
+    return null;
+  }
+
+  return "仅质疑模式可查看";
+}
+
+function getCurrentRuleMode(): GameMode | null {
+  return state.snapshot?.mode ?? state.room?.mode ?? null;
+}
+
+function getRuleImageGroup(groupId: RuleImageGroupId): RuleImageGroup | undefined {
+  return RULE_IMAGE_GROUPS.find((group) => group.id === groupId);
+}
+
+function getRuleCardIntro(cardId: string): RuleCardIntro | undefined {
+  return RULE_CARD_INTROS.find((card) => card.id === cardId);
+}
+
+function getAdjacentRuleCardId(cardId: string, direction: -1 | 1): string | null {
+  const index = RULE_CARD_INTROS.findIndex((card) => card.id === cardId);
+  if (index < 0) {
+    return null;
+  }
+
+  return RULE_CARD_INTROS[index + direction]?.id ?? null;
+}
+
+function renderRuleModal(): string {
+  const view = state.ruleModal;
+
+  if (view === null) {
+    return "";
+  }
+
+  return `
+    <div class="rule-modal-backdrop" data-testid="rule-modal">
+      <section class="rule-modal" role="dialog" aria-modal="true" aria-label="规则讲解">
+        ${renderRuleModalContent(view)}
+      </section>
+    </div>
+  `;
+}
+
+function renderRuleModalContent(view: RuleModalView): string {
+  switch (view.type) {
+    case "home":
+      return `
+        <div class="rule-modal-header">
+          <div>
+            <p class="eyebrow">Rules</p>
+            <h2>规则讲解</h2>
+          </div>
+          <button id="close-rule-modal-button" class="secondary">关闭</button>
+        </div>
+        ${renderRuleEntryButtons("modal")}
+      `;
+    case "image-group": {
+      const group = getRuleImageGroup(view.groupId);
+      if (group === undefined) {
+        return renderRuleModalMissingContent("规则图片未找到");
+      }
+
+      return renderRuleImageViewer({
+        title: group.title,
+        images: group.images,
+        pageIndex: view.pageIndex,
+        backTarget: "home"
+      });
+    }
+    case "card-list":
+      return `
+        <div class="rule-modal-header">
+          <div>
+            <p class="eyebrow">Cards</p>
+            <h2>卡牌介绍</h2>
+          </div>
+          <div class="rule-modal-header-actions">
+            <button id="rule-back-button" class="secondary">返回</button>
+            <button id="close-rule-modal-button" class="secondary">关闭</button>
+          </div>
+        </div>
+        <div class="rule-card-grid" data-testid="rule-card-grid">
+          ${RULE_CARD_INTROS.map((card) => `
+            <button
+              class="rule-card-button"
+              data-rule-card="${escapeHtml(card.id)}"
+              data-testid="rule-card-${escapeHtml(card.id)}"
+              title="${escapeHtml(card.title)}"
+            >
+              <span class="rule-card-index">${String(card.index)}</span>
+              <img src="${escapeHtml(card.cardImage)}" alt="${escapeHtml(card.title)}" />
+              <span>${escapeHtml(card.title)}</span>
+            </button>
+          `).join("")}
+        </div>
+      `;
+    case "card-rule": {
+      const card = getRuleCardIntro(view.cardId);
+      if (card === undefined) {
+        return renderRuleModalMissingContent("卡牌规则未找到");
+      }
+
+      return renderRuleImageViewer({
+        title: `${String(card.index)}. ${card.title}`,
+        images: card.ruleImages,
+        pageIndex: view.pageIndex,
+        backTarget: "card-list",
+        cardId: card.id
+      });
+    }
+    default: {
+      const exhaustiveCheck: never = view;
+      return renderRuleModalMissingContent(String(exhaustiveCheck));
+    }
+  }
+}
+
+function renderRuleImageViewer(params: {
+  title: string;
+  images: string[];
+  pageIndex: number;
+  backTarget: "home" | "card-list";
+  cardId?: string;
+}): string {
+  const maxIndex = Math.max(0, params.images.length - 1);
+  const pageIndex = Math.min(Math.max(params.pageIndex, 0), maxIndex);
+  const image = params.images[pageIndex] ?? "";
+  const previousDisabled = pageIndex <= 0 ? "disabled" : "";
+  const nextDisabled = pageIndex >= maxIndex ? "disabled" : "";
+  const previousCardId =
+    params.cardId === undefined ? null : getAdjacentRuleCardId(params.cardId, -1);
+  const nextCardId =
+    params.cardId === undefined ? null : getAdjacentRuleCardId(params.cardId, 1);
+  const cardNavClass = params.cardId === undefined ? "" : " rule-image-viewer-card-nav";
+
+  return `
+    <div class="rule-modal-header">
+      <div>
+        <p class="eyebrow">Rules</p>
+        <h2>${escapeHtml(params.title)}</h2>
+      </div>
+      <div class="rule-modal-header-actions">
+        <button id="rule-back-button" class="secondary" data-rule-back="${params.backTarget}">返回</button>
+        <button id="close-rule-modal-button" class="secondary">关闭</button>
+      </div>
+    </div>
+    <div class="rule-image-viewer${cardNavClass}">
+      ${
+        params.cardId === undefined
+          ? ""
+          : `<button id="rule-prev-card-button" class="secondary rule-card-nav-button" title="上一种卡牌" aria-label="上一种卡牌" ${previousCardId === null ? "disabled" : ""}>‹</button>`
+      }
+      <img src="${escapeHtml(image)}" alt="${escapeHtml(params.title)} 第 ${String(pageIndex + 1)} 页" />
+      ${
+        params.cardId === undefined
+          ? ""
+          : `<button id="rule-next-card-button" class="secondary rule-card-nav-button" title="下一种卡牌" aria-label="下一种卡牌" ${nextCardId === null ? "disabled" : ""}>›</button>`
+      }
+    </div>
+    ${
+      params.images.length > 1
+        ? `<div class="rule-page-controls">
+            <button id="rule-prev-button" class="secondary rule-page-button" title="上一页" aria-label="上一页" ${previousDisabled}>‹</button>
+            <span class="rule-page-indicator">${String(pageIndex + 1)} / ${String(params.images.length)}</span>
+            <button id="rule-next-button" class="secondary rule-page-button" title="下一页" aria-label="下一页" ${nextDisabled}>›</button>
+          </div>`
+        : ""
+    }
+  `;
+}
+
+function renderRuleModalMissingContent(message: string): string {
+  return `
+    <div class="rule-modal-header">
+      <div>
+        <p class="eyebrow">Rules</p>
+        <h2>规则讲解</h2>
+      </div>
+      <button id="close-rule-modal-button" class="secondary">关闭</button>
+    </div>
+    <p class="muted">${escapeHtml(message)}</p>
   `;
 }
 
@@ -891,7 +1243,11 @@ function renderNormalDrawOfferPrompt(
 
 function renderEventModal(snapshot: PlayerGameSnapshot): string {
   const finishedNotice = buildFinishedNotice(snapshot);
-  const notice = finishedNotice ?? state.eventModal;
+  const visibleFinishedNotice =
+    finishedNotice !== null && finishedNotice.key !== state.dismissedFinishedNoticeKey
+      ? finishedNotice
+      : null;
+  const notice = visibleFinishedNotice ?? state.eventModal;
 
   if (notice === null) {
     return "";
@@ -903,7 +1259,7 @@ function renderEventModal(snapshot: PlayerGameSnapshot): string {
         <h2>${escapeHtml(notice.title)}</h2>
         <p>${escapeHtml(notice.message)}</p>
         ${
-          finishedNotice !== null
+          visibleFinishedNotice !== null
             ? renderRoundDecisionControls(snapshot)
             : hasRoundDecisionReason(snapshot)
               ? renderRoundDecisionControls(snapshot)
@@ -918,6 +1274,15 @@ function renderEventModal(snapshot: PlayerGameSnapshot): string {
 
 function renderRoundDecisionControls(snapshot: PlayerGameSnapshot): string {
   if (!canCurrentPlayerMakeRoundDecision(snapshot)) {
+    if (snapshot.status === "finished") {
+      return `
+        <div class="challenge-actions">
+          <button id="stay-in-room-button" data-testid="stay-in-room-button">留在房间</button>
+          <button id="finish-leave-room-button" data-testid="finish-leave-room-button" class="secondary">离开房间</button>
+        </div>
+      `;
+    }
+
     return `<p class="muted">等待房主选择继续游戏或重开一把。</p>`;
   }
 
@@ -1481,6 +1846,11 @@ function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): strin
       >${state.connectionStatus}</span>
       ${renderBattleStatusChips(snapshot)}
       <button
+        id="battle-rule-button"
+        data-testid="battle-rule-button"
+        class="secondary hud-rule-button"
+      >规则</button>
+      <button
         id="battle-leave-room-button"
         data-testid="battle-leave-room-button"
         class="secondary hud-leave-button"
@@ -1891,6 +2261,11 @@ function renderCardButtonV2(
 
   if (info.relationState !== null) {
     classes.push(info.relationState);
+  }
+
+  const motion = state.handCardMotion[card.id];
+  if (motion !== undefined) {
+    classes.push(`card-motion-${motion}`);
   }
 
   if (state.recentDrawnCardIds.includes(card.id)) {
@@ -3233,21 +3608,11 @@ function translateRejectedMessage(code: ErrorCode, fallbackMessage: string): str
 
 function bindConnectionPanel(): void {
   document.querySelector("#connect-button")?.addEventListener("click", () => {
-    const wsUrlInput = document.querySelector<HTMLInputElement>("#ws-url");
-    const nicknameInput = document.querySelector<HTMLInputElement>("#nickname");
-
-    if (wsUrlInput !== null) {
-      state.wsUrl = wsUrlInput.value;
-      setStoredValue("thunder-uno.wsUrl", state.wsUrl);
+    if (state.connectionStatus === "open" || state.connectionStatus === "connecting") {
+      return;
     }
 
-    if (nicknameInput !== null) {
-      state.nickname = ensureNicknameValue(nicknameInput.value);
-      nicknameInput.value = state.nickname;
-      setSessionStoredValue(USER_NICKNAME_STORAGE_KEY, state.nickname);
-    }
-
-    wsClient.connect(state.wsUrl);
+    connectUsingCurrentInputs();
   });
 
   document.querySelector("#disconnect-button")?.addEventListener("click", () => {
@@ -3259,6 +3624,24 @@ function bindConnectionPanel(): void {
   });
 }
 
+function connectUsingCurrentInputs(): void {
+  const wsUrlInput = document.querySelector<HTMLInputElement>("#ws-url");
+  const nicknameInput = document.querySelector<HTMLInputElement>("#nickname");
+
+  if (wsUrlInput !== null) {
+    state.wsUrl = wsUrlInput.value;
+    setStoredValue("thunder-uno.wsUrl", state.wsUrl);
+  }
+
+  if (nicknameInput !== null) {
+    state.nickname = ensureNicknameValue(nicknameInput.value);
+    nicknameInput.value = state.nickname;
+    setSessionStoredValue(USER_NICKNAME_STORAGE_KEY, state.nickname);
+  }
+
+  wsClient.connect(state.wsUrl);
+}
+
 function bindLobbyPanel(): void {
   bindRoomCodeInputs();
 
@@ -3268,25 +3651,6 @@ function bindLobbyPanel(): void {
       userId: state.userId,
       nickname: state.nickname,
       mode
-    });
-    sendSafely(message);
-  });
-
-  document.querySelector("#create-custom-room-button")?.addEventListener("click", () => {
-    const mode = readSelectValue("#mode", "no-challenge") as GameMode;
-    const roomId = getRoomCodeValue();
-
-    if (roomId.length !== 6) {
-      showRoomCodeInputError("请输入 6 位房间号。");
-      render();
-      return;
-    }
-
-    const message = buildCreateRoomMessage({
-      userId: state.userId,
-      nickname: state.nickname,
-      mode,
-      roomId
     });
     sendSafely(message);
   });
@@ -3356,14 +3720,7 @@ function bindLobbyPanel(): void {
 
 function bindBattlePanel(): void {
   document.querySelector("#battle-leave-room-button")?.addEventListener("click", () => {
-    if (state.roomId === null || state.playerId === null) {
-      return;
-    }
-
-    sendSafely(buildLeaveRoomMessage({ roomId: state.roomId, playerId: state.playerId }));
-    resetRoomContext();
-    pushLog("已退出房间");
-    render();
+    leaveCurrentRoomFromBattle();
   });
 
   document.querySelector("#finish-reset-button")?.addEventListener("click", () => {
@@ -3445,6 +3802,20 @@ function bindBattlePanel(): void {
     resetRoomContext();
     pushLog("已返回大厅，请重新创建或加入房间");
     render();
+  });
+
+  document.querySelector("#stay-in-room-button")?.addEventListener("click", () => {
+    if (state.snapshot === null) {
+      return;
+    }
+
+    const finishedNotice = buildFinishedNotice(state.snapshot);
+    state.dismissedFinishedNoticeKey = finishedNotice?.key ?? null;
+    render();
+  });
+
+  document.querySelector("#finish-leave-room-button")?.addEventListener("click", () => {
+    leaveCurrentRoomFromBattle();
   });
 
   document.querySelector("#restart-game-button")?.addEventListener("click", () => {
@@ -3536,6 +3907,139 @@ function bindBattlePanel(): void {
       }
     });
   });
+}
+
+function leaveCurrentRoomFromBattle(): void {
+  if (state.roomId === null || state.playerId === null) {
+    return;
+  }
+
+  sendSafely(buildLeaveRoomMessage({ roomId: state.roomId, playerId: state.playerId }));
+  resetRoomContext();
+  pushLog("已退出房间");
+  render();
+}
+
+function bindRuleControls(): void {
+  document.querySelectorAll("#battle-rule-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.ruleModal = { type: "home" };
+      render();
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-rule-entry]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const entryId = button.dataset.ruleEntry as RuleEntryId | undefined;
+      if (entryId === undefined) {
+        return;
+      }
+
+      openRuleEntry(entryId);
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-rule-card]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const cardId = button.dataset.ruleCard;
+      if (cardId === undefined) {
+        return;
+      }
+
+      state.ruleModal = { type: "card-rule", cardId, pageIndex: 0 };
+      render();
+    });
+  });
+
+  document.querySelector("#close-rule-modal-button")?.addEventListener("click", () => {
+    state.ruleModal = null;
+    render();
+  });
+
+  document.querySelector("#rule-back-button")?.addEventListener("click", () => {
+    if (state.ruleModal?.type === "card-rule") {
+      state.ruleModal = { type: "card-list" };
+    } else {
+      state.ruleModal = { type: "home" };
+    }
+    render();
+  });
+
+  document.querySelector("#rule-prev-button")?.addEventListener("click", () => {
+    moveRulePage(-1);
+  });
+
+  document.querySelector("#rule-next-button")?.addEventListener("click", () => {
+    moveRulePage(1);
+  });
+
+  document.querySelector("#rule-prev-card-button")?.addEventListener("click", () => {
+    moveRuleCard(-1);
+  });
+
+  document.querySelector("#rule-next-card-button")?.addEventListener("click", () => {
+    moveRuleCard(1);
+  });
+}
+
+function openRuleEntry(entryId: RuleEntryId): void {
+  const disabledReason = getRuleEntryDisabledReason(entryId, state.ruleModal === null ? "lobby" : "modal");
+  if (disabledReason !== null) {
+    showToast(disabledReason, "warning");
+    return;
+  }
+
+  if (entryId === "cards") {
+    state.ruleModal = { type: "card-list" };
+    render();
+    return;
+  }
+
+  state.ruleModal = { type: "image-group", groupId: entryId, pageIndex: 0 };
+  render();
+}
+
+function moveRulePage(delta: -1 | 1): void {
+  const view = state.ruleModal;
+  if (view === null || (view.type !== "image-group" && view.type !== "card-rule")) {
+    return;
+  }
+
+  const images =
+    view.type === "image-group"
+      ? getRuleImageGroup(view.groupId)?.images
+      : getRuleCardIntro(view.cardId)?.ruleImages;
+
+  if (images === undefined || images.length === 0) {
+    return;
+  }
+
+  const nextPageIndex = Math.min(
+    Math.max(view.pageIndex + delta, 0),
+    images.length - 1
+  );
+
+  if (nextPageIndex === view.pageIndex) {
+    return;
+  }
+
+  state.ruleModal = { ...view, pageIndex: nextPageIndex };
+  render();
+}
+
+function moveRuleCard(direction: -1 | 1): void {
+  const view = state.ruleModal;
+  if (view === null || view.type !== "card-rule") {
+    return;
+  }
+
+  const nextCardId = getAdjacentRuleCardId(view.cardId, direction);
+  if (nextCardId === null) {
+    return;
+  }
+
+  state.ruleModal = { type: "card-rule", cardId: nextCardId, pageIndex: 0 };
+  render();
 }
 
 function sendCommand(command: ClientCommandInput): void {
@@ -3770,12 +4274,32 @@ function toggleSelectedCard(cardId: string): void {
 
   if (index === -1) {
     state.selectedCardIds = [...state.selectedCardIds, cardId];
+    setHandCardMotion(cardId, "select");
   } else {
     state.selectedCardIds = [
       ...state.selectedCardIds.slice(0, index),
       ...state.selectedCardIds.slice(index + 1)
     ];
+    setHandCardMotion(cardId, "deselect");
   }
+}
+
+function setHandCardMotion(cardId: string, motion: "select" | "deselect"): void {
+  state.handCardMotion = {
+    ...state.handCardMotion,
+    [cardId]: motion
+  };
+
+  window.setTimeout(() => {
+    if (state.handCardMotion[cardId] !== motion) {
+      return;
+    }
+
+    const remainingMotion = { ...state.handCardMotion };
+    delete remainingMotion[cardId];
+    state.handCardMotion = remainingMotion;
+    render();
+  }, 190);
 }
 
 function syncHandOverlapLayout(): void {
@@ -3939,6 +4463,10 @@ function handleHandCardClick(cardId: string): void {
 }
 
 function clearSelectedCards(): void {
+  for (const cardId of state.selectedCardIds) {
+    setHandCardMotion(cardId, "deselect");
+  }
+
   state.selectedCardIds = [];
   state.colorPickerCardId = null;
 }
@@ -3956,6 +4484,7 @@ function resetRoomContext(): void {
   state.uiToast = null;
   state.snapshotRecoveryRoomId = null;
   state.recentDrawnCardIds = [];
+  state.handCardMotion = {};
   state.latestCardsPlayedEvent = null;
   state.latestPlayGroupEvent = null;
   state.latestPlayGroupAnimationKey = null;
@@ -3963,6 +4492,8 @@ function resetRoomContext(): void {
   state.drawFlyingCard = null;
   state.drawStackBurst = null;
   state.eventModal = null;
+  state.ruleModal = null;
+  state.dismissedFinishedNoticeKey = null;
   clearSelectedCards();
   removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);
 }
