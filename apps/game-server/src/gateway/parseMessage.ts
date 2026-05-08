@@ -1,8 +1,10 @@
 import type {
   ClientCommandMessage,
+  ClientAddBotMessage,
   ClientContinueGameMessage,
   ClientCreateRoomMessage,
   ClientJoinRoomMessage,
+  ClientKickPlayerMessage,
   ClientLeaveRoomMessage,
   ClientMessage,
   ClientPingMessage,
@@ -21,6 +23,8 @@ const CLIENT_MESSAGE_TYPES = new Set<ClientMessage["type"]>([
   "join-room",
   "start-game",
   "set-ready",
+  "add-bot",
+  "kick-player",
   "restart-game",
   "continue-game",
   "leave-room",
@@ -80,6 +84,10 @@ export function parseMessage(rawMessage: RawData): ClientMessage {
       return parseStartGameMessage(parsed);
     case "set-ready":
       return parseSetReadyMessage(parsed);
+    case "add-bot":
+      return parseAddBotMessage(parsed);
+    case "kick-player":
+      return parseKickPlayerMessage(parsed);
     case "restart-game":
       return parseRestartGameMessage(parsed);
     case "continue-game":
@@ -188,6 +196,31 @@ function parseSetReadyMessage(record: Record<string, unknown>): ClientSetReadyMe
     roomId: requireString(record, "roomId"),
     playerId: requireString(record, "playerId"),
     ready: requireBoolean(record, "ready"),
+    timestampMs: requireNumber(record, "timestampMs")
+  };
+}
+
+function parseAddBotMessage(record: Record<string, unknown>): ClientAddBotMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "add-bot",
+    requestId: requireString(record, "requestId"),
+    roomId: requireString(record, "roomId"),
+    playerId: requireString(record, "playerId"),
+    timestampMs: requireNumber(record, "timestampMs")
+  };
+}
+
+function parseKickPlayerMessage(
+  record: Record<string, unknown>
+): ClientKickPlayerMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "kick-player",
+    requestId: requireString(record, "requestId"),
+    roomId: requireString(record, "roomId"),
+    playerId: requireString(record, "playerId"),
+    targetPlayerId: requireString(record, "targetPlayerId"),
     timestampMs: requireNumber(record, "timestampMs")
   };
 }

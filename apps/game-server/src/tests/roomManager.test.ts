@@ -250,6 +250,59 @@ describe("RoomManager", () => {
     }
   });
 
+  it("房主可以在无质疑等待房间添加机器人", () => {
+    const fixture = createWaitingRoomFixture(1, "no-challenge");
+
+    const result = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId
+    });
+
+    expect(result.botPlayer.isBot).toBe(true);
+    expect(result.botPlayer.isReady).toBe(true);
+    expect(result.botPlayer.connected).toBe(true);
+    expect(result.botPlayer.connectionId).toBeNull();
+    expect(result.room.players).toHaveLength(2);
+  });
+
+  it("有质疑模式不能添加机器人", () => {
+    const fixture = createWaitingRoomFixture(1, "with-challenge");
+
+    expect(() => {
+      fixture.roomManager.addBot({
+        roomId: fixture.room.roomId,
+        playerId: fixture.room.ownerPlayerId
+      });
+    }).toThrowError(GameServerError);
+  });
+
+  it("房主可以在大厅踢出普通玩家或机器人", () => {
+    const fixture = createWaitingRoomFixture(2, "no-challenge");
+    const humanPlayerId = fixture.room.players[1]!.playerId;
+    const bot = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId
+    }).botPlayer;
+
+    const removedHuman = fixture.roomManager.kickPlayer({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      targetPlayerId: humanPlayerId
+    });
+
+    expect(removedHuman.removedPlayerId).toBe(humanPlayerId);
+    expect(fixture.room.players.some((player) => player.playerId === humanPlayerId)).toBe(false);
+
+    const removedBot = fixture.roomManager.kickPlayer({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      targetPlayerId: bot.playerId
+    });
+
+    expect(removedBot.removedPlayerId).toBe(bot.playerId);
+    expect(fixture.room.players.some((player) => player.playerId === bot.playerId)).toBe(false);
+  });
+
   it("startGame 后 room.status 为 playing", () => {
     const fixture = createWaitingRoomFixture(3);
 

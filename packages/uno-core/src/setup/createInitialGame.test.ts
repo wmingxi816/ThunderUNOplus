@@ -52,4 +52,31 @@ describe("createInitialGame", () => {
     expect(game.normalDrawOffer.active).toBe(false);
     expect(game.challengeWindow.active).toBe(false);
   });
+
+  it("chooses a seeded random first player without changing player order", () => {
+    const game = createInitialGame({
+      players: createPlayers(4),
+      mode: "no-challenge",
+      seed: "three-player"
+    });
+
+    expect(game.playerOrder).toEqual(["player-1", "player-2", "player-3", "player-4"]);
+    expect(game.currentPlayerId).toBe("player-4");
+  });
+
+  it("keeps first player selection deterministic for the same seed", () => {
+    const players = createPlayers(4);
+    const firstGame = createInitialGame({
+      players,
+      mode: "no-challenge",
+      seed: 1001
+    });
+    const secondGame = createInitialGame({
+      players,
+      mode: "no-challenge",
+      seed: 1001
+    });
+
+    expect(secondGame.currentPlayerId).toBe(firstGame.currentPlayerId);
+  });
 });

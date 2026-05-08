@@ -9,12 +9,16 @@ import { createRoomId as createDefaultRoomId } from "../ids/createRoomId";
 import { ConnectionRegistry } from "../connection/connectionRegistry";
 import { GameServerError } from "../errors/serverErrors";
 import type {
+  AddBotParams,
+  AddBotResult,
   CreateRoomParams,
   CreateRoomResult,
   ContinueGameParams,
   ContinueGameResult,
   JoinRoomParams,
   JoinRoomResult,
+  KickPlayerParams,
+  KickPlayerResult,
   LeaveRoomParams,
   LeaveRoomResult,
   ReconnectPlayerParams,
@@ -38,6 +42,7 @@ interface RoomManagerOptions {
 
 const MIN_ROOM_PLAYER_COUNT = 3;
 const MAX_ROOM_PLAYER_COUNT = 8;
+const BOT_FORGET_UNO_RATE = 0.2;
 const CUSTOM_ROOM_ID_PATTERN = /^\d{6}$/;
 const ROOM_AVATAR_POOL = Array.from(
   { length: MAX_ROOM_PLAYER_COUNT },
@@ -464,6 +469,120 @@ export class RoomManager {
     };
   }
 
+  addBot(params: AddBotParams): AddBotResult {
+    const room = this.getRequiredRoom(params.roomId);
+    this.assertRoomOwner(room, params.playerId);
+
+    if (room.status !== "waiting") {
+      throw new GameServerError(
+        "room-not-waiting",
+        `Room ${params.roomId} is not waiting for players.`,
+        params.roomId
+      );
+    }
+
+    if (room.mode !== "no-challenge") {
+      throw new GameServerError(
+        "bot-not-allowed",
+        "Bots can only be added in no-challenge mode.",
+        params.roomId
+      );
+    }
+
+    if (room.players.length >= MAX_ROOM_PLAYER_COUNT) {
+      throw new GameServerError(
+        "room-full",
+        `Room ${params.roomId} is already full.`,
+        params.roomId
+      );
+    }
+
+    const joinedAt = this.now();
+    const botIndex = room.players.filter((player) => player.isBot).length + 1;
+    const botPlayer: ServerRoomPlayer = {
+      userId: `bot-${room.roomId}-${String(botIndex)}`,
+      playerId: this.createPlayerId(),
+      connectionId: null,
+      seatIndex: room.players.length,
+      nickname: `雷霆机器人 ${String(botIndex)}`,
+      avatarUrl: this.resolveAvatarUrl(room.players, null),
+      connected: true,
+      hasLeftRoom: false,
+      isReady: true,
+      joinedAt,
+      isBot: true,
+      botProfile: {
+        strategy: "greedy-v1",
+        forgetUnoRate: BOT_FORGET_UNO_RATE
+      }
+    };
+
+    room.players.push(botPlayer);
+    room.updatedAt = joinedAt;
+
+    return {
+      room,
+      botPlayer
+    };
+  }
+
+  kickPlayer(params: KickPlayerParams): KickPlayerResult {
+    const room = this.getRequiredRoom(params.roomId);
+    this.assertRoomOwner(room, params.playerId);
+
+    if (room.status !== "waiting") {
+      throw new GameServerError(
+        "room-not-waiting",
+        `Room ${params.roomId} is not waiting for players.`,
+        params.roomId
+      );
+    }
+
+    if (params.targetPlayerId === room.ownerPlayerId) {
+      throw new GameServerError(
+        "not-room-owner",
+        "The room owner cannot be kicked from the lobby.",
+        params.roomId
+      );
+    }
+
+    const playerIndex = room.players.findIndex(
+      (player) => player.playerId === params.targetPlayerId
+    );
+
+    if (playerIndex === -1) {
+      throw new GameServerError(
+        "player-not-in-room",
+        `Player ${params.targetPlayerId} does not belong to room ${params.roomId}.`,
+        params.roomId
+      );
+    }
+
+    const [removedPlayer] = room.players.splice(playerIndex, 1);
+
+    if (removedPlayer === undefined) {
+      throw new GameServerError(
+        "player-not-in-room",
+        `Player ${params.targetPlayerId} does not belong to room ${params.roomId}.`,
+        params.roomId
+      );
+    }
+
+    if (removedPlayer.connectionId !== null) {
+      this.connectionRegistry.unbindConnection(removedPlayer.connectionId);
+    }
+
+    this.reindexSeats(room.players);
+    room.updatedAt = this.now();
+
+    return {
+      room,
+      removedPlayerId: removedPlayer.playerId,
+      removedConnectionId: removedPlayer.connectionId,
+      roomDeleted: false
+    };
+  }
+
   getRoom(roomId: string): RoomRuntime | null {
     return this.rooms.get(roomId) ?? null;
   }
@@ -534,7 +653,8 @@ export class RoomManager {
         return {
           id: player.playerId,
           displayName: player.nickname,
-          avatarUrl: player.avatarUrl
+          avatarUrl: player.avatarUrl,
+          isBot: player.isBot
         };
       }),
       mode: room.mode,
@@ -626,7 +746,8 @@ export class RoomManager {
       connected: true,
       hasLeftRoom: false,
       isReady: params.seatIndex === 0,
-      joinedAt: params.joinedAt
+      joinedAt: params.joinedAt,
+      isBot: false
     };
   }
 

@@ -23,6 +23,7 @@ export interface PlayerGameSnapshotPlayerPublic {
   isRoundWinner: boolean;
   hasLeftRoom: boolean;
   isCurrentPlayer: boolean;
+  isBot: boolean;
 }
 
 export interface PlayerGameSnapshotSelf
@@ -75,6 +76,7 @@ export interface RoomSnapshotPlayer {
   isHost: boolean;
   isReady: boolean;
   connectionStatus: PlayerConnectionStatus;
+  isBot: boolean;
 }
 
 export interface PlayerRoomSnapshot {

@@ -1,5 +1,6 @@
 import { ConnectionRegistry } from "./connection/connectionRegistry";
 import { RoomManager } from "./room/roomManager";
+import { BotScheduler } from "./bot/botScheduler";
 
 /**
  * Phase 3A 先只组装“内存中的服务端脑子”。
@@ -10,9 +11,14 @@ export function createInMemoryGameServer() {
   const roomManager = new RoomManager({
     connectionRegistry
   });
+  const botScheduler = new BotScheduler({
+    connectionRegistry,
+    roomManager
+  });
 
   return {
     connectionRegistry,
-    roomManager
+    roomManager,
+    botScheduler
   };
 }

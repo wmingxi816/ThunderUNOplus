@@ -22,9 +22,11 @@ import { getCardAssetPath, getCardBackAssetPath } from "./cards/cardAssets";
 import { WsClient, type ConnectionStatus } from "./network/wsClient";
 import {
   buildCommandMessage,
+  buildAddBotMessage,
   buildContinueGameMessage,
   buildCreateRoomMessage,
   buildJoinRoomMessage,
+  buildKickPlayerMessage,
   buildLeaveRoomMessage,
   buildPingMessage,
   buildReconnectMessage,
@@ -589,6 +591,7 @@ function renderLobbyPanel(): string {
   const isConnected = state.connectionStatus === "open";
   const canCreateRoom = isConnected && state.roomId === null;
   const canJoinRoom = isConnected && state.roomId === null;
+  const canCopyRoomId = state.roomId !== null || getRoomCodeValue().length === 6;
   const lobbySummary =
     room === null
       ? "等待连接"
@@ -617,6 +620,7 @@ function renderLobbyPanel(): string {
         </div>
         <div class="button-row lobby-actions">
           <button id="create-room-button" data-testid="create-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>生成房间号</button>
+          <button id="copy-room-button" data-testid="copy-room-button" class="copy-room-button" ${canCopyRoomId ? "" : `disabled title="暂无可复制的房间号"`}>复制房间号</button>
           <button id="join-room-button" data-testid="join-room-button" class="secondary" ${canJoinRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>加入房间</button>
           <button id="leave-room-button" data-testid="leave-room-button" class="secondary" ${isConnected && state.roomId !== null ? "" : `disabled title="${escapeHtml(isConnected ? "当前不在房间中。" : "未连接服务端。")}"`}>离开</button>
         </div>
@@ -949,6 +953,12 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
     selfPlayer !== undefined;
   const hostPlayer = room.players.find((player) => player.isHost);
   const openSlotCount = Math.max(LOBBY_MAX_PLAYER_SLOTS - room.players.length, 0);
+  const canAddBot =
+    state.connectionStatus === "open" &&
+    isHost &&
+    room.status === "lobby" &&
+    room.mode === "no-challenge" &&
+    room.players.length < LOBBY_MAX_PLAYER_SLOTS;
 
   return `
     <div class="room-meta">
@@ -978,7 +988,18 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
                 alt="${escapeHtml(player.displayName ?? player.playerId)}"
               />
               <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
+              ${player.isBot === true ? `<span class="bot-tag">BOT</span>` : ""}
               <small>${escapeHtml(getRoomPlayerReadyLabel(player))}</small>
+              ${
+                isHost && !player.isHost && room.status === "lobby"
+                  ? `<button
+                      class="mini-kick-button"
+                      data-kick-player="${escapeHtml(player.playerId)}"
+                      data-testid="kick-player-button"
+                      title="踢出 ${escapeHtml(player.displayName ?? player.playerId)}"
+                    >踢出</button>`
+                  : ""
+              }
             </div>
           `;
         })
@@ -1001,13 +1022,20 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
     </label>
     ${
       isHost
-        ? `<button id="start-game-button" data-testid="start-game-button" ${canStart ? "" : `disabled title="${escapeHtml(getStartGameDisabledReason(room))}"`}>开始游戏</button>`
+        ? `<div class="host-room-actions">
+            <button id="add-bot-button" data-testid="add-bot-button" class="secondary" ${canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`}>添加机器人</button>
+            <button id="start-game-button" data-testid="start-game-button" ${canStart ? "" : `disabled title="${escapeHtml(getStartGameDisabledReason(room))}"`}>开始游戏</button>
+          </div>`
         : `<button id="ready-button" data-testid="ready-button" ${canToggleReady ? "" : `disabled title="${escapeHtml(getReadyDisabledReason(room))}"`}>${escapeHtml(selfPlayer?.isReady === true ? "取消准备" : "准备")}</button>`
     }
   `;
 }
 
 function getRoomPlayerReadyLabel(player: PlayerRoomSnapshot["players"][number]): string {
+  if (player.isBot === true) {
+    return "机器人 · 已准备";
+  }
+
   if (player.isHost) {
     return "房主";
   }
@@ -1086,6 +1114,30 @@ function getStartGameDisabledReason(room: PlayerRoomSnapshot): string {
   }
 
   return "当前不能开始。";
+}
+
+function getAddBotDisabledReason(room: PlayerRoomSnapshot): string {
+  if (state.connectionStatus !== "open") {
+    return "未连接服务端。";
+  }
+
+  if (room.hostPlayerId !== state.playerId) {
+    return "只有房主可以添加机器人。";
+  }
+
+  if (room.status !== "lobby") {
+    return "只有等待房间可以添加机器人。";
+  }
+
+  if (room.mode !== "no-challenge") {
+    return "暂时只有无质疑模式可以添加机器人。";
+  }
+
+  if (room.players.length >= LOBBY_MAX_PLAYER_SLOTS) {
+    return "房间已满。";
+  }
+
+  return "当前不能添加机器人。";
 }
 
 function getReadyDisabledReason(room: PlayerRoomSnapshot): string {
@@ -1350,6 +1402,7 @@ function renderOpponent(
         alt="${escapeHtml(player.displayName ?? player.playerId)}"
       />
       <strong>${escapeHtml(player.displayName ?? player.playerId)}</strong>
+      ${player.isBot === true ? `<span class="seat-bot-tag">BOT</span>` : ""}
       <span class="hand-count-badge">${String(player.handCount)}</span>
       <small>${escapeHtml(status.detail)}</small>
       <div class="opponent-actions">
@@ -1375,6 +1428,7 @@ function renderSelfSeat(snapshot: PlayerGameSnapshot): string {
         alt="${escapeHtml(snapshot.self.displayName ?? "我")}"
       />
       <strong>${escapeHtml(snapshot.self.displayName ?? "我")}</strong>
+      ${snapshot.self.isBot === true ? `<span class="seat-bot-tag">BOT</span>` : ""}
       <span class="hand-count-badge">${String(snapshot.self.hand.length)}</span>
       <small>${escapeHtml(status.detail)}</small>
     </div>
@@ -1452,6 +1506,10 @@ function getPlayerSeatStatus(
   }
 
   if (player.isCurrentPlayer) {
+    if (player.isBot === true) {
+      return { label: "机器人", detail: "思考中...", tone: "active" };
+    }
+
     return { label: isSelf ? "轮到你" : "当前回合", detail: "当前行动", tone: "active" };
   }
 
@@ -3672,6 +3730,17 @@ function bindLobbyPanel(): void {
     sendSafely(message);
   });
 
+  document.querySelector("#copy-room-button")?.addEventListener("click", () => {
+    const roomId = state.roomId ?? getRoomCodeValue();
+
+    if (roomId.length !== 6) {
+      showToast("暂无可复制的房间号", "warning");
+      return;
+    }
+
+    void copyTextToClipboard(roomId);
+  });
+
   document.querySelector("#start-game-button")?.addEventListener("click", () => {
     if (state.roomId === null || state.playerId === null) {
       return;
@@ -3684,6 +3753,41 @@ function bindLobbyPanel(): void {
         seed: readInputValue("#seed-input")
       })
     );
+  });
+
+  document.querySelector("#add-bot-button")?.addEventListener("click", () => {
+    if (state.roomId === null || state.playerId === null) {
+      return;
+    }
+
+    sendSafely(
+      buildAddBotMessage({
+        roomId: state.roomId,
+        playerId: state.playerId
+      })
+    );
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-kick-player]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (state.roomId === null || state.playerId === null) {
+        return;
+      }
+
+      const targetPlayerId = button.dataset.kickPlayer;
+
+      if (targetPlayerId === undefined || targetPlayerId.length === 0) {
+        return;
+      }
+
+      sendSafely(
+        buildKickPlayerMessage({
+          roomId: state.roomId,
+          playerId: state.playerId,
+          targetPlayerId
+        })
+      );
+    });
   });
 
   document.querySelector("#ready-button")?.addEventListener("click", () => {
@@ -4269,6 +4373,38 @@ function showToast(message: string, tone: UiToastState["tone"] = "info"): void {
   }, 2600);
 }
 
+async function copyTextToClipboard(text: string): Promise<void> {
+  try {
+    if (navigator.clipboard !== undefined) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      fallbackCopyText(text);
+    }
+
+    showToast(`已复制房间号 ${text}`, "success");
+    pushLog(`已复制房间号 ${text}`);
+    render();
+  } catch {
+    fallbackCopyText(text);
+    showToast(`已复制房间号 ${text}`, "success");
+    pushLog(`已复制房间号 ${text}`);
+    render();
+  }
+}
+
+function fallbackCopyText(text: string): void {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.append(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
 function toggleSelectedCard(cardId: string): void {
   const index = state.selectedCardIds.indexOf(cardId);
 
@@ -4552,7 +4688,8 @@ function normalizePlayerGameSnapshot(snapshot: unknown): PlayerGameSnapshot {
       isEliminated: self.isEliminated ?? false,
       isRoundWinner: self.isRoundWinner ?? false,
       hasLeftRoom: self.hasLeftRoom ?? false,
-      isCurrentPlayer: self.isCurrentPlayer ?? false
+      isCurrentPlayer: self.isCurrentPlayer ?? false,
+      isBot: self.isBot ?? false
     }
   } as PlayerGameSnapshot;
 }
@@ -4570,7 +4707,8 @@ function normalizeSnapshotPublicPlayer(
     isEliminated: player.isEliminated ?? false,
     isRoundWinner: player.isRoundWinner ?? false,
     hasLeftRoom: player.hasLeftRoom ?? false,
-    isCurrentPlayer: player.isCurrentPlayer ?? false
+    isCurrentPlayer: player.isCurrentPlayer ?? false,
+    isBot: player.isBot ?? false
   };
 }
 

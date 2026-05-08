@@ -9,7 +9,8 @@ const wsRuntime = await createWsServer({
   port,
   host,
   roomManager: runtime.roomManager,
-  connectionRegistry: runtime.connectionRegistry
+  connectionRegistry: runtime.connectionRegistry,
+  botScheduler: runtime.botScheduler
 });
 
 console.log(

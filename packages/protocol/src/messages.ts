@@ -76,6 +76,25 @@ export interface ClientSetReadyMessage {
   timestampMs: UnixMs;
 }
 
+export interface ClientAddBotMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "add-bot";
+  requestId: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  timestampMs: UnixMs;
+}
+
+export interface ClientKickPlayerMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "kick-player";
+  requestId: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  targetPlayerId: PlayerId;
+  timestampMs: UnixMs;
+}
+
 export interface ClientRestartGameMessage {
   protocolVersion: typeof PROTOCOL_VERSION;
   type: "restart-game";
@@ -120,6 +139,8 @@ export type ClientMessage =
   | ClientJoinRoomMessage
   | ClientStartGameMessage
   | ClientSetReadyMessage
+  | ClientAddBotMessage
+  | ClientKickPlayerMessage
   | ClientRestartGameMessage
   | ClientContinueGameMessage
   | ClientLeaveRoomMessage

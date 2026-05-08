@@ -97,6 +97,7 @@ describe("protocol - messages", () => {
             seatIndex: 0,
             isHost: true,
             isReady: true,
+            isBot: false,
             connectionStatus: "connected"
           }
         ]
@@ -175,7 +176,8 @@ describe("protocol - messages", () => {
           isEliminated: false,
           isRoundWinner: false,
           hasLeftRoom: false,
-          isCurrentPlayer: true
+          isCurrentPlayer: true,
+          isBot: false
         },
         opponents: []
       }

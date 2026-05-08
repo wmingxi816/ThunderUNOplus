@@ -20,6 +20,11 @@ export interface ServerRoomPlayer {
   hasLeftRoom: boolean;
   isReady: boolean;
   joinedAt: UnixMs;
+  isBot: boolean;
+  botProfile?: {
+    strategy: "greedy-v1";
+    forgetUnoRate: number;
+  };
 }
 
 export interface RoomRuntime {
@@ -71,6 +76,29 @@ export interface LeaveRoomParams {
 export interface LeaveRoomResult {
   room: RoomRuntime | null;
   removedPlayerId: string;
+  roomDeleted: boolean;
+}
+
+export interface AddBotParams {
+  roomId: string;
+  playerId: string;
+}
+
+export interface AddBotResult {
+  room: RoomRuntime;
+  botPlayer: ServerRoomPlayer;
+}
+
+export interface KickPlayerParams {
+  roomId: string;
+  playerId: string;
+  targetPlayerId: string;
+}
+
+export interface KickPlayerResult {
+  room: RoomRuntime | null;
+  removedPlayerId: string;
+  removedConnectionId: string | null;
   roomDeleted: boolean;
 }
 

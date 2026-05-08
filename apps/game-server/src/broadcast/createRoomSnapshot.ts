@@ -32,6 +32,7 @@ export function createRoomSnapshot(
           seatIndex: player.seatIndex,
           isHost: player.playerId === room.ownerPlayerId,
           isReady: player.playerId === room.ownerPlayerId ? true : player.isReady,
+          isBot: player.isBot,
           connectionStatus: player.hasLeftRoom
             ? "left"
             : player.connected

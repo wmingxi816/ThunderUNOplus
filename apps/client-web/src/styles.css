@@ -503,6 +503,16 @@ label span {
   font-size: 1rem;
 }
 
+.lobby-actions .copy-room-button {
+  background: #2f63c9;
+  color: #f4f9ff;
+}
+
+.lobby-actions .copy-room-button:disabled {
+  opacity: 0.52;
+  filter: grayscale(0.2);
+}
+
 .lobby-hints,
 .room-chip-row {
   display: flex;
@@ -647,10 +657,11 @@ label span {
 
 .player-pill {
   display: grid;
-  grid-template-columns: 3rem minmax(0, 1fr);
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
   grid-template-areas:
-    "avatar name"
-    "avatar meta";
+    "avatar name action"
+    "avatar meta action"
+    "avatar bot action";
   align-items: center;
   column-gap: 0.7rem;
 }
@@ -723,6 +734,56 @@ label span {
 
 .player-pill small {
   grid-area: meta;
+}
+
+.player-pill .avatar {
+  grid-area: avatar;
+}
+
+.bot-tag,
+.seat-bot-tag {
+  display: inline-grid;
+  place-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.player-pill .bot-tag {
+  grid-area: bot;
+  margin-top: 0.25rem;
+  padding: 0.22rem 0.42rem;
+}
+
+.seat-bot-tag {
+  padding: 0.18rem 0.38rem;
+  margin-top: 0.18rem;
+}
+
+.mini-kick-button {
+  grid-area: action;
+  align-self: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.78rem;
+}
+
+.host-room-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.host-room-actions button {
+  width: 100%;
+  min-height: 3rem;
 }
 
 .seed-line {

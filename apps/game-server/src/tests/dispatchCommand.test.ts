@@ -72,6 +72,9 @@ describe("dispatchCommand", () => {
   it("playerId 与 command.playerId 不一致时返回 error", () => {
     const fixture = createStartedRoomFixture(3);
     const roomPlayerId = fixture.room.gameState!.currentPlayerId;
+    const commandPlayerId = fixture.room.players.find(
+      (player) => player.playerId !== roomPlayerId
+    )!.playerId;
     const result = dispatchCommand({
       roomManager: fixture.roomManager,
       connectionRegistry: fixture.connectionRegistry,
@@ -80,7 +83,7 @@ describe("dispatchCommand", () => {
         playerId: roomPlayerId,
         command: {
           type: "draw-card",
-          playerId: fixture.room.players[1]!.playerId,
+          playerId: commandPlayerId,
           timestampMs: 1000
         }
       })

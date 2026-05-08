@@ -1,9 +1,11 @@
 import { PROTOCOL_VERSION } from "@thunder-uno/protocol";
 import type {
   ClientCommandMessage,
+  ClientAddBotMessage,
   ClientContinueGameMessage,
   ClientCreateRoomMessage,
   ClientJoinRoomMessage,
+  ClientKickPlayerMessage,
   ClientLeaveRoomMessage,
   ClientPingMessage,
   ClientReconnectMessage,
@@ -92,6 +94,38 @@ export function buildSetReadyMessage(params: {
     roomId: params.roomId,
     playerId: params.playerId,
     ready: params.ready,
+    timestampMs: Date.now()
+  };
+}
+
+export function buildAddBotMessage(params: {
+  roomId: RoomId;
+  playerId: PlayerId;
+  requestId?: string;
+}): ClientAddBotMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "add-bot",
+    requestId: params.requestId ?? createRequestId("add-bot"),
+    roomId: params.roomId,
+    playerId: params.playerId,
+    timestampMs: Date.now()
+  };
+}
+
+export function buildKickPlayerMessage(params: {
+  roomId: RoomId;
+  playerId: PlayerId;
+  targetPlayerId: PlayerId;
+  requestId?: string;
+}): ClientKickPlayerMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "kick-player",
+    requestId: params.requestId ?? createRequestId("kick"),
+    roomId: params.roomId,
+    playerId: params.playerId,
+    targetPlayerId: params.targetPlayerId,
     timestampMs: Date.now()
   };
 }

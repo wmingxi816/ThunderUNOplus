@@ -66,6 +66,7 @@ export function createPlayerGameSnapshot(
       isRoundWinner: self.isRoundWinner,
       hasLeftRoom: self.hasLeftRoom,
       isCurrentPlayer: self.id === state.currentPlayerId,
+      isBot: self.isBot === true,
       hand: [...self.hand],
       ...(self.displayName === undefined
         ? {}
@@ -86,6 +87,7 @@ export function createPlayerGameSnapshot(
           isRoundWinner: player.isRoundWinner,
           hasLeftRoom: player.hasLeftRoom,
           isCurrentPlayer: player.id === state.currentPlayerId,
+          isBot: player.isBot === true,
           ...(player.displayName === undefined
             ? {}
             : { displayName: player.displayName }),

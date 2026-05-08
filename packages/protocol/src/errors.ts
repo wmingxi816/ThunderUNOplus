@@ -16,6 +16,7 @@ export const PROTOCOL_ERROR_CODES = [
   "players-not-ready",
   "invalid-room-id",
   "room-id-taken",
+  "bot-not-allowed",
   "round-decision-not-available",
   "player-id-mismatch",
   "connection-not-found"

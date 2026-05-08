@@ -1,7 +1,9 @@
 import type {
+  ClientAddBotMessage,
   ClientCreateRoomMessage,
   ClientContinueGameMessage,
   ClientJoinRoomMessage,
+  ClientKickPlayerMessage,
   ClientLeaveRoomMessage,
   ClientMessage,
   ClientReconnectMessage,
@@ -26,12 +28,14 @@ import {
 import { handlePing } from "./heartbeat";
 import { parseMessage, ParseMessageError } from "./parseMessage";
 import { RoomManager } from "../room/roomManager";
+import type { BotScheduler } from "../bot/botScheduler";
 
 export interface HandleClientMessageParams {
   connection: ServerConnection;
   rawMessage: RawData;
   roomManager: RoomManager;
   connectionRegistry: ConnectionRegistry;
+  botScheduler?: BotScheduler | undefined;
 }
 
 /**
@@ -60,6 +64,12 @@ export function handleClientMessage(params: HandleClientMessageParams): {
       case "set-ready":
         handleSetReady({ ...params, message });
         return { ok: true, messageType: "set-ready" };
+      case "add-bot":
+        handleAddBot({ ...params, message });
+        return { ok: true, messageType: "add-bot" };
+      case "kick-player":
+        handleKickPlayer({ ...params, message });
+        return { ok: true, messageType: "kick-player" };
       case "restart-game":
         handleRestartGame({ ...params, message });
         return { ok: true, messageType: "restart-game" };
@@ -70,11 +80,17 @@ export function handleClientMessage(params: HandleClientMessageParams): {
         handleLeaveRoom({ ...params, message });
         return { ok: true, messageType: "leave-room" };
       case "command":
-        dispatchCommand({
-          roomManager: params.roomManager,
-          connectionRegistry: params.connectionRegistry,
-          message
-        });
+        {
+          const result = dispatchCommand({
+            roomManager: params.roomManager,
+            connectionRegistry: params.connectionRegistry,
+            message
+          });
+
+          if (result.room !== null) {
+            params.botScheduler?.scheduleRoom(result.room.roomId);
+          }
+        }
         return { ok: true, messageType: "command" };
       case "reconnect":
         handleReconnect({ ...params, message });
@@ -163,11 +179,59 @@ function handleSetReady(params: {
   );
 }
 
+function handleAddBot(params: {
+  connection: ServerConnection;
+  message: ClientAddBotMessage;
+  roomManager: RoomManager;
+  connectionRegistry: ConnectionRegistry;
+}): void {
+  const result = params.roomManager.addBot({
+    roomId: params.message.roomId,
+    playerId: params.message.playerId
+  });
+
+  broadcastRoomState(
+    result.room,
+    params.connectionRegistry,
+    params.message.requestId
+  );
+}
+
+function handleKickPlayer(params: {
+  connection: ServerConnection;
+  message: ClientKickPlayerMessage;
+  roomManager: RoomManager;
+  connectionRegistry: ConnectionRegistry;
+}): void {
+  const result = params.roomManager.kickPlayer({
+    roomId: params.message.roomId,
+    playerId: params.message.playerId,
+    targetPlayerId: params.message.targetPlayerId
+  });
+
+  if (result.removedConnectionId !== null) {
+    params.connectionRegistry
+      .getConnection(result.removedConnectionId)
+      ?.send(createRoomClosedMessage(params.message.roomId, params.message.requestId));
+  }
+
+  if (result.room === null) {
+    return;
+  }
+
+  broadcastRoomState(
+    result.room,
+    params.connectionRegistry,
+    params.message.requestId
+  );
+}
+
 function handleStartGame(params: {
   connection: ServerConnection;
   message: ClientStartGameMessage;
   roomManager: RoomManager;
   connectionRegistry: ConnectionRegistry;
+  botScheduler?: BotScheduler | undefined;
 }): void {
   const result = params.roomManager.startGame({
     roomId: params.message.roomId,
@@ -196,6 +260,8 @@ function handleStartGame(params: {
   if (registeredHostConnection !== params.connection) {
     params.connection.send(createGameSnapshotEnvelope(result.room, params.message.playerId));
   }
+
+  params.botScheduler?.scheduleRoom(result.room.roomId);
 }
 
 function handleRestartGame(params: {
@@ -203,6 +269,7 @@ function handleRestartGame(params: {
   message: ClientRestartGameMessage;
   roomManager: RoomManager;
   connectionRegistry: ConnectionRegistry;
+  botScheduler?: BotScheduler | undefined;
 }): void {
   const result = params.roomManager.restartGame({
     roomId: params.message.roomId,
@@ -216,6 +283,7 @@ function handleRestartGame(params: {
     params.message.requestId
   );
   sendSnapshotsToRoom(result.room, params.connectionRegistry);
+  params.botScheduler?.scheduleRoom(result.room.roomId);
 }
 
 function handleContinueGame(params: {
@@ -223,6 +291,7 @@ function handleContinueGame(params: {
   message: ClientContinueGameMessage;
   roomManager: RoomManager;
   connectionRegistry: ConnectionRegistry;
+  botScheduler?: BotScheduler | undefined;
 }): void {
   const result = params.roomManager.continueGame({
     roomId: params.message.roomId,
@@ -235,6 +304,7 @@ function handleContinueGame(params: {
     params.message.requestId
   );
   sendSnapshotsToRoom(result.room, params.connectionRegistry);
+  params.botScheduler?.scheduleRoom(result.room.roomId);
 }
 
 function handleLeaveRoom(params: {

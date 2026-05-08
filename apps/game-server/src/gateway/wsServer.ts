@@ -5,12 +5,14 @@ import { createWsConnection } from "./wsConnection";
 import { handleClientMessage } from "./messageHandler";
 import { handleConnectionClosed } from "./lifecycle";
 import { RoomManager } from "../room/roomManager";
+import type { BotScheduler } from "../bot/botScheduler";
 
 export interface CreateWsServerParams {
   port: number;
   host?: string;
   roomManager: RoomManager;
   connectionRegistry: ConnectionRegistry;
+  botScheduler?: BotScheduler | undefined;
 }
 
 export interface WsServerRuntime {
@@ -40,7 +42,8 @@ export async function createWsServer(
         connection,
         rawMessage,
         roomManager: params.roomManager,
-        connectionRegistry: params.connectionRegistry
+        connectionRegistry: params.connectionRegistry,
+        botScheduler: params.botScheduler
       });
     });
 
@@ -63,6 +66,7 @@ export async function createWsServer(
     server,
     port: getServerPort(server),
     close() {
+      params.botScheduler?.dispose();
       return new Promise<void>((resolve, reject) => {
         server.close((error) => {
           if (error !== undefined) {

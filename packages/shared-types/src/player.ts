@@ -33,6 +33,7 @@ export interface InitialGamePlayerInput {
   id: PlayerId;
   displayName?: string;
   avatarUrl?: string | null;
+  isBot?: boolean;
 }
 
 export interface GamePlayerState {
@@ -49,4 +50,5 @@ export interface GamePlayerState {
   isRoundWinner: boolean;
   hasLeftRoom: boolean;
   eliminationReason: PlayerEliminationReason | null;
+  isBot?: boolean;
 }

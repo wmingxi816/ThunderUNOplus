@@ -32,7 +32,10 @@ describe("validateGameStateInvariant", () => {
 
   it("能发现 currentPlayerId 是淘汰玩家", () => {
     const state = createBaseState();
-    state.players[0]!.isEliminated = true;
+    const currentPlayer = state.players.find(
+      (player) => player.id === state.currentPlayerId
+    )!;
+    currentPlayer.isEliminated = true;
 
     const result = validateGameStateInvariant(state);
 

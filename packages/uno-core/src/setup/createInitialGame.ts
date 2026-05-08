@@ -43,6 +43,7 @@ export function createInitialGame(
       isRoundWinner: false,
       hasLeftRoom: false,
       eliminationReason: null,
+      isBot: player.isBot === true,
       ...(player.displayName === undefined
         ? {}
         : { displayName: player.displayName }),
@@ -80,7 +81,7 @@ export function createInitialGame(
   // 被跳过的黑牌放回牌堆末尾，避免无端丢牌。
   drawPile.push(...skippedOpeningBlackCards);
 
-  const firstPlayer = players[0];
+  const firstPlayer = selectFirstPlayer(players, params.seed);
 
   if (firstPlayer === undefined) {
     throw new Error("Expected at least one player after validation.");
@@ -137,4 +138,13 @@ function assertPlayerCount(playerCount: number): void {
       `Player count must be between ${MIN_PLAYER_COUNT} and ${MAX_PLAYER_COUNT}.`
     );
   }
+}
+
+function selectFirstPlayer(
+  players: readonly GamePlayerState[],
+  seed: CreateInitialGameParams["seed"]
+): GamePlayerState | undefined {
+  const firstPlayerSeed = seed === undefined ? undefined : `${String(seed)}:first-player`;
+
+  return shuffleDeck(players, firstPlayerSeed)[0];
 }
