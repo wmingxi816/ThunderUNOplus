@@ -1,5 +1,5 @@
 import type { Card, CardColor, GameCommand, GameState, PlayerId } from "@thunder-uno/shared-types";
-import { applyCommand, isDrawCard } from "@thunder-uno/uno-core";
+import { applyCommand, isDrawCard, isNumberCard } from "@thunder-uno/uno-core";
 import type { BotCandidateAction } from "./botCandidates";
 
 export interface ScoredBotAction extends BotCandidateAction {
@@ -61,6 +61,7 @@ function scoreCandidate(
   score += scoreDeclaredColor(state, playerId, candidate.declaredColor);
   score += scoreReserveCost(state, beforePlayer.hand, command);
   score += scoreDiscardSameColor(beforePlayer.handCount, command, candidate.cardIds.length);
+  score += scoreSingleNumberStructure(beforePlayer.hand, command);
   score += random() * 8;
 
   if (command.type === "draw-card") {
@@ -250,6 +251,82 @@ function scoreDiscardSameColor(
   }
 
   return 0;
+}
+
+function scoreSingleNumberStructure(
+  hand: readonly Card[],
+  command: GameCommand
+): number {
+  if (command.type !== "play-card") {
+    return 0;
+  }
+
+  const card = hand.find((candidate) => candidate.id === command.cardId);
+
+  if (card === undefined || !isNumberCard(card)) {
+    return 0;
+  }
+
+  const numberCards = hand.filter(isNumberCard);
+
+  if (numberCards.length <= 1) {
+    return 0;
+  }
+
+  const average =
+    numberCards.reduce((sum, candidate) => sum + candidate.number, 0) /
+    numberCards.length;
+  const distanceFromAverage = Math.abs(card.number - average);
+  const belongsToPair = numberCards.some((candidate) => {
+    return (
+      candidate.id !== card.id &&
+      candidate.color === card.color &&
+      candidate.number === card.number
+    );
+  });
+  const belongsToSequence = isNumberPartOfSequenceRun(card.number, numberCards);
+
+  if (!belongsToPair && !belongsToSequence) {
+    return 160 + distanceFromAverage * 28;
+  }
+
+  let score = 0;
+
+  if (belongsToPair) {
+    score -= 70;
+  }
+
+  if (belongsToSequence) {
+    score -= 90;
+  }
+
+  return score + distanceFromAverage * 6;
+}
+
+function isNumberPartOfSequenceRun(
+  number: number,
+  numberCards: readonly Card[]
+): boolean {
+  const uniqueNumbers = [
+    ...new Set(numberCards.filter(isNumberCard).map((card) => card.number))
+  ].sort((left, right) => left - right);
+  let run: number[] = [];
+
+  for (const currentNumber of uniqueNumbers) {
+    const previousNumber = run[run.length - 1];
+
+    if (previousNumber === undefined || currentNumber === previousNumber + 1) {
+      run.push(currentNumber);
+    } else {
+      if (run.length >= 5 && run.includes(number)) {
+        return true;
+      }
+
+      run = [currentNumber];
+    }
+  }
+
+  return run.length >= 5 && run.includes(number);
 }
 
 function getCommandTopCard(state: GameState, command: GameCommand): Card | null {

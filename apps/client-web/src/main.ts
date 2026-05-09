@@ -59,6 +59,7 @@ interface AppState {
   flyingCard: FlyingCardAnimation | null;
   drawFlyingCard: DrawFlyingCardAnimation | null;
   drawStackBurst: DrawStackBurstAnimation | null;
+  penaltyDrawProgress: PenaltyDrawProgress | null;
   challengePrompt: ChallengePromptState | null;
   eventModal: EventModalState | null;
   ruleModal: RuleModalView | null;
@@ -93,6 +94,12 @@ interface DrawFlyingCardAnimation {
 interface DrawStackBurstAnimation {
   key: string;
   cards: Card[];
+}
+
+interface PenaltyDrawProgress {
+  targetPlayerId: PlayerId;
+  targetColor: CardColor;
+  nextDrawIndex: number;
 }
 
 interface ChallengePromptState {
@@ -382,6 +389,7 @@ const state: AppState = {
   flyingCard: null,
   drawFlyingCard: null,
   drawStackBurst: null,
+  penaltyDrawProgress: null,
   challengePrompt: null,
   eventModal: null,
   ruleModal: null,
@@ -452,6 +460,7 @@ function handleServerMessage(message: ServerMessage): void {
       }
       syncRecentDrawnCards(previousSnapshot, snapshot);
       syncFlyingCardAnimation(snapshot);
+      syncPenaltyDrawProgress(snapshot);
       state.roomId = message.roomId;
       state.playerId = message.playerId;
       state.snapshot = snapshot;
@@ -3327,6 +3336,33 @@ function syncRecentDrawnCards(
   );
 }
 
+function syncPenaltyDrawProgress(snapshot: PlayerGameSnapshot): void {
+  if (
+    !snapshot.drawUntilColor.active ||
+    snapshot.drawUntilColor.targetPlayerId === null ||
+    snapshot.drawUntilColor.color === null
+  ) {
+    state.penaltyDrawProgress = null;
+    return;
+  }
+
+  const currentProgress = state.penaltyDrawProgress;
+
+  if (
+    currentProgress !== null &&
+    currentProgress.targetPlayerId === snapshot.drawUntilColor.targetPlayerId &&
+    currentProgress.targetColor === snapshot.drawUntilColor.color
+  ) {
+    return;
+  }
+
+  state.penaltyDrawProgress = {
+    targetPlayerId: snapshot.drawUntilColor.targetPlayerId,
+    targetColor: snapshot.drawUntilColor.color,
+    nextDrawIndex: 1
+  };
+}
+
 function syncFlyingCardAnimation(snapshot: PlayerGameSnapshot): void {
   const event = state.latestCardsPlayedEvent;
 
@@ -4627,6 +4663,7 @@ function resetRoomContext(): void {
   state.flyingCard = null;
   state.drawFlyingCard = null;
   state.drawStackBurst = null;
+  state.penaltyDrawProgress = null;
   state.eventModal = null;
   state.ruleModal = null;
   state.dismissedFinishedNoticeKey = null;

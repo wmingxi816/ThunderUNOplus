@@ -504,7 +504,7 @@ export class RoomManager {
       playerId: this.createPlayerId(),
       connectionId: null,
       seatIndex: room.players.length,
-      nickname: `雷霆机器人 ${String(botIndex)}`,
+      nickname: `雷霆bot${String(botIndex)}`,
       avatarUrl: this.resolveAvatarUrl(room.players, null),
       connected: true,
       hasLeftRoom: false,

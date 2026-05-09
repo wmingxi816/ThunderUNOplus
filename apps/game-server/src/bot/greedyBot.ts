@@ -30,7 +30,18 @@ export function decideGreedyBotAction(
   const bestAction = scoredCandidates[0];
 
   if (bestAction === undefined) {
-    return null;
+    const fallbackCommand = createProtectedFallbackCommand(params.state, params.playerId);
+
+    if (fallbackCommand === null) {
+      return null;
+    }
+
+    return {
+      command: fallbackCommand,
+      score: Number.NEGATIVE_INFINITY,
+      reasons: ["protected-fallback"],
+      willCallUno: false
+    };
   }
 
   return {
@@ -64,4 +75,39 @@ function shouldCallUno(
     player.unoPendingSinceMs !== null &&
     random() >= forgetUnoRate
   );
+}
+
+function createProtectedFallbackCommand(
+  state: GameState,
+  playerId: PlayerId
+): GameCommand | null {
+  if (state.status === "finished" || state.currentPlayerId !== playerId) {
+    return null;
+  }
+
+  if (state.normalDrawOffer.active && state.normalDrawOffer.playerId === playerId) {
+    return {
+      type: "keep-drawn-card",
+      playerId
+    };
+  }
+
+  if (state.drawStack.active && state.drawStack.targetPlayerId === playerId) {
+    return {
+      type: "resolve-draw-stack",
+      playerId
+    };
+  }
+
+  if (state.drawUntilColor.active && state.drawUntilColor.targetPlayerId === playerId) {
+    return {
+      type: "resolve-draw-until-color",
+      playerId
+    };
+  }
+
+  return {
+    type: "draw-card",
+    playerId
+  };
 }

@@ -1,119 +1,153 @@
-# 雷霆 UNOplus
+# 雷霆 UNOplus 玩家说明
 
-《雷霆UNOplus》当前方向是 **HTML 网页端实时多人卡牌游戏**。牌库配置和游戏规则保持不变，继续以服务端权威状态、共享协议和 `uno-core` 规则引擎为核心。
+《雷霆 UNOplus》是一款网页端实时多人 UNO 变体游戏。玩家创建房间后，把 6 位房间号发给其他人即可一起对战。当前支持 3 到 8 人游玩，也支持在无质疑模式下添加机器人。
 
-规则与牌库仍以这两份文档为准：
+规则以本项目的自定义规则为准，不是标准 UNO。完整规则可继续查看 [GAME-RULES.md](./GAME-RULES.md)，牌库配置可查看 [CARD-CONFIG.md](./CARD-CONFIG.md)。
 
-- [GAME-RULES.md](./GAME-RULES.md)
-- [CARD-CONFIG.md](./CARD-CONFIG.md)
+## 快速开始
 
-## 当前阶段
+1. 打开网页。
+2. 输入昵称。
+3. 点击“生成房间号”创建房间，或输入别人给你的 6 位房间号加入房间。
+4. 非房主点击“准备”。
+5. 所有人准备后，房主点击“开始游戏”。
+6. 轮到自己时，选择高亮手牌出牌，或点击摸牌。
 
-已完成并继续保留：
+房主还可以在大厅踢出玩家或机器人。机器人只能在“无质疑规则”模式下添加。
 
-- Phase 1：monorepo 地基
-- Phase 2A：`packages/uno-core` 规则基础层
-- Phase 2B：完整对局 reducer
-- Phase 2C：共享类型、协议收口、玩家视角快照
-- Phase 2D：本地 CLI 连续对局模拟器
-- Phase 3A：`apps/game-server` 内存房间容器与命令分发
-- Phase 3B：真实 WebSocket 接入、本地联调客户端、集成测试
-- Phase 3C：本地多客户端 WebSocket 联调脚本
-- Phase 4A：网页端转向与 `apps/client-web` 首版骨架
-- Phase 4B：网页端本地三人试玩闭环
-- Phase 4C：网页端真实联调收口、断线重连、结束页和浏览器冒烟测试
-- Phase 4D：网页端发布前构建与局域网验收
-- Phase 4E：真实浏览器 E2E 与三窗口自动化验收
-- Phase 4F：网页端移动端 UI 细节打磨与试玩体验优化
-- Phase 4G：移动端真实设备试玩验收与视觉细节收口
-- Phase 4H：UI-DESIGN 对战界面落地，并完成 next-step2 的界面细化
-- Phase 4I：UI 逻辑与算法补完
+## 游戏目标
 
-已放弃：
+最先打光手牌的玩家获胜。
 
-- `apps/client-wechat`
-- `apps/NewProject` Cocos Creator 工程方向
-- 微信开发者工具、微信小游戏构建、Cocos prefab/scene 落地计划
-- `wx.connectSocket`、`game.json`、`project.config.json` 等微信小游戏专项配置
+如果玩家手牌超过 25 张，会被淘汰。淘汰玩家不再参与回合流转，但房间内仍会显示其状态。
 
-## 仓库结构
+## 基础规则
 
-```txt
-.
-├── apps
-│   ├── client-web
-│   │   ├── public/cards
-│   │   └── src
-│   └── game-server
-│       └── src
-├── docs
-├── packages
-│   ├── protocol
-│   ├── shared-types
-│   └── uno-core
-├── tools
-│   └── simulator
-├── CARD-CONFIG.md
-├── GAME-RULES.md
-├── package.json
-├── pnpm-workspace.yaml
-└── tsconfig.base.json
-```
+每名玩家开局获得 7 张手牌。系统翻开一张非黑色牌作为起始牌。
 
-## 目录职责
+普通出牌需要满足以下任一条件：
 
-### `packages/shared-types`
+- 颜色相同。
+- 数字相同。
+- 牌型允许接入当前状态。
+- 黑色牌可主动指定后续颜色。
 
-跨端共享领域模型：牌、玩家、房间、命令、事件、快照等类型。
+示例：
 
-### `packages/protocol`
+- 当前是红 5，可以出红色牌。
+- 当前是红 5，也可以出其他颜色的 5。
+- 当前颜色被黑牌指定为蓝色，则下一家按蓝色接牌。
 
-浏览器客户端和 game-server 之间的 WebSocket 协议。网页端只按协议发送消息，不在客户端裁定规则是否合法。
+基础规则图示：
 
-### `packages/uno-core`
+![基础规则 1](./apps/client-web/public/rules/基础规则1.png)
 
-唯一规则归属地，包含牌库生成、开局初始化、出牌结算、摸牌回洗、玩家视角快照裁剪和规则测试。
+![基础规则 2](./apps/client-web/public/rules/基础规则2.png)
 
-### `apps/game-server`
+## 常见牌型
 
-当前继续作为权威服务端，已实现：
+### 数字牌
 
-- 内存房间
-- WebSocket 网关
-- 创建房间、加入房间、开始游戏、离开房间、断线重连
-- 6 位随机房间号和 6 位数字自定义房间号
-- 淘汰 / 胜利后的房主重开与继续游戏
-- lobby `room-state` 广播
-- playing `snapshot` 广播
-- 本地多客户端联调脚本
+普通数字牌按颜色或数字接牌。
 
-### `apps/client-web`
+![普通牌规则](./apps/client-web/public/rules/卡牌规则1.png)
 
-新的 HTML 网页端入口，当前已实现：
+### +2 和 +4
 
-- Vite + 原生 TypeScript 网页应用
-- 浏览器 WebSocket 连接
-- 生成房间号、自定义 6 位房间号、加入房间、离开房间、开始游戏
-- 展示等待房间、玩家列表、对局桌面、顶牌、牌堆、对手、手牌
-- 使用 `room-state.playerId` 稳定识别当前玩家
-- 支持单牌、顺子、连对、同色丢弃的选牌出牌
-- 支持黑牌颜色选择弹层
-- 摸牌、结算加牌、结算罚抽、喊 UNO、抓 UNO、质疑
-- 基于 `userId + roomId` 的最小断线重连
-- 服务端错误和 `command-rejected` 页面提示
-- 对局结束横幅，并在结束后禁用对局操作
-- 复用 `public/cards` 中的牌面 PNG
-- 生产构建与 `vite preview` 验证
-- Playwright 真实浏览器 E2E 与三窗口回归
-- 手机和窄屏下的基础布局、触控按钮和手牌区优化
-- 头像大厅展示、房间内头像不重复分配
-- 对战桌环绕式座位、数字手牌数、弃牌堆叠和出牌动效
-- 质疑窗口弹层和 5 秒视觉倒计时
-- 固定宽度手牌区，极多手牌时自动均匀重叠
-- 打出倒数第二张牌后可立即喊 UNO
-- 淘汰玩家红色高亮、胜利玩家绿色高亮
+普通 +2、普通 +4 属于带颜色的加牌牌。被加牌的玩家可以继续叠合法加牌，或结算当前加牌链。
 
-## 常用命令
+![+2 和 +4 规则](./apps/client-web/public/rules/卡牌规则23.png)
+
+### 禁
+
+跳过当前方向上的下一位玩家。
+
+![禁牌规则](./apps/client-web/public/rules/卡牌规则4.png)
+
+### 反转
+
+改变当前出牌方向。
+
+![反转规则](./apps/client-web/public/rules/卡牌规则5.png)
+
+### 同色丢弃
+
+打出“同色丢弃”后，可以额外丢出同颜色的若干张牌。额外丢出的牌不会触发技能效果，真正留在桌面上供下一家接牌的是“同色丢弃”主牌。
+
+![同色丢弃规则](./apps/client-web/public/rules/卡牌规则6.png)
+
+### 交换手牌
+
+按当前方向交换所有玩家的手牌。
+
+![交换手牌规则](./apps/client-web/public/rules/卡牌规则7.png)
+
+## 黑色牌
+
+黑色牌通常可以指定后续颜色。
+
+### 变色
+
+打出后选择红、黄、蓝、绿之一作为后续颜色。
+
+![变色规则](./apps/client-web/public/rules/卡牌规则8.png)
+
+### 罚抽
+
+打出后指定一种颜色，目标玩家需要一直从牌堆摸牌，直到摸到指定颜色为止。罚抽目标永远是当前出牌方向上的下一位玩家。
+
+![罚抽规则](./apps/client-web/public/rules/卡牌规则9.png)
+
+### 反转变色 +4
+
+反转方向、指定颜色，并让新的目标玩家承受 +4 压力。
+
+![反转变色 +4 规则](./apps/client-web/public/rules/卡牌规则10.png)
+
+### 变色 +6
+
+指定颜色，并让目标玩家承受 +6 压力。
+
+![变色 +6 规则](./apps/client-web/public/rules/卡牌规则11.png)
+
+### 变色 +10
+
+指定颜色，并让目标玩家承受 +10 压力。第二张 +10 有特殊抵消效果，会清空前面的加牌链。
+
+![变色 +10 规则](./apps/client-web/public/rules/卡牌规则12.png)
+
+## 特色玩法
+
+### 顺子
+
+顺子只能由普通数字牌组成，至少 5 张，数字必须连续，颜色不限。下一家需要接顺子中最大的那张牌。
+
+![顺子规则](./apps/client-web/public/rules/特色玩法（顺子）.png)
+
+### 连对
+
+连对只能由普通数字牌组成，要求颜色相同、数字相同，可以一次性打出多张。
+
+### UNO
+
+当玩家出牌后只剩 1 张手牌，需要喊 UNO。系统提供短暂保护时间，保护结束后如果仍未喊 UNO，其他玩家可以抓 UNO。抓 UNO 成功后，目标玩家罚摸 6 张。
+
+## 质疑玩法
+
+房间选择“有质疑规则”时，普通摸牌会产生质疑窗口。
+
+核心规则：
+
+- 如果玩家摸牌前手里有黑色牌，却选择普通摸牌，其他人可以质疑。
+- 质疑成功：被质疑者罚摸 2 张。
+- 质疑失败：质疑者罚摸 6 张。
+- 质疑窗口持续到下一家完成行动前。
+
+![质疑玩法](./apps/client-web/public/rules/质疑玩法.png)
+
+## 本地启动
+
+需要先安装 Node.js 20.11 或更高版本，并启用 corepack。
 
 安装依赖：
 
@@ -133,116 +167,103 @@ corepack pnpm --filter @thunder-uno/game-server dev
 corepack pnpm --filter @thunder-uno/client-web dev
 ```
 
-默认访问：
+默认访问地址：
 
 ```txt
 http://localhost:5173
 ```
 
-默认 WebSocket：
+默认 WebSocket 地址：
 
 ```txt
 ws://localhost:8787
 ```
 
-也可以通过 URL 参数指定：
+如果网页端端口被占用，Vite 可能会自动改用 `5174` 等端口，以终端实际输出为准。
 
-```txt
-http://localhost:5173/?ws=192.168.1.23:8787
-```
+## 局域网联机
 
-大厅房间号输入是 6 个固定数字框：
+电脑和手机必须在同一个局域网内。
 
-1. “生成房间号”由服务端自动生成未占用的 6 位房间号。
-2. “自定义房间号”必须填满 6 位数字，且不能和已有房间重复。
-3. “加入房间”同样从 6 个数字框读取房间号。
-
-生产预览：
-
-```bash
-corepack pnpm --filter @thunder-uno/client-web build
-corepack pnpm --filter @thunder-uno/client-web preview
-```
-
-## 局域网试玩
-
-服务端建议监听所有网卡：
+服务端监听所有网卡：
 
 ```bash
 HOST=0.0.0.0 PORT=8787 corepack pnpm --filter @thunder-uno/game-server dev
 ```
 
-网页端开发模式也监听所有网卡：
+网页端监听所有网卡：
 
 ```bash
 corepack pnpm --filter @thunder-uno/client-web dev -- --host 0.0.0.0
 ```
 
-手机或其他电脑在同一局域网内访问：
+其他设备访问：
 
 ```txt
 http://电脑局域网IP:5173?ws=电脑局域网IP:8787
 ```
 
-如果使用 `preview`，默认端口通常是 `4173`：
+示例：
+
+```txt
+http://192.168.1.23:5173?ws=192.168.1.23:8787
+```
+
+如果无法连接，优先检查：
+
+- 手机和电脑是否在同一局域网。
+- Windows 防火墙是否放行 5173 和 8787。
+- 网页 URL 里的 `?ws=` 是否指向正确电脑 IP。
+- 服务端是否真的启动在 8787。
+
+## 生产预览
+
+构建网页端：
+
+```bash
+corepack pnpm --filter @thunder-uno/client-web build
+```
+
+启动预览：
+
+```bash
+corepack pnpm --filter @thunder-uno/client-web preview
+```
+
+`preview` 默认端口通常是 4173：
+
+```txt
+http://localhost:4173
+```
+
+局域网访问时同样需要带上服务端地址：
 
 ```txt
 http://电脑局域网IP:4173?ws=电脑局域网IP:8787
 ```
 
-常见问题：
+## 常见问题
 
-1. 手机和电脑必须在同一个局域网。
-2. Windows 防火墙可能拦截 5173 或 8787。
-3. 如果 8787 被占用，需要同时修改服务端 `PORT` 和网页 `?ws=` 地址。
-4. 本地开发使用 `ws://`。
-5. HTTPS 页面通常不能连 `ws://`，正式部署要改 `wss://`。
+### 点击按钮没有反应
 
-## 移动端试玩验收
+先确认页面左上角连接状态是否为“已连接”。如果显示“重新连接”，说明网页端没有连上服务端。
 
-真实手机试玩时，建议按这个顺序走一遍：
+### 加入房间失败
 
-1. 手机和电脑接入同一局域网。
-2. 服务端使用 `HOST=0.0.0.0` 启动。
-3. 网页端使用 `--host 0.0.0.0` 启动。
-4. 手机打开 `http://电脑局域网IP:5173?ws=电脑局域网IP:8787`。
-5. 三个设备或三个浏览器窗口进入同一房间。
-6. 房主开始游戏。
-7. 每个玩家至少完成一次出牌或摸牌。
-8. 测试黑牌颜色选择弹层。
-9. 测试错误提示是否清楚可见。
-10. 刷新手机页面，确认 reconnect 能回到当前房间。
-11. 竖屏和横屏都看一遍，确认桌面区、按钮区和手牌区不互相挤压。
-12. 长昵称、极多手牌和日志区滚动都要简单扫一遍。
+房间号必须是 6 位数字，并且服务端里确实存在该房间。确认房主没有关闭服务端或刷新导致房间丢失。
 
-## 测试与检查
+### 添加机器人报 Unknown client message type
 
-```bash
-corepack pnpm --filter @thunder-uno/client-web typecheck
-corepack pnpm --filter @thunder-uno/client-web test
-corepack pnpm --filter @thunder-uno/client-web build
-corepack pnpm --filter @thunder-uno/client-web test:e2e
-corepack pnpm typecheck
-corepack pnpm test
+这通常说明你连接的是旧服务端。关闭占用 8787 的旧 Node 进程后，重新启动服务端。
+
+### 别人打不开网页
+
+本机的 `localhost` 只能自己访问。其他设备要用电脑的局域网 IP，例如：
+
+```txt
+http://192.168.1.23:5173?ws=192.168.1.23:8787
 ```
 
-首次运行 Playwright E2E 前，如本机没有浏览器依赖：
+### 规则和标准 UNO 不一样
 
-```bash
-corepack pnpm --filter @thunder-uno/client-web exec playwright install
-```
-
-## 开发原则
-
-- 服务端必须是权威状态。
-- 客户端只能发送命令，不能自己裁定规则是否合法。
-- 所有规则判断必须落在 `packages/uno-core`。
-- 所有协议定义必须收口到 `packages/protocol`。
-- 所有快照都必须按玩家视角裁剪，不能泄露别人的手牌和隐藏挑战信息。
-- 网页端可以做交互、展示、动画、音效和输入体验，但不能复制服务端规则。
-
-## 下一阶段建议
-
-进入 Phase 4J：首版公开试玩部署准备。
-
-重点是开始处理公开试玩部署前的准备工作，包括环境变量、HTTPS / WSS、访问地址和发布前检查，并继续保持构建、E2E 和全仓测试稳定通过。
+这是正常情况。《雷霆 UNOplus》使用自定义规则，尤其是加牌链、罚抽、同色丢弃、顺子、连对、质疑玩法都和标准 UNO 不同。
