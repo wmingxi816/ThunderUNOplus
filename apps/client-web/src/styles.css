@@ -1240,6 +1240,7 @@ label span {
   text-align: right;
 }
 
+.settings-adjust-toggle,
 .settings-grid-toggle {
   width: 100%;
   min-height: 2.55rem;
@@ -1247,10 +1248,41 @@ label span {
   border-color: rgba(68, 140, 255, 0.42);
 }
 
+.settings-adjust-toggle.active,
 .settings-grid-toggle.active {
   border-color: rgba(248, 214, 78, 0.78);
   background: #f8d64e;
   color: #161616;
+}
+
+.settings-adjust-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.settings-adjust-panel .settings-grid-toggle {
+  margin-top: 0;
+}
+
+.settings-orbit-slider-row {
+  grid-template-columns: 2.2rem minmax(0, 1fr) 3.6rem;
+}
+
+.settings-slider-icon {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: #252832;
+  color: #f6f1e8;
+  font-size: 1.25rem;
+  font-weight: 900;
 }
 
 .hud-chip {
@@ -1314,7 +1346,7 @@ label span {
 .turn-direction-orbit {
   position: absolute;
   left: 50%;
-  bottom: var(--turn-orbit-bottom);
+  bottom: calc(var(--turn-orbit-bottom) - var(--turn-orbit-y-offset, 0%));
   z-index: 1;
   width: clamp(17.16rem, 45.24vw, 45.24rem);
   aspect-ratio: 1;

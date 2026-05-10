@@ -51,7 +51,7 @@ function dispatchCommand(
   state: GameState,
   command: GameCommand
 ): ApplyCommandResult {
-  if (state.initialDirectionChoice.active && command.type !== "choose-initial-direction") {
+  if (state.initialDirectionChoice?.active === true && command.type !== "choose-initial-direction") {
     return rejectCommand(
       state,
       command,
@@ -96,7 +96,7 @@ function applyChooseInitialDirectionCommand(
   state: GameState,
   command: ChooseInitialDirectionCommand
 ): ApplyCommandResult {
-  if (!state.initialDirectionChoice.active) {
+  if (state.initialDirectionChoice?.active !== true) {
     return rejectCommand(
       state,
       command,

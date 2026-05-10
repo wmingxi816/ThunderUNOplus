@@ -51,8 +51,8 @@ export function createPlayerGameSnapshot(
           : null
     },
     initialDirectionChoice: {
-      active: state.initialDirectionChoice.active,
-      chooserPlayerId: state.initialDirectionChoice.chooserPlayerId
+      active: state.initialDirectionChoice?.active === true,
+      chooserPlayerId: state.initialDirectionChoice?.chooserPlayerId ?? null
     },
     challengeWindow: {
       active: state.challengeWindow.active,

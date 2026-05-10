@@ -70,12 +70,14 @@ interface AppState {
   eventModal: EventModalState | null;
   ruleModal: RuleModalView | null;
   settingsModalOpen: boolean;
+  settingsAdjustPanelOpen: boolean;
   uiScalePercent: UiSettingPercent;
   backgroundMusicPercent: UiSettingPercent;
   soundEffectPercent: UiSettingPercent;
   backgroundMusicBeforeMutePercent: UiSettingPercent | null;
   soundEffectBeforeMutePercent: UiSettingPercent | null;
   showDebugGrid: boolean;
+  turnOrbitYOffsetPercent: number;
   uiToast: UiToastState | null;
   dismissedFinishedNoticeKey: string | null;
   snapshotRecoveryRoomId: RoomId | null;
@@ -226,6 +228,7 @@ const UI_SCALE_STORAGE_KEY = "thunder-uno.ui-scale-percent";
 const BACKGROUND_MUSIC_STORAGE_KEY = "thunder-uno.background-music-percent";
 const SOUND_EFFECT_STORAGE_KEY = "thunder-uno.sound-effect-percent";
 const DEBUG_GRID_STORAGE_KEY = "thunder-uno.debug-grid";
+const TURN_ORBIT_Y_OFFSET_STORAGE_KEY = "thunder-uno.turn-orbit-y-offset-percent";
 const DEFAULT_UI_SETTING_PERCENT = 80;
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
@@ -475,12 +478,14 @@ const state: AppState = {
   eventModal: null,
   ruleModal: null,
   settingsModalOpen: false,
+  settingsAdjustPanelOpen: false,
   uiScalePercent: readStoredUiScalePercent(UI_SCALE_STORAGE_KEY),
   backgroundMusicPercent: readStoredUiSettingPercent(BACKGROUND_MUSIC_STORAGE_KEY),
   soundEffectPercent: readStoredUiSettingPercent(SOUND_EFFECT_STORAGE_KEY),
   backgroundMusicBeforeMutePercent: null,
   soundEffectBeforeMutePercent: null,
   showDebugGrid: readStoredBoolean(DEBUG_GRID_STORAGE_KEY),
+  turnOrbitYOffsetPercent: readStoredNumber(TURN_ORBIT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
   uiToast: null,
   dismissedFinishedNoticeKey: null,
   snapshotRecoveryRoomId: null,
@@ -2451,7 +2456,11 @@ function renderBattleUiScaleStyle(): string {
   const scale = state.uiScalePercent / 100;
   const inverseScale = 100 / state.uiScalePercent;
 
-  return `--battle-ui-scale: ${scale.toFixed(2)}; --battle-ui-inverse-scale: ${inverseScale.toFixed(4)};`;
+  return [
+    `--battle-ui-scale: ${scale.toFixed(2)}`,
+    `--battle-ui-inverse-scale: ${inverseScale.toFixed(4)}`,
+    `--turn-orbit-y-offset: ${String(state.turnOrbitYOffsetPercent)}%`
+  ].join("; ");
 }
 
 function renderSettingsModal(): string {
@@ -2460,7 +2469,13 @@ function renderSettingsModal(): string {
   }
 
   return `
-    <div class="settings-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    <div
+      class="settings-modal-backdrop"
+      data-settings-backdrop="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-modal-title"
+    >
       <div class="settings-modal">
         <div class="settings-modal-header">
           <strong id="settings-modal-title">设置</strong>
@@ -2470,11 +2485,40 @@ function renderSettingsModal(): string {
         ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
         ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
         <button
-          id="debug-grid-toggle-button"
-          class="secondary settings-grid-toggle ${state.showDebugGrid ? "active" : ""}"
-          aria-pressed="${state.showDebugGrid ? "true" : "false"}"
-        >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
+          id="settings-adjust-toggle-button"
+          class="secondary settings-adjust-toggle ${state.settingsAdjustPanelOpen ? "active" : ""}"
+          aria-expanded="${state.settingsAdjustPanelOpen ? "true" : "false"}"
+        >界面调整</button>
+        ${state.settingsAdjustPanelOpen ? renderInterfaceAdjustPanel() : ""}
       </div>
+    </div>
+  `;
+}
+
+function renderInterfaceAdjustPanel(): string {
+  return `
+    <div class="settings-adjust-panel">
+      <button
+        id="debug-grid-toggle-button"
+        class="secondary settings-grid-toggle ${state.showDebugGrid ? "active" : ""}"
+        aria-pressed="${state.showDebugGrid ? "true" : "false"}"
+      >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
+      <fieldset class="settings-segment settings-slider-segment">
+        <legend>旋转图标上下</legend>
+        <label class="settings-slider-row settings-orbit-slider-row" for="settings-turn-orbit-y-slider">
+          <span class="settings-slider-icon" aria-hidden="true">↕</span>
+          <input
+            id="settings-turn-orbit-y-slider"
+            type="range"
+            min="-30"
+            max="30"
+            step="1"
+            value="${String(state.turnOrbitYOffsetPercent)}"
+            data-turn-orbit-y-range="true"
+          />
+          <output data-turn-orbit-y-output>${String(state.turnOrbitYOffsetPercent)}%</output>
+        </label>
+      </fieldset>
     </div>
   `;
 }
@@ -5019,8 +5063,22 @@ function bindBattlePanel(): void {
     render();
   });
 
+  document.querySelector("[data-settings-backdrop]")?.addEventListener("click", (event) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
+    state.settingsModalOpen = false;
+    render();
+  });
+
   document.querySelector("#close-settings-modal-button")?.addEventListener("click", () => {
     state.settingsModalOpen = false;
+    render();
+  });
+
+  document.querySelector("#settings-adjust-toggle-button")?.addEventListener("click", () => {
+    state.settingsAdjustPanelOpen = !state.settingsAdjustPanelOpen;
     render();
   });
 
@@ -5079,6 +5137,24 @@ function bindBattlePanel(): void {
       applyUiSetting(setting, nextValue, { shouldRender: false });
       syncVolumeSettingControls(setting, nextValue);
     });
+  });
+
+  document.querySelector<HTMLInputElement>("[data-turn-orbit-y-range]")?.addEventListener("input", (event) => {
+    const slider = event.currentTarget as HTMLInputElement | null;
+
+    if (slider === null) {
+      return;
+    }
+
+    const value = parseNumberInRange(slider.value, -30, 30);
+
+    if (value === null) {
+      return;
+    }
+
+    state.turnOrbitYOffsetPercent = value;
+    setStoredValue(TURN_ORBIT_Y_OFFSET_STORAGE_KEY, String(value));
+    syncTurnOrbitYOffsetControls(value);
   });
 
   document.querySelector("#battle-leave-room-button")?.addEventListener("click", () => {
@@ -5396,6 +5472,19 @@ function syncVolumeSettingControls(
     button.textContent = isMuted ? "🔇" : "🔊";
     button.setAttribute("aria-label", isMuted ? "恢复音量" : "静音");
     button.setAttribute("title", isMuted ? "恢复音量" : "静音");
+  }
+}
+
+function syncTurnOrbitYOffsetControls(value: number): void {
+  const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
+  const output = document.querySelector<HTMLOutputElement>("[data-turn-orbit-y-output]");
+
+  if (battleRoot !== null) {
+    battleRoot.style.setProperty("--turn-orbit-y-offset", `${String(value)}%`);
+  }
+  if (output !== null) {
+    output.value = `${String(value)}%`;
+    output.textContent = `${String(value)}%`;
   }
 }
 
@@ -6269,6 +6358,33 @@ function parseVolumeSettingPercent(value: string | undefined | null): UiSettingP
 
 function readStoredBoolean(key: string): boolean {
   return getStoredValue(key) === "true";
+}
+
+function readStoredNumber(
+  key: string,
+  fallback: number,
+  min: number,
+  max: number
+): number {
+  return parseNumberInRange(getStoredValue(key), min, max) ?? fallback;
+}
+
+function parseNumberInRange(
+  value: string | undefined | null,
+  min: number,
+  max: number
+): number | null {
+  if (value === undefined || value === null || value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return Math.max(min, Math.min(max, Math.round(parsed)));
 }
 
 function removeStoredValue(key: string): void {

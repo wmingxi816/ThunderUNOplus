@@ -126,7 +126,7 @@ export class BotScheduler {
       return;
     }
 
-    if (room.gameState.initialDirectionChoice.active) {
+    if (room.gameState.initialDirectionChoice?.active === true) {
       this.dispatchBotCommand(roomId, playerId, {
         type: "choose-initial-direction",
         playerId,
