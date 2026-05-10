@@ -59,6 +59,10 @@ export interface PlayerGameSnapshot {
     playerId: PlayerId | null;
     cardId: string | null;
   };
+  initialDirectionChoice: {
+    active: boolean;
+    chooserPlayerId: PlayerId | null;
+  };
   challengeWindow: {
     active: boolean;
     targetPlayerId: PlayerId | null;

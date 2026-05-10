@@ -385,4 +385,216 @@ describe("RoomManager", () => {
       });
     }).toThrowError(GameServerError);
   });
+  it("playing 中主动离开后可以用房间号重新加入并保留原手牌", () => {
+    const fixture = createStartedRoomFixture(3);
+    const leaver = fixture.room.players[1]!;
+    const originalPlayerId = leaver.playerId;
+    const originalHandIds = fixture.room.gameState!.players
+      .find((player) => player.id === originalPlayerId)!
+      .hand.map((card) => card.id);
+    const newConnection = registerMockConnections(
+      fixture.connectionRegistry,
+      1,
+      20
+    )[0]!;
+    newConnection.userId = leaver.userId;
+
+    fixture.roomManager.leaveRoom({
+      roomId: fixture.room.roomId,
+      playerId: originalPlayerId,
+      markLeft: true
+    });
+
+    expect(leaver.hasLeftRoom).toBe(true);
+    expect(
+      fixture.room.gameState!.players.find((player) => player.id === originalPlayerId)
+        ?.hasLeftRoom
+    ).toBe(true);
+
+    const result = fixture.roomManager.joinRoom({
+      roomId: fixture.room.roomId,
+      userId: leaver.userId,
+      connectionId: newConnection.connectionId,
+      nickname: "Returned Player",
+      avatarUrl: null
+    });
+    const restoredGamePlayer = fixture.room.gameState!.players.find(
+      (player) => player.id === originalPlayerId
+    )!;
+
+    expect(result.reconnected).toBe(true);
+    expect(result.player.playerId).toBe(originalPlayerId);
+    expect(result.player.hasLeftRoom).toBe(false);
+    expect(restoredGamePlayer.hasLeftRoom).toBe(false);
+    expect(restoredGamePlayer.displayName).toBe("Returned Player");
+    expect(restoredGamePlayer.hand.map((card) => card.id)).toEqual(originalHandIds);
+    expect(fixture.room.players).toHaveLength(3);
+  });
+
+  it("playing 中新 userId 不能通过 joinRoom 插入已开局房间", () => {
+    const fixture = createStartedRoomFixture(3);
+    const newConnection = registerMockConnections(
+      fixture.connectionRegistry,
+      1,
+      30
+    )[0]!;
+
+    expect(() => {
+      fixture.roomManager.joinRoom({
+        roomId: fixture.room.roomId,
+        userId: newConnection.userId,
+        connectionId: newConnection.connectionId,
+        nickname: "Late Joiner",
+        avatarUrl: null
+      });
+    }).toThrowError(GameServerError);
+  });
+
+  it("left round winner can rejoin before restart and keep winner state", () => {
+    const fixture = createStartedRoomFixture(3);
+    const winnerRoomPlayer = fixture.room.players[1]!;
+    const winnerGamePlayer = fixture.room.gameState!.players.find(
+      (player) => player.id === winnerRoomPlayer.playerId
+    )!;
+    const originalHandIds = winnerGamePlayer.hand.map((card) => card.id);
+    const newConnection = registerMockConnections(
+      fixture.connectionRegistry,
+      1,
+      40
+    )[0]!;
+    newConnection.userId = winnerRoomPlayer.userId;
+
+    fixture.room.status = "finished";
+    fixture.room.gameState!.status = "finished";
+    fixture.room.gameState!.winnerPlayerIds = [winnerRoomPlayer.playerId];
+    winnerGamePlayer.isRoundWinner = true;
+
+    fixture.roomManager.leaveRoom({
+      roomId: fixture.room.roomId,
+      playerId: winnerRoomPlayer.playerId,
+      markLeft: true
+    });
+
+    expect(winnerRoomPlayer.hasLeftRoom).toBe(true);
+    expect(winnerGamePlayer.hasLeftRoom).toBe(true);
+    expect(winnerGamePlayer.isRoundWinner).toBe(true);
+
+    const result = fixture.roomManager.joinRoom({
+      roomId: fixture.room.roomId,
+      userId: winnerRoomPlayer.userId,
+      connectionId: newConnection.connectionId,
+      nickname: "Returned Winner",
+      avatarUrl: null
+    });
+    const restoredWinner = fixture.room.gameState!.players.find(
+      (player) => player.id === winnerRoomPlayer.playerId
+    )!;
+
+    expect(result.player.playerId).toBe(winnerRoomPlayer.playerId);
+    expect(restoredWinner.hasLeftRoom).toBe(false);
+    expect(restoredWinner.isRoundWinner).toBe(true);
+    expect(fixture.room.gameState!.winnerPlayerIds).toContain(winnerRoomPlayer.playerId);
+    expect(restoredWinner.hand.map((card) => card.id)).toEqual(originalHandIds);
+  });
+
+  it("restartGame removes left players who did not return before the new round", () => {
+    const fixture = createStartedRoomFixture(4);
+    const leftPlayer = fixture.room.players[3]!;
+
+    fixture.room.gameState!.players[0]!.isEliminated = true;
+    fixture.roomManager.leaveRoom({
+      roomId: fixture.room.roomId,
+      playerId: leftPlayer.playerId,
+      markLeft: true
+    });
+
+    const result = fixture.roomManager.restartGame({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      seed: 3003
+    });
+
+    expect(result.room.players).toHaveLength(3);
+    expect(result.room.players.some((player) => player.playerId === leftPlayer.playerId)).toBe(false);
+    expect(result.room.gameState!.players.some((player) => player.id === leftPlayer.playerId)).toBe(false);
+    expect(result.room.gameState!.playerOrder).not.toContain(leftPlayer.playerId);
+    expect(result.room.players.map((player) => player.seatIndex)).toEqual([0, 1, 2]);
+  });
+
+  it("restartGame refuses pruning when too few players would remain", () => {
+    const fixture = createStartedRoomFixture(3);
+    const leftPlayer = fixture.room.players[2]!;
+
+    fixture.room.gameState!.players[0]!.isEliminated = true;
+    fixture.roomManager.leaveRoom({
+      roomId: fixture.room.roomId,
+      playerId: leftPlayer.playerId,
+      markLeft: true
+    });
+
+    expect(() => {
+      fixture.roomManager.restartGame({
+        roomId: fixture.room.roomId,
+        playerId: fixture.room.ownerPlayerId,
+        seed: 3004
+      });
+    }).toThrowError(GameServerError);
+    expect(fixture.room.players).toHaveLength(3);
+    expect(fixture.room.players.some((player) => player.playerId === leftPlayer.playerId)).toBe(true);
+  });
+
+  it("renamePlayer updates lobby player nickname", () => {
+    const fixture = createWaitingRoomFixture(3);
+    const player = fixture.room.players[1]!;
+
+    const result = fixture.roomManager.renamePlayer({
+      roomId: fixture.room.roomId,
+      playerId: player.playerId,
+      nickname: "  New Name  "
+    });
+
+    expect(result.player.nickname).toBe("New Name");
+    expect(fixture.room.players[1]!.nickname).toBe("New Name");
+  });
+
+  it("renamePlayer updates active game displayName", () => {
+    const fixture = createStartedRoomFixture(3);
+    const player = fixture.room.players[1]!;
+
+    fixture.roomManager.renamePlayer({
+      roomId: fixture.room.roomId,
+      playerId: player.playerId,
+      nickname: "Battle Name"
+    });
+
+    expect(fixture.room.players[1]!.nickname).toBe("Battle Name");
+    expect(
+      fixture.room.gameState!.players.find((candidate) => candidate.id === player.playerId)
+        ?.displayName
+    ).toBe("Battle Name");
+  });
+
+  it("renamePlayer rejects bot and overlong nicknames", () => {
+    const fixture = createWaitingRoomFixture(3, "no-challenge");
+    const bot = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId
+    }).botPlayer;
+
+    expect(() => {
+      fixture.roomManager.renamePlayer({
+        roomId: fixture.room.roomId,
+        playerId: bot.playerId,
+        nickname: "Bot Rename"
+      });
+    }).toThrowError(GameServerError);
+
+    expect(() => {
+      fixture.roomManager.renamePlayer({
+        roomId: fixture.room.roomId,
+        playerId: fixture.room.players[1]!.playerId,
+        nickname: "123456789012345678901"
+      });
+    }).toThrowError(GameServerError);
+  });
 });

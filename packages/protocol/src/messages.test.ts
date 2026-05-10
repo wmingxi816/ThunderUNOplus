@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   ClientCreateRoomMessage,
   ClientCommandMessage,
+  ClientRenamePlayerMessage,
   ClientStartGameMessage,
   ServerEventsMessage,
   ServerRoomStateMessage,
@@ -158,6 +159,10 @@ describe("protocol - messages", () => {
           playerId: null,
           cardId: null
         },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
         challengeWindow: {
           active: false,
           targetPlayerId: null
@@ -184,5 +189,19 @@ describe("protocol - messages", () => {
     };
 
     expect(message.type).toBe("snapshot");
+  });
+  it("can construct ClientRenamePlayerMessage", () => {
+    const message: ClientRenamePlayerMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "rename-player",
+      requestId: "req-rename-1",
+      roomId: "room-1",
+      playerId: "player-1",
+      nickname: "New Name",
+      timestampMs: 1000
+    };
+
+    expect(message.type).toBe("rename-player");
+    expect(message.nickname).toBe("New Name");
   });
 });

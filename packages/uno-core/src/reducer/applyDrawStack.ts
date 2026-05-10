@@ -75,10 +75,12 @@ export function applyResolveDrawStackCommand(
   const cards = drawResult.cards;
   const events: GameEvent[] = [...drawResult.events];
   giveCardsToPlayer(nextState, player, cards, now, events, "draw-stack");
+  const clearedTopCardId = nextState.topCard.id;
   clearDrawStack(nextState);
   events.push({
     type: "draw-stack-cleared",
-    reason: "resolved"
+    reason: "resolved",
+    topCardId: clearedTopCardId
   });
 
   if (nextState.status === "finished") {

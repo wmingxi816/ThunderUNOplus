@@ -13,6 +13,8 @@ export const ERROR_CODES = {
   drawUntilColorNotActive: "DRAW_UNTIL_COLOR_NOT_ACTIVE",
   normalDrawDecisionRequired: "NORMAL_DRAW_DECISION_REQUIRED",
   normalDrawDecisionNotActive: "NORMAL_DRAW_DECISION_NOT_ACTIVE",
+  initialDirectionChoiceRequired: "INITIAL_DIRECTION_CHOICE_REQUIRED",
+  initialDirectionChoiceNotActive: "INITIAL_DIRECTION_CHOICE_NOT_ACTIVE",
   unoNotAvailable: "UNO_NOT_AVAILABLE",
   unoReportFailed: "UNO_REPORT_FAILED",
   challengeNotAvailable: "CHALLENGE_NOT_AVAILABLE"

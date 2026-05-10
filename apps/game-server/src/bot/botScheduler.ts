@@ -7,6 +7,8 @@ import type { RoomRuntime } from "../room/roomTypes";
 import { decideGreedyBotAction } from "./greedyBot";
 
 const BOT_THINK_MS = 3_000;
+const BOT_DRAW_THINK_MIN_MS = 2_000;
+const BOT_DRAW_THINK_MAX_MS = 4_000;
 
 interface BotTimer {
   roomId: RoomId;
@@ -19,6 +21,9 @@ export interface BotSchedulerOptions {
   roomManager: RoomManager;
   connectionRegistry: ConnectionRegistry;
   thinkMs?: number;
+  drawThinkMs?: number;
+  drawThinkMinMs?: number;
+  drawThinkMaxMs?: number;
   random?: () => number;
 }
 
@@ -26,6 +31,9 @@ export class BotScheduler {
   private readonly roomManager: RoomManager;
   private readonly connectionRegistry: ConnectionRegistry;
   private readonly thinkMs: number;
+  private readonly fixedDrawThinkMs: number | null;
+  private readonly drawThinkMinMs: number;
+  private readonly drawThinkMaxMs: number;
   private readonly random: () => number;
   private readonly timers = new Map<RoomId, BotTimer>();
 
@@ -33,10 +41,13 @@ export class BotScheduler {
     this.roomManager = options.roomManager;
     this.connectionRegistry = options.connectionRegistry;
     this.thinkMs = options.thinkMs ?? BOT_THINK_MS;
+    this.fixedDrawThinkMs = options.drawThinkMs ?? null;
+    this.drawThinkMinMs = options.drawThinkMinMs ?? BOT_DRAW_THINK_MIN_MS;
+    this.drawThinkMaxMs = options.drawThinkMaxMs ?? BOT_DRAW_THINK_MAX_MS;
     this.random = options.random ?? Math.random;
   }
 
-  scheduleRoom(roomId: RoomId): void {
+  scheduleRoom(roomId: RoomId, delayMs = this.thinkMs): void {
     const room = this.roomManager.getRoom(roomId);
 
     if (room === null || room.gameState === null) {
@@ -64,7 +75,7 @@ export class BotScheduler {
 
     const timer = setTimeout(() => {
       this.executeScheduledTurn(roomId, botPlayer.playerId, room.snapshotVersion);
-    }, this.thinkMs);
+    }, delayMs);
 
     this.timers.set(roomId, {
       roomId,
@@ -115,6 +126,16 @@ export class BotScheduler {
       return;
     }
 
+    if (room.gameState.initialDirectionChoice.active) {
+      this.dispatchBotCommand(roomId, playerId, {
+        type: "choose-initial-direction",
+        playerId,
+        direction: this.random() < 0.5 ? "clockwise" : "counter-clockwise"
+      });
+      this.scheduleRoom(roomId, this.thinkMs);
+      return;
+    }
+
     const decision = decideGreedyBotAction({
       state: room.gameState,
       playerId,
@@ -146,7 +167,21 @@ export class BotScheduler {
       }
     }
 
-    this.scheduleRoom(roomId);
+    this.scheduleRoom(
+      roomId,
+      isBotDrawLikeCommand(decision.command) ? this.getDrawThinkDelayMs() : this.thinkMs
+    );
+  }
+
+  private getDrawThinkDelayMs(): number {
+    if (this.fixedDrawThinkMs !== null) {
+      return this.fixedDrawThinkMs;
+    }
+
+    const minMs = Math.min(this.drawThinkMinMs, this.drawThinkMaxMs);
+    const maxMs = Math.max(this.drawThinkMinMs, this.drawThinkMaxMs);
+
+    return Math.round(minMs + this.random() * (maxMs - minMs));
   }
 
   private dispatchBotCommand(
@@ -199,4 +234,13 @@ export class BotScheduler {
 
     return roomPlayer;
   }
+}
+
+function isBotDrawLikeCommand(command: GameCommand): boolean {
+  return (
+    command.type === "draw-card" ||
+    command.type === "resolve-draw-stack" ||
+    command.type === "resolve-draw-until-color" ||
+    command.type === "keep-drawn-card"
+  );
 }

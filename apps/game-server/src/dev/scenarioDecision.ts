@@ -22,6 +22,21 @@ export function chooseTurnDecision(
   nowMs: number
 ): ScenarioDecision {
   if (
+    snapshot.initialDirectionChoice.active &&
+    snapshot.initialDirectionChoice.chooserPlayerId === snapshot.self.playerId
+  ) {
+    return {
+      command: {
+        type: "choose-initial-direction",
+        playerId: snapshot.self.playerId,
+        direction: "clockwise",
+        timestampMs: nowMs
+      },
+      summary: "choose-initial-direction"
+    };
+  }
+
+  if (
     snapshot.drawUntilColor.active &&
     snapshot.drawUntilColor.targetPlayerId === snapshot.self.playerId
   ) {

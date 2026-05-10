@@ -60,6 +60,7 @@ function scoreCandidate(
   score += scoreDrawStack(state, command);
   score += scoreDeclaredColor(state, playerId, candidate.declaredColor);
   score += scoreReserveCost(state, beforePlayer.hand, command);
+  score += scoreSwapHandsOpportunity(beforePlayer.hand, command);
   score += scoreDiscardSameColor(beforePlayer.handCount, command, candidate.cardIds.length);
   score += scoreSingleNumberStructure(beforePlayer.hand, command);
   score += random() * 8;
@@ -223,6 +224,113 @@ function scoreReserveCost(
     default:
       return 0;
   }
+}
+
+function scoreSwapHandsOpportunity(
+  hand: readonly Card[],
+  command: GameCommand
+): number {
+  if (command.type !== "play-card") {
+    return 0;
+  }
+
+  const card = hand.find((candidate) => candidate.id === command.cardId);
+
+  if (card?.kind !== "swap-hands") {
+    return 0;
+  }
+
+  const profile = evaluateHandExchangeProfile(hand);
+
+  if (hand.length > 15) {
+    return calculateSwapHandsDynamicScore(hand.length, profile, 1_500, 3_000);
+  }
+
+  if (
+    hand.length >= 7 &&
+    profile.lowValueRatio >= 0.7 &&
+    profile.averageValue <= 3
+  ) {
+    return calculateSwapHandsDynamicScore(hand.length, profile, 1_600, 3_000);
+  }
+
+  return 0;
+}
+
+function calculateSwapHandsDynamicScore(
+  handCount: number,
+  profile: {
+    averageValue: number;
+    lowValueRatio: number;
+  },
+  minScore: number,
+  maxScore: number
+): number {
+  const countPressure = clamp((handCount - 7) / 18, 0, 1);
+  const lowValuePressure = clamp((profile.lowValueRatio - 0.45) / 0.55, 0, 1);
+  const weakHandPressure = clamp((7 - profile.averageValue) / 6, 0, 1);
+  const qualityPressure = lowValuePressure * 0.6 + weakHandPressure * 0.4;
+  const totalPressure = countPressure * 0.35 + qualityPressure * 0.65;
+
+  return Math.round(minScore + (maxScore - minScore) * totalPressure);
+}
+
+function evaluateHandExchangeProfile(hand: readonly Card[]): {
+  averageValue: number;
+  lowValueRatio: number;
+} {
+  if (hand.length === 0) {
+    return {
+      averageValue: 0,
+      lowValueRatio: 0
+    };
+  }
+
+  let totalValue = 0;
+  let lowValueCount = 0;
+
+  for (const card of hand) {
+    const value = getHandExchangeCardValue(card);
+    totalValue += value;
+
+    if (value <= 2) {
+      lowValueCount += 1;
+    }
+  }
+
+  return {
+    averageValue: totalValue / hand.length,
+    lowValueRatio: lowValueCount / hand.length
+  };
+}
+
+function getHandExchangeCardValue(card: Card): number {
+  switch (card.kind) {
+    case "number":
+      return 1;
+    case "skip":
+    case "reverse":
+    case "discard-same-color":
+    case "swap-hands":
+      return 2;
+    case "draw-two":
+      return 4;
+    case "draw-four":
+      return 5;
+    case "wild":
+    case "penalty-draw":
+      return 7;
+    case "wild-reverse-draw-four":
+      return 8;
+    case "wild-draw-six":
+      return 9;
+    case "wild-draw-ten":
+      return 10;
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function scoreDiscardSameColor(

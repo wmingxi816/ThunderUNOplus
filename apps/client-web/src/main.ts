@@ -8,7 +8,8 @@ import type {
   PlayerGameSnapshot,
   PlayerId,
   PlayerRoomSnapshot,
-  RoomId
+  RoomId,
+  TurnDirection
 } from "@thunder-uno/shared-types";
 import { readInitialConfig } from "./app/config";
 import {
@@ -30,6 +31,7 @@ import {
   buildLeaveRoomMessage,
   buildPingMessage,
   buildReconnectMessage,
+  buildRenamePlayerMessage,
   buildRestartGameMessage,
   buildSetReadyMessage,
   buildStartGameMessage,
@@ -56,13 +58,24 @@ interface AppState {
   latestCardsPlayedEvent: CardsPlayedAnimationEvent | null;
   latestPlayGroupEvent: CardsPlayedAnimationEvent | null;
   latestPlayGroupAnimationKey: string | null;
+  drawStackBreakTopCardId: string | null;
+  discardPileLayout: DiscardPileLayoutItem[];
   flyingCard: FlyingCardAnimation | null;
   drawFlyingCard: DrawFlyingCardAnimation | null;
   drawStackBurst: DrawStackBurstAnimation | null;
+  drawStackExplosion: DrawStackExplosionAnimation | null;
+  penaltyQuestionBurst: PenaltyQuestionBurstAnimation | null;
   penaltyDrawProgress: PenaltyDrawProgress | null;
   challengePrompt: ChallengePromptState | null;
   eventModal: EventModalState | null;
   ruleModal: RuleModalView | null;
+  settingsModalOpen: boolean;
+  uiScalePercent: UiSettingPercent;
+  backgroundMusicPercent: UiSettingPercent;
+  soundEffectPercent: UiSettingPercent;
+  backgroundMusicBeforeMutePercent: UiSettingPercent | null;
+  soundEffectBeforeMutePercent: UiSettingPercent | null;
+  showDebugGrid: boolean;
   uiToast: UiToastState | null;
   dismissedFinishedNoticeKey: string | null;
   snapshotRecoveryRoomId: RoomId | null;
@@ -82,18 +95,47 @@ interface FlyingCardAnimation {
   card: Card;
   playerId: PlayerId;
   seatClass: string;
+  seatStyle: string;
 }
 
 interface DrawFlyingCardAnimation {
   key: string;
   playerId: PlayerId;
   seatClass: string;
+  seatStyle: string;
   count: number;
 }
 
 interface DrawStackBurstAnimation {
   key: string;
   cards: Card[];
+}
+
+interface DrawStackExplosionAnimation {
+  key: string;
+  playerId: PlayerId;
+  seatClass: string;
+  seatStyle: string;
+  count: number;
+  scale: number;
+}
+
+interface PenaltyQuestionBurstAnimation {
+  key: string;
+  playerId: PlayerId;
+  seatClass: string;
+  seatStyle: string;
+  drawIndex: number;
+  questionCount: number;
+  scale: number;
+}
+
+interface DiscardPileLayoutItem {
+  cardId: string;
+  x: number;
+  y: number;
+  rotate: number;
+  groupKey: string | null;
 }
 
 interface PenaltyDrawProgress {
@@ -120,6 +162,7 @@ interface UiToastState {
   key: string;
   message: string;
   tone: "info" | "success" | "warning";
+  hasEntered: boolean;
 }
 
 interface CardHint {
@@ -179,9 +222,16 @@ interface RuleGuideSection {
 const LAST_ROOM_STORAGE_KEY = "thunder-uno.lastRoomId";
 const USER_ID_STORAGE_KEY = "thunder-uno.userId";
 const USER_NICKNAME_STORAGE_KEY = "thunder-uno.nickname";
+const UI_SCALE_STORAGE_KEY = "thunder-uno.ui-scale-percent";
+const BACKGROUND_MUSIC_STORAGE_KEY = "thunder-uno.background-music-percent";
+const SOUND_EFFECT_STORAGE_KEY = "thunder-uno.sound-effect-percent";
+const DEBUG_GRID_STORAGE_KEY = "thunder-uno.debug-grid";
+const DEFAULT_UI_SETTING_PERCENT = 80;
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
+const MAX_PLAYER_NICKNAME_LENGTH = 20;
+const MAX_DISCARD_LAYOUT_CARDS = 15;
 const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
   {
     kicker: "开局",
@@ -354,6 +404,33 @@ const RULE_CARD_INTROS: RuleCardIntro[] = [
 
 const root = document.querySelector<HTMLDivElement>("#app");
 let unoProtectionRenderTimer: number | null = null;
+const PENALTY_DRAW_START_SOUND_PATH = "/sounds/%E7%BD%9A%E6%8A%BD%E5%BC%80%E5%A7%8B.mp3";
+const PENALTY_DRAW_END_SOUND_PATH = "/sounds/%E7%BD%9A%E6%8A%BD%E7%BB%93%E6%9D%9F.mp3";
+const DRAW_STACK_PLAY_SMALL_SOUND_PATH = "/sounds/%E8%BF%9B%E8%A1%8C%E5%8A%A0%E7%89%8C1.mp3";
+const DRAW_STACK_PLAY_BIG_SOUND_PATH = "/sounds/%E8%BF%9B%E8%A1%8C%E5%8A%A0%E7%89%8C2.mp3";
+const DRAW_STACK_RESOLVE_BIG_SOUND_PATH = "/sounds/%E8%A2%AB%E5%8A%A0%E7%89%8C1.mp3";
+const DRAW_STACK_RESOLVE_SMALL_SOUND_PATH = "/sounds/%E8%A2%AB%E5%8A%A0%E7%89%8C2.mp3";
+const LOBBY_BACKGROUND_MUSIC_PATHS = [
+  "/sounds/%E5%A4%A7%E5%8E%851.mp3",
+  "/sounds/%E5%A4%A7%E5%8E%852.mp3",
+  "/sounds/%E5%A4%A7%E5%8E%853.mp3",
+  "/sounds/%E5%A4%A7%E5%8E%854.mp3",
+  "/sounds/%E5%A4%A7%E5%8E%855.mp3",
+  "/sounds/%E5%A4%A7%E5%8E%856.mp3"
+] as const;
+const BATTLE_BACKGROUND_MUSIC_PATH = "/sounds/%E5%AF%B9%E6%88%98%E9%9F%B3%E4%B9%90.mp3";
+const LOBBY_BACKGROUND_MUSIC_VOLUME = 0.28;
+const BATTLE_BACKGROUND_MUSIC_VOLUME = 0.256;
+const PENALTY_DRAW_SOUND_RATE_STEP = 0.05;
+const PENALTY_DRAW_SOUND_MIN_RATE = 0.5;
+const PENALTY_DRAW_SELF_SOUND_VOLUME = 0.9;
+const PENALTY_DRAW_OTHER_SOUND_VOLUME = 0.7;
+const DRAW_STACK_TARGET_SOUND_VOLUME = 1;
+const DRAW_STACK_OTHER_SOUND_VOLUME = 0.546;
+const DRAW_STACK_PLAY_SOUND_VOLUME = 0.936;
+let lobbyBackgroundMusic: HTMLAudioElement | null = null;
+let battleBackgroundMusic: HTMLAudioElement | null = null;
+let backgroundMusicUnlockInstalled = false;
 
 if (root === null) {
   throw new Error("App root was not found.");
@@ -386,13 +463,24 @@ const state: AppState = {
   latestCardsPlayedEvent: null,
   latestPlayGroupEvent: null,
   latestPlayGroupAnimationKey: null,
+  drawStackBreakTopCardId: null,
+  discardPileLayout: [],
   flyingCard: null,
   drawFlyingCard: null,
   drawStackBurst: null,
+  drawStackExplosion: null,
+  penaltyQuestionBurst: null,
   penaltyDrawProgress: null,
   challengePrompt: null,
   eventModal: null,
   ruleModal: null,
+  settingsModalOpen: false,
+  uiScalePercent: readStoredUiScalePercent(UI_SCALE_STORAGE_KEY),
+  backgroundMusicPercent: readStoredUiSettingPercent(BACKGROUND_MUSIC_STORAGE_KEY),
+  soundEffectPercent: readStoredUiSettingPercent(SOUND_EFFECT_STORAGE_KEY),
+  backgroundMusicBeforeMutePercent: null,
+  soundEffectBeforeMutePercent: null,
+  showDebugGrid: readStoredBoolean(DEBUG_GRID_STORAGE_KEY),
   uiToast: null,
   dismissedFinishedNoticeKey: null,
   snapshotRecoveryRoomId: null,
@@ -433,6 +521,7 @@ const wsClient = new WsClient({
 });
 
 render();
+installBackgroundMusicUnlock();
 connectUsingCurrentInputs();
 window.addEventListener("resize", () => {
   window.requestAnimationFrame(syncHandOverlapLayout);
@@ -506,6 +595,7 @@ function render(): void {
   const snapshot = state.snapshot;
   const isBattleView = snapshot !== null;
   document.body.classList.toggle("battle-active", isBattleView);
+  syncBackgroundMusic();
 
   appRoot.innerHTML = `
     <main class="shell ${isBattleView ? "shell-battle" : ""}">
@@ -544,12 +634,17 @@ function render(): void {
   }
 }
 
+// UI name: lobby-connection-panel. 服务端地址、昵称、改名、连接按钮区域。
 function renderConnectionPanel(): string {
   const connectLabel = state.connectionStatus === "open" ? "已连接" : "重新连接";
   const connectButtonClass =
     state.connectionStatus === "open"
       ? "connection-action connection-action-open"
       : "connection-action connection-action-retry";
+  const canRename =
+    state.connectionStatus === "open" &&
+    state.roomId !== null &&
+    state.playerId !== null;
 
   return `
     <section class="panel connection-panel">
@@ -572,6 +667,7 @@ function renderConnectionPanel(): string {
         />
       </label>
       <div class="button-row">
+        <button id="rename-player-button" data-testid="rename-player-button" class="secondary" ${canRename ? "" : `disabled title="进入房间后才能改名"`}>改名</button>
         <button id="connect-button" data-testid="connect-button" class="${connectButtonClass}">${connectLabel}</button>
         <button id="disconnect-button" class="secondary">断开</button>
         <button id="ping-button" class="secondary">Ping</button>
@@ -581,6 +677,7 @@ function renderConnectionPanel(): string {
   `;
 }
 
+// UI name: app-toast. 全局临时提示条，大厅和对战都会复用。
 function renderToastPanel(): string {
   const toast = state.uiToast;
 
@@ -588,13 +685,17 @@ function renderToastPanel(): string {
     return "";
   }
 
+  const enterClass = toast.hasEntered ? "" : " toast-enter";
+  toast.hasEntered = true;
+
   return `
-    <div class="ui-toast toast-${toast.tone}" role="status" aria-live="polite">
+    <div class="ui-toast toast-${toast.tone}${enterClass}" role="status" aria-live="polite">
       ${escapeHtml(toast.message)}
     </div>
   `;
 }
 
+// UI name: lobby-root. 大厅主布局，包含组局、等待席和规则讲解。
 function renderLobbyPanel(): string {
   const room = state.room;
   const isConnected = state.connectionStatus === "open";
@@ -656,6 +757,7 @@ function renderLobbyPanel(): string {
   `;
 }
 
+// UI name: lobby-rules-guide. 大厅底部规则讲解入口。
 function renderRulesGuidePanel(): string {
   return `
     <section class="panel rules-guide" data-testid="rules-guide">
@@ -669,6 +771,7 @@ function renderRulesGuidePanel(): string {
   `;
 }
 
+// UI name: rule-entry-buttons. 四个规则入口按钮。
 function renderRuleEntryButtons(context: "lobby" | "modal"): string {
   return `
     <div class="rule-entry-grid rule-entry-grid-${context}">
@@ -727,6 +830,7 @@ function getAdjacentRuleCardId(cardId: string, direction: -1 | 1): string | null
   return RULE_CARD_INTROS[index + direction]?.id ?? null;
 }
 
+// UI name: rule-modal. 规则讲解弹窗外壳。
 function renderRuleModal(): string {
   const view = state.ruleModal;
 
@@ -817,6 +921,7 @@ function renderRuleModalContent(view: RuleModalView): string {
   }
 }
 
+// UI name: rule-image-viewer. 规则图片翻页窗口。
 function renderRuleImageViewer(params: {
   title: string;
   images: string[];
@@ -884,6 +989,7 @@ function renderRuleModalMissingContent(message: string): string {
   `;
 }
 
+// UI name: lobby-room-code-panel. 6 位房间号输入框。
 function renderRoomCodeInputs(): string {
   return `
     <div class="room-code-inputs" data-testid="join-room-input" aria-label="6 位房间号">
@@ -935,6 +1041,7 @@ function showRoomCodeInputError(message: string): void {
   showToast(message, "warning");
 }
 
+// UI name: lobby-empty-state. 未进入房间时的等待席空状态。
 function renderEmptyLobbyState(): string {
   return `
     <div class="empty-lobby">
@@ -947,6 +1054,7 @@ function renderEmptyLobbyState(): string {
   `;
 }
 
+// UI name: lobby-room-status-panel. 已进入房间后的房间信息、玩家列表和房主/准备按钮。
 function renderRoomState(room: PlayerRoomSnapshot): string {
   const readyStatus = getLobbyReadyStatus(room);
   const isHost = room.hostPlayerId === state.playerId;
@@ -985,9 +1093,37 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
     <div class="players">
       ${room.players
         .map((player) => {
+          if (player.isBot === true) {
+            return `
+              <div
+                class="player-pill ${getRoomPlayerPillClass(player)}"
+                data-testid="room-player"
+                data-room-host="${player.isHost ? "true" : "false"}"
+                data-room-bot="true"
+              >
+                <img
+                  class="avatar"
+                  src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
+                  alt="${escapeHtml(player.displayName ?? player.playerId)}"
+                />
+                <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
+                ${
+                  isHost && !player.isHost && room.status === "lobby"
+                    ? `<button
+                        class="mini-kick-button"
+                        data-kick-player="${escapeHtml(player.playerId)}"
+                        data-testid="kick-player-button"
+                        title="踢出 ${escapeHtml(player.displayName ?? player.playerId)}"
+                      >踢出</button>`
+                    : ""
+                }
+              </div>
+            `;
+          }
+
           return `
             <div
-              class="player-pill ${player.playerId === state.playerId ? "self" : ""}"
+              class="player-pill ${getRoomPlayerPillClass(player)}"
               data-testid="room-player"
               data-room-host="${player.isHost ? "true" : "false"}"
             >
@@ -997,7 +1133,6 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
                 alt="${escapeHtml(player.displayName ?? player.playerId)}"
               />
               <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
-              ${player.isBot === true ? `<span class="bot-tag">BOT</span>` : ""}
               <small>${escapeHtml(getRoomPlayerReadyLabel(player))}</small>
               ${
                 isHost && !player.isHost && room.status === "lobby"
@@ -1025,7 +1160,8 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
         `;
       }).join("")}
     </div>
-    <label class="seed-line">
+    <!-- seed input hidden from player-facing lobby -->
+    <label class="seed-line" hidden>
       <span>可选种子</span>
       <input id="seed-input" autocomplete="off" />
     </label>
@@ -1041,6 +1177,17 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
 }
 
 function getRoomPlayerReadyLabel(player: PlayerRoomSnapshot["players"][number]): string {
+  if (player.connectionStatus === "left") {
+    return "已退出";
+  }
+
+  if (
+    player.connectionStatus === "disconnected" ||
+    player.connectionStatus === "reconnecting"
+  ) {
+    return "离线";
+  }
+
   if (player.isBot === true) {
     return "机器人 · 已准备";
   }
@@ -1050,6 +1197,19 @@ function getRoomPlayerReadyLabel(player: PlayerRoomSnapshot["players"][number]):
   }
 
   return player.isReady ? "已准备" : "未准备";
+}
+
+function getRoomPlayerPillClass(player: PlayerRoomSnapshot["players"][number]): string {
+  return [
+    player.playerId === state.playerId ? "self" : "",
+    player.connectionStatus === "left" ? "left" : "",
+    player.connectionStatus === "disconnected" ||
+    player.connectionStatus === "reconnecting"
+      ? "offline"
+      : ""
+  ]
+    .filter((className) => className !== "")
+    .join(" ");
 }
 
 function getLobbyReadyStatus(room: PlayerRoomSnapshot): {
@@ -1161,14 +1321,17 @@ function getReadyDisabledReason(room: PlayerRoomSnapshot): string {
   return "当前不能准备。";
 }
 
+// UI name: battle-root. 对战页面总渲染，组织舞台、玩家卡片、中心牌区和底部手牌区。
 function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
   const isMyTurn = snapshot.currentPlayerId === state.playerId;
   const isGameFinished = snapshot.status === "finished";
   const isConnected = state.connectionStatus === "open";
+  const isChoosingInitialDirection = isInitialDirectionChoicePending(snapshot);
   const canTakeTurnAction =
     isConnected &&
     isMyTurn &&
     !isGameFinished &&
+    !isChoosingInitialDirection &&
     !snapshot.self.isEliminated &&
     !snapshot.self.isRoundWinner;
   const canUseOpponentAction = isConnected && !isGameFinished;
@@ -1189,8 +1352,14 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
   const challengePrompt = getVisibleChallengePrompt(snapshot, isConnected, isGameFinished);
 
   return `
-    <section class="battle battle-immersive ${isMyTurn ? "my-turn" : "other-turn"}" data-testid="battle-view">
+    <section
+      class="battle battle-immersive ${isMyTurn ? "my-turn" : "other-turn"}"
+      data-testid="battle-view"
+      style="${renderBattleUiScaleStyle()}"
+    >
+      ${state.showDebugGrid ? renderBattleDebugGrid() : ""}
       <div class="table-zone battle-stage">
+        ${renderTurnDirectionOrbit(snapshot)}
         ${renderBattleHud(snapshot, isMyTurn)}
         <p
           id="battle-error-line"
@@ -1200,7 +1369,9 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
         >${state.lastError === null ? "" : escapeHtml(state.lastError)}</p>
         ${renderToastPanel()}
         ${renderNormalDrawOfferPrompt(snapshot, canTakeTurnAction)}
+        ${renderInitialDirectionChoiceModal(snapshot, isConnected)}
         ${renderEventModal(snapshot)}
+        ${renderSettingsModal()}
         <div class="battle-table">
           <div class="opponents" data-testid="opponents-area">
             ${snapshot.opponents
@@ -1209,7 +1380,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
                   snapshot,
                   player,
                   canUseOpponentAction,
-                  getOpponentSeatClass(index, snapshot.opponents.length)
+                  getOpponentSeatPlacement(index, snapshot.opponents.length)
                 )
               )
               .join("")}
@@ -1217,6 +1388,8 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
           ${renderFlyingCard(snapshot)}
           ${renderDrawFlyingCard()}
           ${renderDrawStackBurst()}
+          ${renderDrawStackExplosion()}
+          ${renderPenaltyQuestionBurst()}
           <div class="center-table">
             <div class="draw-pile">
               <img src="${getCardBackAssetPath()}" alt="牌堆" />
@@ -1271,6 +1444,96 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
   `;
 }
 
+function isInitialDirectionChoicePending(snapshot: PlayerGameSnapshot): boolean {
+  return snapshot.initialDirectionChoice.active;
+}
+
+// UI name: battle-turn-orbit. 顺/逆时针旋转方向底图。
+function renderTurnDirectionOrbit(snapshot: PlayerGameSnapshot): string {
+  const directionClass =
+    snapshot.direction === "clockwise"
+      ? "turn-direction-orbit-clockwise"
+      : "turn-direction-orbit-counter";
+  const directionImage =
+    snapshot.direction === "clockwise"
+      ? "/turn-clockwise.png"
+      : "/%E9%80%86%E6%97%B6%E9%92%88.png";
+
+  return `
+    <div
+      class="turn-direction-orbit ${directionClass}"
+      data-turn-direction="${snapshot.direction}"
+      aria-hidden="true"
+    >
+      <img src="${directionImage}" alt="" />
+    </div>
+  `;
+}
+
+// UI name: battle-initial-direction-modal. 开局选择顺/逆时针弹窗。
+function renderInitialDirectionChoiceModal(
+  snapshot: PlayerGameSnapshot,
+  isConnected: boolean
+): string {
+  if (!isInitialDirectionChoicePending(snapshot)) {
+    return "";
+  }
+
+  const chooserName =
+    snapshot.initialDirectionChoice.chooserPlayerId === null
+      ? "一号位"
+      : lookupPlayerName(snapshot, snapshot.initialDirectionChoice.chooserPlayerId);
+  const canChoose =
+    isConnected &&
+    state.playerId !== null &&
+    snapshot.initialDirectionChoice.chooserPlayerId === state.playerId &&
+    snapshot.currentPlayerId === state.playerId &&
+    !snapshot.self.isEliminated &&
+    !snapshot.self.isRoundWinner;
+
+  return `
+    <div class="initial-direction-backdrop" role="dialog" aria-modal="true" aria-labelledby="initial-direction-title">
+      <div class="initial-direction-modal">
+        <strong id="initial-direction-title">选择开局方向</strong>
+        <p>${canChoose ? "你是一号位，请选择本局的出牌方向。" : `等待 ${escapeHtml(chooserName)} 选择本局的出牌方向。`}</p>
+        <div class="initial-direction-actions">
+          <button data-initial-direction="clockwise" ${canChoose ? "" : "disabled"}>顺时针</button>
+          <button data-initial-direction="counter-clockwise" ${canChoose ? "" : "disabled"}>逆时针</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// UI name: battle-debug-grid. 临时尺度调试网格线。
+function renderBattleDebugGrid(): string {
+  const pixelTicks = Array.from({ length: 51 }, (_, index) => index * 40);
+  const percentTicks = Array.from({ length: 11 }, (_, index) => index * 10);
+
+  return `
+    <div class="battle-debug-grid" aria-hidden="true">
+      <div class="battle-debug-grid-title">GRID 40px / 10%</div>
+      ${pixelTicks
+        .map((value) => {
+          return `
+            <span class="battle-debug-label battle-debug-label-x" style="left: ${String(value)}px;">x=${String(value)}px</span>
+            <span class="battle-debug-label battle-debug-label-y" style="top: ${String(value)}px;">y=${String(value)}px</span>
+          `;
+        })
+        .join("")}
+      ${percentTicks
+        .map((value) => {
+          return `
+            <span class="battle-debug-percent battle-debug-percent-x" style="left: ${String(value)}%;">${String(value)}%</span>
+            <span class="battle-debug-percent battle-debug-percent-y" style="top: ${String(value)}%;">${String(value)}%</span>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+// UI name: battle-normal-draw-offer. 普通摸牌后“立即打出/保留”弹窗。
 function renderNormalDrawOfferPrompt(
   snapshot: PlayerGameSnapshot,
   enabled: boolean
@@ -1302,6 +1565,7 @@ function renderNormalDrawOfferPrompt(
   `;
 }
 
+// UI name: battle-event-modal. 胜利、淘汰、重开/继续等对局事件弹窗。
 function renderEventModal(snapshot: PlayerGameSnapshot): string {
   const finishedNotice = buildFinishedNotice(snapshot);
   const visibleFinishedNotice =
@@ -1390,32 +1654,30 @@ function buildFinishedNotice(snapshot: PlayerGameSnapshot): EventModalState | nu
   };
 }
 
+// UI name: battle-opponent-seat. 其他玩家卡片，含姓名、手牌数、状态和抓 UNO。
 function renderOpponent(
   snapshot: PlayerGameSnapshot,
   player: PlayerGameSnapshot["opponents"][number],
   enabled: boolean,
-  seatClass: string
+  seatPlacement: OpponentSeatPlacement
 ): string {
   const status = getPlayerSeatStatus(snapshot, player, false);
   const canReportUno = enabled && canReportUnoTarget(player);
+  const canCatchUnoNow = canReportUno && isReportUnoCatchAvailable(player);
   const reportUnoTitle = canReportUno
     ? getReportUnoEnabledTitle(player)
     : getReportUnoDisabledReason(player, enabled);
 
   return `
-    <div class="opponent seat ${seatClass} ${player.isCurrentPlayer ? "current" : ""} ${getSeatOutcomeClass(player)}">
-      <span class="seat-badge ${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
-      <img
-        class="avatar"
-        src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
-        alt="${escapeHtml(player.displayName ?? player.playerId)}"
-      />
+    <div class="opponent seat ${seatPlacement.className} ${player.isCurrentPlayer ? "current" : ""} ${getSeatOutcomeClass(player)}" style="${escapeHtml(`${seatPlacement.style} ${getSeatAvatarStyle(player.playerId, player.avatarUrl)}`)}">
+      ${renderSeatStatusBadge(status)}
       <strong>${escapeHtml(player.displayName ?? player.playerId)}</strong>
       ${player.isBot === true ? `<span class="seat-bot-tag">BOT</span>` : ""}
       <span class="hand-count-badge">${String(player.handCount)}</span>
-      <small>${escapeHtml(status.detail)}</small>
+      ${renderSeatStatusDetail(status)}
       <div class="opponent-actions">
         <button
+          class="${canCatchUnoNow ? "uno-catch-available" : ""}"
           data-report-uno="${escapeHtml(player.playerId)}"
           title="${escapeHtml(reportUnoTitle)}"
           ${canReportUno ? "" : "disabled"}
@@ -1425,23 +1687,42 @@ function renderOpponent(
   `;
 }
 
+// UI name: battle-self-seat. 自己的玩家卡片。
 function renderSelfSeat(snapshot: PlayerGameSnapshot): string {
-  const status = getPlayerSeatStatus(snapshot, snapshot.self, true);
+  void snapshot;
+  return "";
+}
 
-  return `
-    <div class="self-seat seat ${snapshot.self.isCurrentPlayer ? "current" : ""} ${getSeatOutcomeClass(snapshot.self)}">
-      <span class="seat-badge ${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
-      <img
-        class="avatar"
-        src="${escapeHtml(resolvePlayerAvatar(snapshot.self.playerId, snapshot.self.avatarUrl))}"
-        alt="${escapeHtml(snapshot.self.displayName ?? "我")}"
-      />
-      <strong>${escapeHtml(snapshot.self.displayName ?? "我")}</strong>
-      ${snapshot.self.isBot === true ? `<span class="seat-bot-tag">BOT</span>` : ""}
-      <span class="hand-count-badge">${String(snapshot.self.hand.length)}</span>
-      <small>${escapeHtml(status.detail)}</small>
-    </div>
-  `;
+// UI name: battle-seat-status. 玩家卡片状态 label。
+function renderSeatStatusBadge(status: { label: string; detail: string; tone: string }): string {
+  if (isHiddenSeatStatus(status)) {
+    return "";
+  }
+
+  return `<span class="seat-badge ${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>`;
+}
+
+function renderSeatStatusDetail(status: { label: string; detail: string; tone: string }): string {
+  if (isHiddenSeatStatus(status)) {
+    return "";
+  }
+
+  return `<small>${escapeHtml(status.detail)}</small>`;
+}
+
+function getSeatAvatarStyle(playerId: PlayerId, avatarUrl: string | null | undefined): string {
+  const resolvedAvatarUrl = resolvePlayerAvatar(playerId, avatarUrl);
+  const cssUrl = resolvedAvatarUrl.replace(/\\/g, "/").replace(/"/g, "%22").replace(/\(/g, "%28").replace(/\)/g, "%29");
+
+  return `--seat-avatar-image: url("${cssUrl}");`;
+}
+
+function isWaitingSeatStatus(status: { label: string; detail: string; tone: string }): boolean {
+  return status.label === "等待" && status.detail === "等待";
+}
+
+function isHiddenSeatStatus(status: { label: string; detail: string; tone: string }): boolean {
+  return isWaitingSeatStatus(status) || (status.label === "" && status.detail === "");
 }
 
 type SnapshotSeatPlayer =
@@ -1516,7 +1797,7 @@ function getPlayerSeatStatus(
 
   if (player.isCurrentPlayer) {
     if (player.isBot === true) {
-      return { label: "机器人", detail: "思考中...", tone: "active" };
+      return { label: "", detail: "", tone: "active" };
     }
 
     return { label: isSelf ? "轮到你" : "当前回合", detail: "当前行动", tone: "active" };
@@ -1549,6 +1830,10 @@ function getSeatOutcomeClass(player: SnapshotSeatPlayer): string {
     return "round-winner";
   }
 
+  if (player.hasLeftRoom) {
+    return "round-left";
+  }
+
   if (player.isEliminated) {
     return "round-eliminated";
   }
@@ -1558,7 +1843,7 @@ function getSeatOutcomeClass(player: SnapshotSeatPlayer): string {
 
 function getReportUnoLabel(player: PlayerGameSnapshot["opponents"][number]): string {
   if (!canReportUnoTarget(player)) {
-    return "报 UNO";
+    return "抓 UNO";
   }
 
   const remainingMs = getUnoProtectionRemainingMs(player);
@@ -1566,6 +1851,10 @@ function getReportUnoLabel(player: PlayerGameSnapshot["opponents"][number]): str
   return player.unoProtectionEndsAtMs !== null && remainingMs > 0
     ? `保护 ${String(Math.ceil(remainingMs / 1000))}s`
     : "抓 UNO";
+}
+
+function isReportUnoCatchAvailable(player: PlayerGameSnapshot["opponents"][number]): boolean {
+  return canReportUnoTarget(player) && getUnoProtectionRemainingMs(player) <= 0;
 }
 
 function getReportUnoEnabledTitle(player: PlayerGameSnapshot["opponents"][number]): string {
@@ -1605,6 +1894,7 @@ function getReportUnoDisabledReason(
   return "当前不能抓 UNO。";
 }
 
+// UI name: battle-discard-pile. 牌堆区，包含底牌堆、顶牌和加牌链。
 function renderDiscardPile(snapshot: PlayerGameSnapshot): string {
   const discardPile = Array.isArray((snapshot as { discardPile?: Card[] }).discardPile)
     ? (snapshot as { discardPile: Card[] }).discardPile
@@ -1618,21 +1908,25 @@ function renderDiscardPile(snapshot: PlayerGameSnapshot): string {
   ]);
   const historyCards = pileCards
     .filter((card) => !hiddenLatestIds.has(card.id))
-    .slice(-8);
+    .slice(-MAX_DISCARD_LAYOUT_CARDS);
+  const layoutByCardId = syncDiscardPileLayout(pileCards);
 
   return `
     <div class="discard-pile top-card" data-testid="top-card">
       <div class="discard-stack" aria-label="弃牌堆">
         ${historyCards
           .map((card, index) => {
-            const offset = getPileOffset(index, historyCards.length);
+            const offset =
+              layoutByCardId.get(card.id) ??
+              createDiscardPileLayoutItem(card.id, index, historyCards.length, null);
+            const opacity = getHistoryDiscardCardOpacity(index, historyCards.length);
 
             return `
               <img
                 class="discard-card history-discard-card"
                 src="${getCardAssetPath(card)}"
                 alt="${escapeHtml(card.displayName)}"
-                style="--pile-x: ${String(offset.x)}px; --pile-y: ${String(offset.y)}px; --pile-rotate: ${String(offset.rotate)}deg; --pile-index: ${String(index)};"
+                style="--pile-x: ${String(offset.x)}px; --pile-y: ${String(offset.y)}px; --pile-rotate: ${String(offset.rotate)}deg; --pile-index: ${String(index)}; --pile-opacity: ${opacity.toFixed(3)};"
               />
             `;
           })
@@ -1643,6 +1937,129 @@ function renderDiscardPile(snapshot: PlayerGameSnapshot): string {
       <strong>${escapeHtml(snapshot.topCard.displayName)}</strong>
     </div>
   `;
+}
+
+function getHistoryDiscardCardOpacity(index: number, total: number): number {
+  if (total <= 1) {
+    return 0.9;
+  }
+
+  const minOpacity = 0.34;
+  const maxOpacity = 0.9;
+  const ratio = index / (total - 1);
+
+  return minOpacity + ratio * (maxOpacity - minOpacity);
+}
+
+function syncDiscardPileLayout(pileCards: readonly Card[]): Map<string, DiscardPileLayoutItem> {
+  const pileIds = new Set(pileCards.map((card) => card.id));
+  const pileIndexByCardId = new Map(
+    pileCards.map((card, index) => [card.id, index] as const)
+  );
+  const tailCards = pileCards.slice(-MAX_DISCARD_LAYOUT_CARDS);
+  const tailIds = new Set(tailCards.map((card) => card.id));
+  const layout = state.discardPileLayout.filter((item) => {
+    return tailIds.has(item.cardId) || !pileIds.has(item.cardId);
+  });
+  const layoutIds = new Set(layout.map((item) => item.cardId));
+
+  for (const [index, card] of tailCards.entries()) {
+    if (layoutIds.has(card.id)) {
+      continue;
+    }
+
+    const item = createDiscardPileLayoutItem(card.id, index, tailCards.length, null);
+    layout.push(item);
+    layoutIds.add(card.id);
+  }
+
+  state.discardPileLayout = layout
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const leftPileIndex = pileIndexByCardId.get(left.item.cardId);
+      const rightPileIndex = pileIndexByCardId.get(right.item.cardId);
+
+      if (leftPileIndex !== undefined && rightPileIndex !== undefined) {
+        return leftPileIndex - rightPileIndex;
+      }
+
+      if (leftPileIndex !== undefined) {
+        return -1;
+      }
+
+      if (rightPileIndex !== undefined) {
+        return 1;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ item }) => item)
+    .slice(-MAX_DISCARD_LAYOUT_CARDS);
+
+  return new Map(state.discardPileLayout.map((item) => [item.cardId, item]));
+}
+
+function advanceDiscardPileLayout(cardIds: readonly string[]): void {
+  if (cardIds.length === 0) {
+    return;
+  }
+
+  const groupKey = `${cardIds.join("|")}:${String(Date.now())}`;
+  const keptLayout = state.discardPileLayout.slice(
+    Math.min(cardIds.length, state.discardPileLayout.length)
+  );
+  const addedLayout = cardIds.map((cardId, index) => {
+    return createDiscardPileLayoutItem(cardId, index, cardIds.length, groupKey);
+  });
+
+  state.discardPileLayout = [...keptLayout, ...addedLayout].slice(-MAX_DISCARD_LAYOUT_CARDS);
+}
+
+function createDiscardPileLayoutItem(
+  cardId: string,
+  index: number,
+  total: number,
+  groupKey: string | null
+): DiscardPileLayoutItem {
+  if (groupKey !== null && total > 1) {
+    return createGroupedDiscardPileLayoutItem(cardId, index, total, groupKey);
+  }
+
+  const offset = getPileOffset(index, total, cardId);
+
+  return {
+    cardId,
+    groupKey,
+    ...offset
+  };
+}
+
+function createGroupedDiscardPileLayoutItem(
+  cardId: string,
+  index: number,
+  total: number,
+  groupKey: string
+): DiscardPileLayoutItem {
+  const groupHash = hashString(groupKey);
+  const trendX = groupHash % 2 === 0 ? -1 : 1;
+  const trendY = groupHash % 3 === 0 ? -1 : 1;
+  const trendRotate = groupHash % 2 === 0 ? -1 : 1;
+  const seed = `${groupKey}:${cardId}:${String(index)}:${String(total)}`;
+  const xJitter = mapHashToRange(hashString(`${seed}:x-jitter`), -8, 10);
+  const yJitter = mapHashToRange(hashString(`${seed}:y-jitter`), -6, 8);
+  const rotateJitter = mapHashToRange(hashString(`${seed}:rotate-jitter`), -5, 5);
+  const xMagnitude = Math.min(90, 22 + index * 11 + xJitter);
+  const yMagnitude = Math.max(8, 12 + index * 7 + yJitter);
+  const rawY = trendY * yMagnitude;
+  const rawRotate = trendRotate * (8 + index * 5) + rotateJitter;
+
+  return {
+    cardId,
+    groupKey,
+    x: trendX * xMagnitude,
+    y: Math.min(36, Math.max(-72, rawY)),
+    rotate: Math.min(36, Math.max(-36, rawRotate))
+  };
 }
 
 function getLatestPlayedGroup(
@@ -1686,7 +2103,26 @@ function orderLatestPlayedCards(cards: readonly Card[]): Card[] {
     ];
   }
 
+  if (isNumberSequenceGroup(cards)) {
+    return [...cards].sort((left, right) => {
+      return (left.number ?? 0) - (right.number ?? 0);
+    });
+  }
+
   return [...cards];
+}
+
+function isNumberSequenceGroup(cards: readonly Card[]): boolean {
+  if (cards.length <= 1 || !cards.every((card) => card.kind === "number")) {
+    return false;
+  }
+
+  const first = cards[0];
+  const isMultiple =
+    first !== undefined &&
+    cards.every((card) => card.color === first.color && card.number === first.number);
+
+  return !isMultiple;
 }
 
 function classifyPlayedGroup(
@@ -1768,11 +2204,16 @@ function getActiveDrawChainCards(
   }
 
   const chainCards: Card[] = [];
+  const breakTopCardId = state.drawStackBreakTopCardId;
 
   for (let index = pileCards.length - 1; index >= 0; index -= 1) {
     const card = pileCards[index];
 
-    if (card === undefined || !isDrawChainDisplayCard(card)) {
+    if (
+      card === undefined ||
+      card.id === breakTopCardId ||
+      !isDrawChainDisplayCard(card)
+    ) {
       break;
     }
 
@@ -1797,6 +2238,7 @@ function isDrawChainDisplayCard(card: Card): boolean {
   );
 }
 
+// UI name: battle-active-draw-chain. 加牌链平铺展示。
 function renderActiveDrawChain(cards: readonly Card[]): string {
   if (cards.length === 0) {
     return "";
@@ -1818,6 +2260,7 @@ function renderActiveDrawChain(cards: readonly Card[]): string {
   `;
 }
 
+// UI name: battle-effects-layer. 出牌飞行动画。
 function renderFlyingCard(snapshot: PlayerGameSnapshot): string {
   const animation = state.flyingCard;
 
@@ -1827,14 +2270,16 @@ function renderFlyingCard(snapshot: PlayerGameSnapshot): string {
 
   return `
     <img
-      class="flying-card ${animation.seatClass}"
+      class="flying-card from-seat ${animation.seatClass}"
       key="${escapeHtml(animation.key)}"
       src="${getCardAssetPath(animation.card)}"
       alt="${escapeHtml(animation.card.displayName)}"
+      style="${escapeHtml(animation.seatStyle)}"
     />
   `;
 }
 
+// UI name: battle-effects-layer. 摸牌飞行动画。
 function renderDrawFlyingCard(): string {
   const animation = state.drawFlyingCard;
 
@@ -1844,11 +2289,12 @@ function renderDrawFlyingCard(): string {
 
   return `
     <img
-      class="draw-flying-card ${animation.seatClass}"
+      class="draw-flying-card to-seat ${animation.seatClass}"
       key="${escapeHtml(animation.key)}"
       src="${getCardBackAssetPath()}"
       alt="摸牌动画"
       data-draw-count="${String(animation.count)}"
+      style="${escapeHtml(animation.seatStyle)}"
     />
   `;
 }
@@ -1864,7 +2310,7 @@ function renderDrawStackBurst(): string {
     <div class="draw-stack-burst" data-testid="draw-stack-burst">
       ${burst.cards
         .map((card, index) => {
-          const offset = getPileOffset(index, burst.cards.length);
+          const offset = getPileOffset(index, burst.cards.length, card.id);
 
           return `
             <img
@@ -1878,6 +2324,74 @@ function renderDrawStackBurst(): string {
         .join("")}
     </div>
   `;
+}
+
+// UI name: battle-effects-layer. 加牌链结算爆炸特效。
+function renderDrawStackExplosion(): string {
+  const explosion = state.drawStackExplosion;
+
+  if (explosion === null) {
+    return "";
+  }
+
+  const sparkCount = Math.min(14, Math.max(6, Math.ceil(explosion.count * 1.4)));
+
+  return `
+    <div
+      class="draw-stack-explosion ${escapeHtml(explosion.seatClass)}"
+      data-testid="draw-stack-explosion"
+      data-draw-count="${String(explosion.count)}"
+      style="${escapeHtml(`${explosion.seatStyle} --explosion-scale: ${explosion.scale.toFixed(2)};`)}"
+    >
+      <span class="explosion-core"></span>
+      <span class="explosion-ring"></span>
+      ${Array.from({ length: sparkCount }, (_, index) => {
+        return `<span class="explosion-spark spark-${String(index + 1)}"></span>`;
+      }).join("")}
+      ${Array.from({ length: Math.min(8, Math.max(4, Math.ceil(explosion.count / 2))) }, (_, index) => {
+        return `<span class="explosion-shard shard-${String(index + 1)}"></span>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+// UI name: battle-effects-layer. 罚抽问号喷泉特效。
+function renderPenaltyQuestionBurst(): string {
+  const burst = state.penaltyQuestionBurst;
+
+  if (burst === null) {
+    return "";
+  }
+
+  return `
+    <div
+      class="penalty-question-burst ${escapeHtml(burst.seatClass)}"
+      data-testid="penalty-question-burst"
+      data-draw-index="${String(burst.drawIndex)}"
+      style="${escapeHtml(`${burst.seatStyle} --question-burst-scale: ${burst.scale.toFixed(2)};`)}"
+    >
+      ${Array.from({ length: burst.questionCount }, (_, index) => {
+        const color = getPenaltyQuestionColor(burst.key, index);
+        const x = mapHashToRange(hashString(`${burst.key}:${String(index)}:x`), -48, 48);
+        const y = mapHashToRange(hashString(`${burst.key}:${String(index)}:y`), 44, 112);
+        const rotate = mapHashToRange(hashString(`${burst.key}:${String(index)}:rotate`), -24, 24);
+        const delay = index * 45;
+
+        return `
+          <span
+            class="penalty-question question-${color}"
+            style="--question-index: ${String(index)}; --question-x: ${String(x)}px; --question-y: ${String(y)}px; --question-rotate: ${String(rotate)}deg; --question-delay: ${String(delay)}ms;"
+          >?</span>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function getPenaltyQuestionColor(seed: string, index: number): CardColor {
+  const colors: readonly CardColor[] = ["red", "yellow", "blue", "green"];
+
+  return colors[hashString(`${seed}:${String(index)}:color`) % colors.length] ?? "red";
 }
 
 function renderChallengePrompt(
@@ -1900,6 +2414,7 @@ function renderChallengePrompt(
   `;
 }
 
+// UI name: battle-top-hud. 顶部状态栏和规则/退出按钮。
 function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): string {
   return `
     <div class="battle-hud">
@@ -1912,6 +2427,11 @@ function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): strin
         data-testid="connection-status"
       >${state.connectionStatus}</span>
       ${renderBattleStatusChips(snapshot)}
+      <button
+        id="battle-settings-button"
+        data-testid="battle-settings-button"
+        class="secondary hud-settings-button"
+      >设置</button>
       <button
         id="battle-rule-button"
         data-testid="battle-rule-button"
@@ -1927,6 +2447,102 @@ function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): strin
   `;
 }
 
+function renderBattleUiScaleStyle(): string {
+  const scale = state.uiScalePercent / 100;
+  const inverseScale = 100 / state.uiScalePercent;
+
+  return `--battle-ui-scale: ${scale.toFixed(2)}; --battle-ui-inverse-scale: ${inverseScale.toFixed(4)};`;
+}
+
+function renderSettingsModal(): string {
+  if (!state.settingsModalOpen) {
+    return "";
+  }
+
+  return `
+    <div class="settings-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+      <div class="settings-modal">
+        <div class="settings-modal-header">
+          <strong id="settings-modal-title">设置</strong>
+          <button id="close-settings-modal-button" class="secondary" aria-label="关闭设置">×</button>
+        </div>
+        ${renderUiScaleSegment("UI 缩放", state.uiScalePercent)}
+        ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
+        ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
+        <button
+          id="debug-grid-toggle-button"
+          class="secondary settings-grid-toggle ${state.showDebugGrid ? "active" : ""}"
+          aria-pressed="${state.showDebugGrid ? "true" : "false"}"
+        >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderUiScaleSegment(
+  label: string,
+  value: UiSettingPercent
+): string {
+  const options: readonly UiScalePercent[] = [60, 80, 100, 120];
+
+  return `
+    <fieldset class="settings-segment">
+      <legend>${escapeHtml(label)}</legend>
+      <div class="settings-segment-options">
+        ${options
+          .map((option) => {
+            const isActive = option === value;
+
+            return `
+              <button
+                type="button"
+                class="${isActive ? "active" : ""}"
+                data-setting-button="ui-scale"
+                data-setting-value="${String(option)}"
+                aria-pressed="${isActive ? "true" : "false"}"
+              >${String(option)}%</button>
+            `;
+          })
+          .join("")}
+      </div>
+    </fieldset>
+  `;
+}
+
+function renderVolumeSlider(
+  label: string,
+  setting: "background-music" | "sound-effect",
+  value: UiSettingPercent
+): string {
+  const sliderId = `settings-${setting}-slider`;
+  const isMuted = value <= 0;
+
+  return `
+    <fieldset class="settings-segment settings-slider-segment">
+      <legend>${escapeHtml(label)}</legend>
+      <label class="settings-slider-row" for="${sliderId}">
+        <button
+          type="button"
+          class="settings-mute-button ${isMuted ? "settings-mute-button-muted" : "settings-mute-button-on"}"
+          data-setting-mute="${setting}"
+          aria-label="${escapeHtml(isMuted ? `恢复${label}` : `${label}静音`)}"
+          title="${escapeHtml(isMuted ? `恢复${label}` : `${label}静音`)}"
+        >${isMuted ? "🔇" : "🔊"}</button>
+        <input
+          id="${sliderId}"
+          type="range"
+          min="0"
+          max="120"
+          step="1"
+          value="${String(value)}"
+          data-setting-range="${setting}"
+        />
+        <output data-setting-output="${setting}">${String(value)}%</output>
+      </label>
+    </fieldset>
+  `;
+}
+
 interface DrawActionState {
   actionType: "draw-card" | "resolve-draw-stack" | "resolve-draw-until-color";
   label: string;
@@ -1934,6 +2550,7 @@ interface DrawActionState {
   reason: string;
 }
 
+// UI name: battle-draw-pile. 摸牌区按钮。
 function renderDrawButton(snapshot: PlayerGameSnapshot, enabled: boolean): string {
   const state = getDrawActionState(snapshot, enabled);
 
@@ -2088,6 +2705,7 @@ function renderBattleStatusChips(snapshot: PlayerGameSnapshot): string {
   return chips.join("");
 }
 
+// UI name: battle-action-guide. 手牌区上方的当前操作提示。
 function renderActionGuide(
   snapshot: PlayerGameSnapshot,
   canTakeTurnAction: boolean,
@@ -2101,6 +2719,16 @@ function renderActionGuide(
     message = "本局已结束，可以返回大厅重新开房。";
   } else if (!isConnected) {
     message = "连接已断开，请重连后继续。";
+    tone = "warning";
+  } else if (isInitialDirectionChoicePending(snapshot)) {
+    const chooserName =
+      snapshot.initialDirectionChoice.chooserPlayerId === null
+        ? "一号位"
+        : lookupPlayerName(snapshot, snapshot.initialDirectionChoice.chooserPlayerId);
+    message =
+      snapshot.initialDirectionChoice.chooserPlayerId === state.playerId
+        ? "请先选择本局顺时针或逆时针。"
+        : `等待 ${chooserName} 选择本局方向。`;
     tone = "warning";
   } else if (canTakeTurnAction && snapshot.drawStack.active) {
     message = `加牌链正在压到你：可以叠加加牌，或结算摸 ${String(snapshot.drawStack.amount)} 张。`;
@@ -2305,6 +2933,7 @@ function renderDrawAmountFact(snapshot: PlayerGameSnapshot): string {
   return `<span class="table-fact">牌堆 ${String(snapshot.drawPileCount)} 张</span>`;
 }
 
+// UI name: battle-card-button. 单张手牌按钮。
 function renderCardButtonV2(
   card: Card,
   index: number,
@@ -3119,6 +3748,7 @@ function describeSingleCardMismatch(card: Card, snapshot: PlayerGameSnapshot): s
   return "这张牌不能接当前牌。";
 }
 
+// UI name: battle-selection-panel. 选中手牌后的出牌/清空操作区。
 function renderSelectionPanel(
   snapshot: PlayerGameSnapshot,
   canTakeTurnAction: boolean,
@@ -3172,6 +3802,7 @@ function renderSelectionPanel(
   `;
 }
 
+// UI name: battle-color-picker. 黑牌选择颜色面板。
 function renderColorPickerPanel(hand: readonly Card[], canTakeTurnAction: boolean): string {
   if (state.colorPickerCardId === null || !canTakeTurnAction) {
     return "";
@@ -3233,31 +3864,140 @@ function hashString(value: string): number {
   return hash;
 }
 
-function getOpponentSeatClass(index: number, total: number): string {
-  const layouts: Record<number, string[]> = {
-    1: ["seat-top"],
-    2: ["seat-left", "seat-right"],
-    3: ["seat-left", "seat-top", "seat-right"],
-    4: ["seat-left", "seat-top-left", "seat-top-right", "seat-right"],
-    5: ["seat-left", "seat-top-left", "seat-top", "seat-top-right", "seat-right"],
-    6: ["seat-left", "seat-top-left", "seat-top", "seat-top-right", "seat-right", "seat-mid-right"],
-    7: [
-      "seat-mid-left",
-      "seat-left",
-      "seat-top-left",
-      "seat-top",
-      "seat-top-right",
-      "seat-right",
-      "seat-mid-right"
-    ]
-  };
+interface OpponentSeatPlacement {
+  className: string;
+  originClassName: string;
+  effectStyle: string;
+  style: string;
+  side: "left" | "right";
+}
 
-  return layouts[total]?.[index] ?? `seat-${String(index)}`;
+function getOpponentSeatPlacement(
+  index: number,
+  total: number
+): OpponentSeatPlacement {
+  const seatScale = getOpponentSeatScale(total + 1);
+
+  if (total <= 1) {
+    const topVh = 35;
+    return {
+      className: "seat-side seat-side-left seat-left",
+      originClassName: "seat-left",
+      effectStyle: getOpponentSeatEffectStyle("left", topVh),
+      style: `--seat-row: 0; --seat-side-count: 1; --seat-top: ${topVh.toFixed(2)}vh; --seat-scale: ${seatScale}; ${getOpponentSeatEffectStyle("left", topVh)}`,
+      side: "left"
+    };
+  }
+
+  const leftCount = Math.ceil(total / 2);
+  const rightCount = total - leftCount;
+  const isLeftSide = index < leftCount;
+  const side = isLeftSide ? "left" : "right";
+  const row = isLeftSide ? index : index - leftCount;
+  const sideCount = isLeftSide ? leftCount : rightCount;
+  const flow = isLeftSide ? "bottom-up" : "top-down";
+  const topVh = getOpponentSeatTopVh(row, sideCount, flow);
+  const originClassName = getOpponentSeatOriginClass(side, row, sideCount, flow);
+  const effectStyle = getOpponentSeatEffectStyle(side, topVh);
+
+  return {
+    className: `seat-side seat-side-${side} ${originClassName}`,
+    originClassName,
+    effectStyle,
+    style: `--seat-row: ${String(row)}; --seat-side-count: ${String(sideCount)}; --seat-top: ${topVh.toFixed(2)}vh; --seat-scale: ${seatScale}; ${effectStyle}`,
+    side
+  };
+}
+
+function getOpponentSeatClass(index: number, total: number): string {
+  return getOpponentSeatPlacement(index, total).originClassName;
+}
+
+function getOpponentSeatTopVh(row: number, sideCount: number, flow: "top-down" | "bottom-up"): number {
+  if (sideCount <= 1) {
+    return 35;
+  }
+
+  const { topBound, bottomBound } = getOpponentSeatVerticalBounds(sideCount);
+  const topDownValue = topBound + (row * (bottomBound - topBound)) / (sideCount - 1);
+
+  return flow === "top-down" ? topDownValue : bottomBound - (topDownValue - topBound);
+}
+
+function getOpponentSeatOriginClass(
+  side: "left" | "right",
+  row: number,
+  sideCount: number,
+  flow: "top-down" | "bottom-up"
+): string {
+  if (sideCount <= 1) {
+    return side === "left" ? "seat-left" : "seat-right";
+  }
+
+  const visualRow = flow === "top-down" ? row : sideCount - 1 - row;
+
+  if (visualRow === 0) {
+    return side === "left" ? "seat-top-left" : "seat-top-right";
+  }
+
+  if (visualRow === sideCount - 1) {
+    return side === "left" ? "seat-left" : "seat-right";
+  }
+
+  return side === "left" ? "seat-mid-left" : "seat-mid-right";
+}
+
+function getOpponentSeatEffectStyle(side: "left" | "right", topVh: number): string {
+  const sideOffset = "calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)) + clamp(4.75rem, 7.5vw, 6.125rem))";
+  const left = side === "left" ? sideOffset : `calc(100% - ${sideOffset})`;
+
+  return `--seat-effect-left: ${left}; --seat-effect-top: ${topVh.toFixed(2)}vh;`;
+}
+
+function getOpponentSeatVerticalBounds(sideCount: number): {
+  topBound: number;
+  bottomBound: number;
+} {
+  if (sideCount === 2) {
+    return {
+      topBound: 22.5,
+      bottomBound: 47.5
+    };
+  }
+
+  return {
+    topBound: 10,
+    bottomBound: 60
+  };
+}
+
+function getOpponentSeatScale(totalPlayerCount: number): string {
+  if (totalPlayerCount <= 3) {
+    return "1.45";
+  }
+
+  if (totalPlayerCount <= 4) {
+    return "1.28";
+  }
+
+  if (totalPlayerCount <= 5) {
+    return "1.08";
+  }
+
+  if (totalPlayerCount <= 6) {
+    return "0.92";
+  }
+
+  if (totalPlayerCount <= 7) {
+    return "0.82";
+  }
+
+  return "0.74";
 }
 
 function getPlayerSeatClass(snapshot: PlayerGameSnapshot, playerId: PlayerId): string {
   if (playerId === snapshot.self.playerId) {
-    return "from-self";
+    return "from-right";
   }
 
   const opponentIndex = snapshot.opponents.findIndex((player) => player.playerId === playerId);
@@ -3269,13 +4009,54 @@ function getPlayerSeatClass(snapshot: PlayerGameSnapshot, playerId: PlayerId): s
   return `from-${getOpponentSeatClass(opponentIndex, snapshot.opponents.length).replace("seat-", "")}`;
 }
 
-function getPileOffset(index: number, total: number): { x: number; y: number; rotate: number } {
-  const offsetSeed = index + total * 3;
-  const x = ((offsetSeed * 7) % 17) - 8;
-  const y = ((offsetSeed * 11) % 15) - 7;
-  const rotate = ((offsetSeed * 13) % 21) - 10;
+function getPlayerSeatEffectStyle(snapshot: PlayerGameSnapshot, playerId: PlayerId): string {
+  if (playerId === snapshot.self.playerId) {
+    return getSelfSeatEffectStyle();
+  }
+
+  const opponentIndex = snapshot.opponents.findIndex((player) => player.playerId === playerId);
+
+  if (opponentIndex === -1) {
+    return getFallbackSeatEffectStyle();
+  }
+
+  return getOpponentSeatPlacement(opponentIndex, snapshot.opponents.length).effectStyle;
+}
+
+function getFallbackSeatEffectStyle(): string {
+  return "--seat-effect-left: 50%; --seat-effect-top: 42%;";
+}
+
+function getSelfSeatPlacementStyle(): string {
+  return `--seat-row: self; --seat-side-count: self; --seat-top: 60vh; --seat-scale: 0.9; ${getSelfSeatEffectStyle()}`;
+}
+
+function getSelfSeatEffectStyle(): string {
+  return "--seat-effect-left: 50%; --seat-effect-top: calc(100% - 4.2rem);";
+}
+
+function getPileOffset(
+  index: number,
+  total: number,
+  seed: string = `${String(total)}:${String(index)}`
+): { x: number; y: number; rotate: number } {
+  const baseSeed = `${seed}:${String(index)}:${String(total)}`;
+  const x = getSignedPileOffset(hashString(`${baseSeed}:x`), 18, 90);
+  const y = mapHashToRange(hashString(`${baseSeed}:y`), -72, 36);
+  const rotate = mapHashToRange(hashString(`${baseSeed}:rotate`), -36, 36);
 
   return { x, y, rotate };
+}
+
+function getSignedPileOffset(hash: number, minMagnitude: number, maxMagnitude: number): number {
+  const direction = hash % 2 === 0 ? -1 : 1;
+  const magnitude = minMagnitude + (hash % (maxMagnitude - minMagnitude + 1));
+
+  return direction * magnitude;
+}
+
+function mapHashToRange(hash: number, min: number, max: number): number {
+  return min + (hash % (max - min + 1));
 }
 
 function canSequenceConnectCurrentCard(
@@ -3363,6 +4144,239 @@ function syncPenaltyDrawProgress(snapshot: PlayerGameSnapshot): void {
   };
 }
 
+function getPenaltyDrawDisplayIndex(
+  event: Extract<GameEvent, { type: "cards-drawn" }>
+): number {
+  const drawUntilColor = event.drawUntilColor;
+
+  if (drawUntilColor === undefined) {
+    return 1;
+  }
+
+  const progress = state.penaltyDrawProgress;
+
+  if (
+    progress !== null &&
+    progress.targetPlayerId === event.playerId &&
+    progress.targetColor === drawUntilColor.targetColor
+  ) {
+    return progress.nextDrawIndex;
+  }
+
+  state.penaltyDrawProgress = {
+    targetPlayerId: event.playerId,
+    targetColor: drawUntilColor.targetColor,
+    nextDrawIndex: 1
+  };
+
+  return 1;
+}
+
+function updatePenaltyDrawProgressAfterDraw(
+  event: Extract<GameEvent, { type: "cards-drawn" }>
+): void {
+  const drawUntilColor = event.drawUntilColor;
+
+  if (drawUntilColor === undefined) {
+    return;
+  }
+
+  if (drawUntilColor.matched) {
+    state.penaltyDrawProgress = null;
+    return;
+  }
+
+  state.penaltyDrawProgress = {
+    targetPlayerId: event.playerId,
+    targetColor: drawUntilColor.targetColor,
+    nextDrawIndex: getPenaltyDrawDisplayIndex(event) + 1
+  };
+}
+
+function getPenaltyDrawSoundRate(drawIndex: number): number {
+  return Math.max(
+    PENALTY_DRAW_SOUND_MIN_RATE,
+    1 - (Math.max(1, drawIndex) - 1) * PENALTY_DRAW_SOUND_RATE_STEP
+  );
+}
+
+function isAudioPlaybackUnavailable(): boolean {
+  return typeof Audio === "undefined" || navigator.userAgent.includes("jsdom");
+}
+
+function playAudioElement(audio: HTMLAudioElement): void {
+  try {
+    const playResult = audio.play();
+
+    if (playResult !== undefined) {
+      void playResult.catch(() => {
+        // Browsers may block audio until the page has received a user gesture.
+      });
+    }
+  } catch {
+    // Test environments may expose Audio without implementing playback.
+  }
+}
+
+type UiScalePercent = 60 | 80 | 100 | 120;
+type UiSettingPercent = number;
+type VolumeSettingName = "background-music" | "sound-effect";
+
+function createLoopingAudio(path: string, volume: number): HTMLAudioElement | null {
+  if (isAudioPlaybackUnavailable()) {
+    return null;
+  }
+
+  const audio = new Audio(path);
+  audio.loop = true;
+  audio.volume = getBackgroundMusicVolume(volume);
+
+  return audio;
+}
+
+function getBackgroundMusicVolume(baseVolume: number): number {
+  return clampAudioVolume(baseVolume * (state.backgroundMusicPercent / DEFAULT_UI_SETTING_PERCENT));
+}
+
+function getSoundEffectVolume(baseVolume: number): number {
+  return clampAudioVolume(baseVolume * (state.soundEffectPercent / DEFAULT_UI_SETTING_PERCENT));
+}
+
+function clampAudioVolume(volume: number): number {
+  return Math.max(0, Math.min(1, volume));
+}
+
+function getLobbyBackgroundMusicPath(): string {
+  const index = Math.floor(Math.random() * LOBBY_BACKGROUND_MUSIC_PATHS.length);
+
+  return LOBBY_BACKGROUND_MUSIC_PATHS[index] ?? LOBBY_BACKGROUND_MUSIC_PATHS[0];
+}
+
+function getLobbyBackgroundMusic(): HTMLAudioElement | null {
+  if (lobbyBackgroundMusic === null) {
+    lobbyBackgroundMusic = createLoopingAudio(
+      getLobbyBackgroundMusicPath(),
+      LOBBY_BACKGROUND_MUSIC_VOLUME
+    );
+  }
+
+  return lobbyBackgroundMusic;
+}
+
+function getBattleBackgroundMusic(): HTMLAudioElement | null {
+  if (battleBackgroundMusic === null) {
+    battleBackgroundMusic = createLoopingAudio(
+      BATTLE_BACKGROUND_MUSIC_PATH,
+      BATTLE_BACKGROUND_MUSIC_VOLUME
+    );
+  }
+
+  return battleBackgroundMusic;
+}
+
+function syncBackgroundMusic(): void {
+  const lobbyAudio = getLobbyBackgroundMusic();
+  const battleAudio = getBattleBackgroundMusic();
+  const isBattleView = state.snapshot !== null;
+
+  if (lobbyAudio !== null) {
+    lobbyAudio.volume = getBackgroundMusicVolume(LOBBY_BACKGROUND_MUSIC_VOLUME);
+    if (isBattleView) {
+      lobbyAudio.pause();
+    } else if (lobbyAudio.paused) {
+      playAudioElement(lobbyAudio);
+    }
+  }
+
+  if (battleAudio !== null) {
+    battleAudio.volume = getBackgroundMusicVolume(BATTLE_BACKGROUND_MUSIC_VOLUME);
+    if (isBattleView) {
+      if (battleAudio.paused) {
+        playAudioElement(battleAudio);
+      }
+    } else {
+      battleAudio.pause();
+    }
+  }
+}
+
+function installBackgroundMusicUnlock(): void {
+  if (backgroundMusicUnlockInstalled || isAudioPlaybackUnavailable()) {
+    return;
+  }
+
+  backgroundMusicUnlockInstalled = true;
+  const unlockBackgroundMusic = () => syncBackgroundMusic();
+  window.addEventListener("pointerdown", unlockBackgroundMusic, { once: true });
+  window.addEventListener("keydown", unlockBackgroundMusic, { once: true });
+}
+
+function playPenaltyDrawSound(path: string, playbackRate = 1, volume = PENALTY_DRAW_SELF_SOUND_VOLUME): void {
+  if (isAudioPlaybackUnavailable()) {
+    return;
+  }
+
+  const audio = new Audio(path);
+  audio.playbackRate = playbackRate;
+  audio.volume = getSoundEffectVolume(volume);
+  playAudioElement(audio);
+}
+
+function playPenaltyDrawResultSound(
+  event: Extract<GameEvent, { type: "cards-drawn" }>,
+  drawIndex: number
+): void {
+  if (event.drawUntilColor === undefined) {
+    return;
+  }
+
+  const volume =
+    event.playerId === state.playerId
+      ? PENALTY_DRAW_SELF_SOUND_VOLUME
+      : PENALTY_DRAW_OTHER_SOUND_VOLUME;
+
+  if (event.drawUntilColor.matched) {
+    playPenaltyDrawSound(PENALTY_DRAW_END_SOUND_PATH, 1, volume);
+    return;
+  }
+
+  playPenaltyDrawSound(PENALTY_DRAW_START_SOUND_PATH, getPenaltyDrawSoundRate(drawIndex), volume);
+}
+
+function playDrawStackCardPlayedSound(event: Extract<GameEvent, { type: "cards-played" }>): void {
+  switch (event.topCardKind) {
+    case "draw-two":
+    case "draw-four":
+    case "wild-reverse-draw-four":
+      playPenaltyDrawSound(DRAW_STACK_PLAY_SMALL_SOUND_PATH, 1, DRAW_STACK_PLAY_SOUND_VOLUME);
+      return;
+    case "wild-draw-six":
+    case "wild-draw-ten":
+    case "swap-hands":
+      playPenaltyDrawSound(DRAW_STACK_PLAY_BIG_SOUND_PATH, 1, DRAW_STACK_PLAY_SOUND_VOLUME);
+      return;
+    default:
+      return;
+  }
+}
+
+function playDrawStackResolvedSound(event: Extract<GameEvent, { type: "cards-drawn" }>): void {
+  if (event.reason !== "draw-stack" || event.count <= 0) {
+    return;
+  }
+
+  const path =
+    event.count >= 10
+      ? DRAW_STACK_RESOLVE_BIG_SOUND_PATH
+      : DRAW_STACK_RESOLVE_SMALL_SOUND_PATH;
+  const volume =
+    event.playerId === state.playerId
+      ? DRAW_STACK_TARGET_SOUND_VOLUME
+      : DRAW_STACK_OTHER_SOUND_VOLUME;
+
+  playPenaltyDrawSound(path, 1, volume);
+}
+
 function syncFlyingCardAnimation(snapshot: PlayerGameSnapshot): void {
   const event = state.latestCardsPlayedEvent;
 
@@ -3376,7 +4390,8 @@ function syncFlyingCardAnimation(snapshot: PlayerGameSnapshot): void {
     key,
     card: snapshot.topCard,
     playerId: event.playerId,
-    seatClass: getPlayerSeatClass(snapshot, event.playerId)
+    seatClass: getPlayerSeatClass(snapshot, event.playerId),
+    seatStyle: getPlayerSeatEffectStyle(snapshot, event.playerId)
   };
   state.latestCardsPlayedEvent = null;
 
@@ -3395,6 +4410,7 @@ function startDrawCardAnimation(playerId: PlayerId, count: number): void {
     key,
     playerId,
     seatClass: state.snapshot === null ? "from-top" : getPlayerSeatClass(state.snapshot, playerId),
+    seatStyle: state.snapshot === null ? getFallbackSeatEffectStyle() : getPlayerSeatEffectStyle(state.snapshot, playerId),
     count
   };
 
@@ -3440,6 +4456,51 @@ function startDrawStackBurstAnimation(): void {
       render();
     }
   }, 680);
+}
+
+function startDrawStackExplosionAnimation(playerId: PlayerId, count: number): void {
+  const key = `${playerId}-draw-stack-explosion-${String(Date.now())}-${String(Math.random())}`;
+  const extraCards = Math.max(0, count - 2);
+  const scale = Math.min(4.5, 1 + Math.pow(extraCards, 1.35) * 0.22);
+
+  state.drawStackExplosion = {
+    key,
+    playerId,
+    seatClass: state.snapshot === null ? "from-top" : getPlayerSeatClass(state.snapshot, playerId),
+    seatStyle: state.snapshot === null ? getFallbackSeatEffectStyle() : getPlayerSeatEffectStyle(state.snapshot, playerId),
+    count,
+    scale
+  };
+
+  window.setTimeout(() => {
+    if (state.drawStackExplosion?.key === key) {
+      state.drawStackExplosion = null;
+      render();
+    }
+  }, 780);
+}
+
+function startPenaltyQuestionBurstAnimation(playerId: PlayerId, drawIndex: number): void {
+  const key = `${playerId}-penalty-question-${String(drawIndex)}-${String(Date.now())}-${String(Math.random())}`;
+  const questionCount = Math.min(drawIndex, 12);
+  const scale = 1 + Math.min(Math.max(0, drawIndex - 1), 10) * 0.06;
+
+  state.penaltyQuestionBurst = {
+    key,
+    playerId,
+    seatClass: state.snapshot === null ? "from-top" : getPlayerSeatClass(state.snapshot, playerId),
+    seatStyle: state.snapshot === null ? getFallbackSeatEffectStyle() : getPlayerSeatEffectStyle(state.snapshot, playerId),
+    drawIndex,
+    questionCount,
+    scale
+  };
+
+  window.setTimeout(() => {
+    if (state.penaltyQuestionBurst?.key === key) {
+      state.penaltyQuestionBurst = null;
+      render();
+    }
+  }, 1_050);
 }
 
 function syncChallengePrompt(snapshot: PlayerGameSnapshot): void {
@@ -3554,8 +4615,56 @@ function handleGameEvents(events: readonly GameEvent[]): void {
   }
 
   for (const event of events) {
+    if (event.type === "direction-changed") {
+      if (state.snapshot !== null) {
+        state.snapshot = {
+          ...state.snapshot,
+          direction: event.direction
+        };
+      }
+      continue;
+    }
+
+    if (event.type === "draw-until-color-started") {
+      state.penaltyDrawProgress = {
+        targetPlayerId: event.targetPlayerId,
+        targetColor: event.color,
+        nextDrawIndex: 1
+      };
+      continue;
+    }
+
+    if (event.type === "draw-until-color-resolved") {
+      state.penaltyDrawProgress = null;
+      continue;
+    }
+
+    if (event.type === "cards-drawn" && event.drawUntilColor !== undefined) {
+      if (event.count > 0) {
+        startDrawCardAnimation(event.playerId, event.count);
+      }
+
+      const drawIndex = getPenaltyDrawDisplayIndex(event);
+      playPenaltyDrawResultSound(event, drawIndex);
+      startPenaltyQuestionBurstAnimation(event.playerId, drawIndex);
+      const targetColor = getColorDisplayName(event.drawUntilColor.targetColor);
+      const revealedColor =
+        event.drawUntilColor.revealedColor === null
+          ? "黑色"
+          : getColorDisplayName(event.drawUntilColor.revealedColor);
+      const suffix = event.drawUntilColor.matched ? "罚摸结束。" : "请继续摸。";
+
+      showToast(
+        `现在是罚摸第 ${String(drawIndex)} 张：目标${targetColor}，摸到${revealedColor}，${suffix}`,
+        event.drawUntilColor.matched ? "success" : "warning"
+      );
+      updatePenaltyDrawProgressAfterDraw(event);
+      continue;
+    }
+
     if (event.type === "cards-played") {
       state.recentDrawnCardIds = [];
+      advanceDiscardPileLayout(event.cardIds);
       const receivedAt = Date.now();
       const playedEvent = {
         playerId: event.playerId,
@@ -3567,16 +4676,24 @@ function handleGameEvents(events: readonly GameEvent[]): void {
       state.latestCardsPlayedEvent = playedEvent;
       state.latestPlayGroupEvent = playedEvent;
       state.latestPlayGroupAnimationKey = playedEvent.animationKey;
+      playDrawStackCardPlayedSound(event);
       showToast(`${lookupNameFromKnownState(event.playerId)} \u51fa\u724c\u6210\u529f`, "success");
     }
 
     if (event.type === "draw-stack-cleared" && event.reason === "resolved") {
+      state.drawStackBreakTopCardId = event.topCardId ?? state.snapshot?.topCard.id ?? null;
+      state.latestPlayGroupEvent = null;
+      state.latestPlayGroupAnimationKey = null;
       startDrawStackBurstAnimation();
     }
 
     if (event.type === "cards-drawn") {
       if (event.count > 0) {
         startDrawCardAnimation(event.playerId, event.count);
+        if (event.reason === "draw-stack") {
+          playDrawStackResolvedSound(event);
+          startDrawStackExplosionAnimation(event.playerId, event.count);
+        }
       }
 
       if (event.drawUntilColor !== undefined) {
@@ -3716,6 +4833,10 @@ function bindConnectionPanel(): void {
   document.querySelector("#ping-button")?.addEventListener("click", () => {
     sendSafely(buildPingMessage());
   });
+
+  document.querySelector("#rename-player-button")?.addEventListener("click", () => {
+    renameCurrentPlayer();
+  });
 }
 
 function connectUsingCurrentInputs(): void {
@@ -3734,6 +4855,40 @@ function connectUsingCurrentInputs(): void {
   }
 
   wsClient.connect(state.wsUrl);
+}
+
+function renameCurrentPlayer(): void {
+  if (state.roomId === null || state.playerId === null) {
+    showToast("进入房间后才能改名。", "warning");
+    render();
+    return;
+  }
+
+  const nicknameInput = document.querySelector<HTMLInputElement>("#nickname");
+  const nickname = nicknameInput?.value.trim() ?? "";
+
+  if (nickname.length === 0) {
+    showToast("昵称不能为空。", "warning");
+    render();
+    return;
+  }
+
+  if (nickname.length > MAX_PLAYER_NICKNAME_LENGTH) {
+    showToast(`昵称不能超过 ${String(MAX_PLAYER_NICKNAME_LENGTH)} 字。`, "warning");
+    render();
+    return;
+  }
+
+  state.nickname = nickname;
+  setSessionStoredValue(USER_NICKNAME_STORAGE_KEY, nickname);
+
+  sendSafely(
+    buildRenamePlayerMessage({
+      roomId: state.roomId,
+      playerId: state.playerId,
+      nickname
+    })
+  );
 }
 
 function bindLobbyPanel(): void {
@@ -3859,6 +5014,73 @@ function bindLobbyPanel(): void {
 }
 
 function bindBattlePanel(): void {
+  document.querySelector("#battle-settings-button")?.addEventListener("click", () => {
+    state.settingsModalOpen = true;
+    render();
+  });
+
+  document.querySelector("#close-settings-modal-button")?.addEventListener("click", () => {
+    state.settingsModalOpen = false;
+    render();
+  });
+
+  document.querySelector("#debug-grid-toggle-button")?.addEventListener("click", () => {
+    state.showDebugGrid = !state.showDebugGrid;
+    setStoredValue(DEBUG_GRID_STORAGE_KEY, state.showDebugGrid ? "true" : "false");
+    render();
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-setting-button]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const setting = button.dataset.settingButton;
+      const value = parseUiScalePercent(button.dataset.settingValue);
+
+      if (value === null) {
+        return;
+      }
+
+      applyUiSetting(setting, value);
+    });
+  });
+
+  document.querySelectorAll<HTMLInputElement>("[data-setting-range]").forEach((slider) => {
+    slider.addEventListener("input", () => {
+      const setting = slider.dataset.settingRange;
+      const value = parseVolumeSettingPercent(slider.value);
+
+      if (value === null) {
+        return;
+      }
+
+      rememberVolumeBeforeMute(setting, value);
+      applyUiSetting(setting, value, { shouldRender: false });
+      syncVolumeSettingControls(setting, value);
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-setting-mute]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const setting = button.dataset.settingMute;
+      const currentValue = getVolumeSettingValue(setting);
+
+      if (currentValue === null) {
+        return;
+      }
+
+      const nextValue =
+        currentValue <= 0
+          ? getVolumeBeforeMute(setting) ?? DEFAULT_UI_SETTING_PERCENT
+          : 0;
+
+      if (currentValue > 0) {
+        setVolumeBeforeMute(setting, currentValue);
+      }
+
+      applyUiSetting(setting, nextValue, { shouldRender: false });
+      syncVolumeSettingControls(setting, nextValue);
+    });
+  });
+
   document.querySelector("#battle-leave-room-button")?.addEventListener("click", () => {
     leaveCurrentRoomFromBattle();
   });
@@ -3931,6 +5153,21 @@ function bindBattlePanel(): void {
 
   document.querySelector("#say-uno-button")?.addEventListener("click", () => {
     sendCommand({ type: "say-uno" });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-initial-direction]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const direction = button.dataset.initialDirection;
+
+      if (direction !== "clockwise" && direction !== "counter-clockwise") {
+        return;
+      }
+
+      sendCommand({
+        type: "choose-initial-direction",
+        direction
+      });
+    });
   });
 
   document.querySelector("#close-event-modal-button")?.addEventListener("click", () => {
@@ -4055,9 +5292,111 @@ function leaveCurrentRoomFromBattle(): void {
   }
 
   sendSafely(buildLeaveRoomMessage({ roomId: state.roomId, playerId: state.playerId }));
-  resetRoomContext();
+  returnToLobbyAfterLeavingBattle(state.roomId, state.playerId);
   pushLog("已退出房间");
   render();
+}
+
+function applyUiSetting(
+  setting: string | undefined,
+  value: UiSettingPercent,
+  options: { shouldRender: boolean } = { shouldRender: true }
+): void {
+  switch (setting) {
+    case "ui-scale":
+      state.uiScalePercent = value;
+      setStoredValue(UI_SCALE_STORAGE_KEY, String(value));
+      break;
+    case "background-music":
+      state.backgroundMusicPercent = value;
+      setStoredValue(BACKGROUND_MUSIC_STORAGE_KEY, String(value));
+      syncBackgroundMusic();
+      break;
+    case "sound-effect":
+      state.soundEffectPercent = value;
+      setStoredValue(SOUND_EFFECT_STORAGE_KEY, String(value));
+      break;
+    default:
+      return;
+  }
+
+  if (options.shouldRender) {
+    render();
+  }
+}
+
+function isVolumeSettingName(setting: string | undefined): setting is VolumeSettingName {
+  return setting === "background-music" || setting === "sound-effect";
+}
+
+function getVolumeSettingValue(setting: string | undefined): UiSettingPercent | null {
+  switch (setting) {
+    case "background-music":
+      return state.backgroundMusicPercent;
+    case "sound-effect":
+      return state.soundEffectPercent;
+    default:
+      return null;
+  }
+}
+
+function getVolumeBeforeMute(setting: string | undefined): UiSettingPercent | null {
+  switch (setting) {
+    case "background-music":
+      return state.backgroundMusicBeforeMutePercent;
+    case "sound-effect":
+      return state.soundEffectBeforeMutePercent;
+    default:
+      return null;
+  }
+}
+
+function setVolumeBeforeMute(setting: string | undefined, value: UiSettingPercent): void {
+  switch (setting) {
+    case "background-music":
+      state.backgroundMusicBeforeMutePercent = value;
+      return;
+    case "sound-effect":
+      state.soundEffectBeforeMutePercent = value;
+      return;
+    default:
+      return;
+  }
+}
+
+function rememberVolumeBeforeMute(setting: string | undefined, value: UiSettingPercent): void {
+  if (value > 0) {
+    setVolumeBeforeMute(setting, value);
+  }
+}
+
+function syncVolumeSettingControls(
+  setting: string | undefined,
+  value: UiSettingPercent
+): void {
+  if (!isVolumeSettingName(setting)) {
+    return;
+  }
+
+  const slider = document.querySelector<HTMLInputElement>(`[data-setting-range="${setting}"]`);
+  const output = document.querySelector<HTMLOutputElement>(`[data-setting-output="${setting}"]`);
+  const button = document.querySelector<HTMLButtonElement>(`[data-setting-mute="${setting}"]`);
+  const isMuted = value <= 0;
+
+  if (slider !== null) {
+    slider.value = String(value);
+  }
+  if (output !== null) {
+    output.value = `${String(value)}%`;
+    output.textContent = `${String(value)}%`;
+  }
+  if (button !== null) {
+    button.classList.toggle("settings-mute-button-muted", isMuted);
+    button.classList.toggle("settings-mute-button-on", !isMuted);
+    button.textContent = isMuted ? "🔇" : "🔊";
+    button.setAttribute("aria-label", isMuted ? "恢复音量" : "静音");
+    button.setAttribute("title", isMuted ? "恢复音量" : "静音");
+  }
 }
 
 function bindRuleControls(): void {
@@ -4399,7 +5738,7 @@ function pushLog(line: string): void {
 function showToast(message: string, tone: UiToastState["tone"] = "info"): void {
   const key = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-  state.uiToast = { key, message, tone };
+  state.uiToast = { key, message, tone, hasEntered: false };
 
   window.setTimeout(() => {
     if (state.uiToast?.key === key) {
@@ -4496,26 +5835,43 @@ function syncHandOverlapLayout(): void {
 
   const containerWidth = cards.clientWidth;
   const firstCard = cardButtons[0]!;
-  const cardWidth = firstCard.getBoundingClientRect().width;
-  const normalGap = 8;
+  const cardWidth = firstCard.offsetWidth;
+  const normalGap = getHandCardGapPx(cards);
+  const horizontalPadding = getHorizontalPaddingPx(cards);
+  const availableWidth = Math.max(cardWidth, containerWidth - horizontalPadding);
   const normalWidth = cardWidth * cardButtons.length + normalGap * (cardButtons.length - 1);
 
-  if (normalWidth <= containerWidth || cardButtons.length <= 1) {
+  if (normalWidth <= availableWidth || cardButtons.length <= 1) {
     cards.classList.remove("cards-overlap");
     cards.style.removeProperty("--hand-overlap-height");
     return;
   }
 
-  const step = Math.max(18, (containerWidth - cardWidth) / (cardButtons.length - 1));
-  const cardHeight = firstCard.getBoundingClientRect().height;
+  const step = Math.max(14, (availableWidth - cardWidth) / (cardButtons.length - 1));
+  const cardHeight = firstCard.offsetHeight;
 
   cards.classList.add("cards-overlap");
   cards.style.setProperty("--hand-overlap-height", `${String(Math.ceil(cardHeight + 26))}px`);
 
   cardButtons.forEach((cardButton, index) => {
-    cardButton.style.left = `${String(Math.max(0, step * index))}px`;
+    cardButton.style.left = `${String(Math.max(0, step * index + horizontalPadding / 2))}px`;
     cardButton.style.zIndex = String(index + 1);
   });
+}
+
+function getHandCardGapPx(cards: HTMLElement): number {
+  const styles = window.getComputedStyle(cards);
+  const gap = Number.parseFloat(styles.columnGap || styles.gap);
+
+  return Number.isFinite(gap) ? gap : 0;
+}
+
+function getHorizontalPaddingPx(element: HTMLElement): number {
+  const styles = window.getComputedStyle(element);
+  const left = Number.parseFloat(styles.paddingLeft);
+  const right = Number.parseFloat(styles.paddingRight);
+
+  return (Number.isFinite(left) ? left : 0) + (Number.isFinite(right) ? right : 0);
 }
 
 function bindRoomCodeInputs(): void {
@@ -4603,6 +5959,7 @@ function handleHandCardClick(cardId: string): void {
     state.connectionStatus === "open" &&
     state.playerId === state.snapshot.currentPlayerId &&
     state.snapshot.status !== "finished" &&
+    !isInitialDirectionChoicePending(state.snapshot) &&
     !state.snapshot.self.isEliminated &&
     !state.snapshot.self.isRoundWinner;
   const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand, {
@@ -4660,13 +6017,71 @@ function resetRoomContext(): void {
   state.latestCardsPlayedEvent = null;
   state.latestPlayGroupEvent = null;
   state.latestPlayGroupAnimationKey = null;
+  state.drawStackBreakTopCardId = null;
+  state.discardPileLayout = [];
   state.flyingCard = null;
   state.drawFlyingCard = null;
   state.drawStackBurst = null;
+  state.drawStackExplosion = null;
+  state.penaltyQuestionBurst = null;
   state.penaltyDrawProgress = null;
   state.eventModal = null;
   state.ruleModal = null;
   state.dismissedFinishedNoticeKey = null;
+  clearSelectedCards();
+  removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);
+}
+
+function returnToLobbyAfterLeavingBattle(
+  roomId: RoomId,
+  playerId: PlayerId
+): void {
+  if (unoProtectionRenderTimer !== null) {
+    window.clearTimeout(unoProtectionRenderTimer);
+    unoProtectionRenderTimer = null;
+  }
+
+  const preservedRoomCode =
+    state.room !== null && state.room.roomId === roomId ? state.room.roomCode : roomId;
+
+  if (state.room !== null && state.room.roomId === roomId) {
+    state.room = {
+      ...state.room,
+      players: state.room.players.map((player) => {
+        if (player.playerId !== playerId) {
+          return player;
+        }
+
+        return {
+          ...player,
+          connectionStatus: "left"
+        };
+      })
+    };
+  }
+
+  state.snapshot = null;
+  state.roomId = null;
+  state.playerId = null;
+  state.uiToast = null;
+  state.snapshotRecoveryRoomId = null;
+  state.recentDrawnCardIds = [];
+  state.handCardMotion = {};
+  state.latestCardsPlayedEvent = null;
+  state.latestPlayGroupEvent = null;
+  state.latestPlayGroupAnimationKey = null;
+  state.drawStackBreakTopCardId = null;
+  state.discardPileLayout = [];
+  state.flyingCard = null;
+  state.drawFlyingCard = null;
+  state.drawStackBurst = null;
+  state.drawStackExplosion = null;
+  state.penaltyQuestionBurst = null;
+  state.penaltyDrawProgress = null;
+  state.eventModal = null;
+  state.ruleModal = null;
+  state.dismissedFinishedNoticeKey = null;
+  setRoomCodeFromText(preservedRoomCode);
   clearSelectedCards();
   removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);
 }
@@ -4697,6 +6112,11 @@ function normalizePlayerGameSnapshot(snapshot: unknown): PlayerGameSnapshot {
       playerId: null,
       cardId: null,
       ...partial.normalDrawOffer
+    },
+    initialDirectionChoice: {
+      active: false,
+      chooserPlayerId: null,
+      ...partial.initialDirectionChoice
     },
     challengeWindow: {
       active: false,
@@ -4815,6 +6235,40 @@ function setStoredValue(key: string, value: string): void {
   } catch {
     // Local storage can be unavailable in restricted browser contexts.
   }
+}
+
+function readStoredUiSettingPercent(key: string): UiSettingPercent {
+  return parseVolumeSettingPercent(getStoredValue(key)) ?? DEFAULT_UI_SETTING_PERCENT;
+}
+
+function readStoredUiScalePercent(key: string): UiScalePercent {
+  return parseUiScalePercent(getStoredValue(key)) ?? DEFAULT_UI_SETTING_PERCENT;
+}
+
+function parseUiScalePercent(value: string | undefined | null): UiScalePercent | null {
+  if (value === "60" || value === "80" || value === "100" || value === "120") {
+    return Number(value) as UiScalePercent;
+  }
+
+  return null;
+}
+
+function parseVolumeSettingPercent(value: string | undefined | null): UiSettingPercent | null {
+  if (value === undefined || value === null || value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return Math.round(Math.max(0, Math.min(120, parsed)));
+}
+
+function readStoredBoolean(key: string): boolean {
+  return getStoredValue(key) === "true";
 }
 
 function removeStoredValue(key: string): void {

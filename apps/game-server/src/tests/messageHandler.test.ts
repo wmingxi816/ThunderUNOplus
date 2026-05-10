@@ -530,4 +530,33 @@ describe("messageHandler", () => {
       ).toBe(false);
     }
   });
+  it("rename-player updates nickname and broadcasts room-state", () => {
+    const fixture = createWaitingRoomFixture(3);
+    const player = fixture.room.players[1]!;
+    const connection = fixture.connectionRegistry.getConnectionByPlayerId(player.playerId)!;
+
+    handleClientMessage({
+      connection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "rename-player",
+        requestId: "req-rename-1",
+        roomId: fixture.room.roomId,
+        playerId: player.playerId,
+        nickname: "Renamed Player",
+        timestampMs: 1000
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    expect(player.nickname).toBe("Renamed Player");
+    expect(connection.sentMessages.some((message) => {
+      return message.type === "room-state" &&
+        message.room.players.some((roomPlayer) => {
+          return roomPlayer.playerId === player.playerId &&
+            roomPlayer.displayName === "Renamed Player";
+        });
+    })).toBe(true);
+  });
 });

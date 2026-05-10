@@ -200,6 +200,7 @@ label span {
   color: #172033;
 }
 
+/* UI name: app-toast. 全局临时提示条。 */
 .ui-toast {
   position: sticky;
   top: 0.7rem;
@@ -214,6 +215,9 @@ label span {
   font-weight: 900;
   text-align: center;
   box-shadow: 0 0.85rem 2rem rgba(0, 0, 0, 0.28);
+}
+
+.ui-toast.toast-enter {
   animation: toast-in 0.18s ease-out;
 }
 
@@ -248,6 +252,7 @@ label span {
   gap: 0.8rem;
 }
 
+/* UI name: lobby-connection-panel. 服务端地址、昵称、改名、连接按钮区域。 */
 .connection-panel {
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) auto;
   align-items: end;
@@ -265,13 +270,16 @@ label span {
   margin-bottom: 1rem;
 }
 
+/* UI name: lobby-root. 大厅主布局。 */
 .lobby-layout {
   grid-template-columns: minmax(18rem, 0.78fr) minmax(0, 1.22fr);
   gap: 1rem;
 }
 
+/* UI names: lobby-create-join-panel / lobby-room-status-panel / lobby-rules-guide. */
 .lobby-control,
 .lobby-status,
+/* UI name: lobby-rules-guide. 大厅规则讲解框架。 */
 .rules-guide {
   position: relative;
   min-height: 100%;
@@ -322,6 +330,7 @@ label span {
     rgba(255, 255, 255, 0.94);
 }
 
+/* UI name: rule-entry-buttons. 四个规则入口按钮。 */
 .rule-entry-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -685,6 +694,17 @@ label span {
     rgba(255, 255, 255, 0.9);
 }
 
+.shell:not(.shell-battle) .player-pill.left {
+  border-color: rgba(239, 68, 68, 0.48);
+  background:
+    linear-gradient(135deg, rgba(239, 68, 68, 0.12), transparent 46%),
+    rgba(255, 255, 255, 0.84);
+}
+
+.shell:not(.shell-battle) .player-pill.offline {
+  opacity: 0.72;
+}
+
 .player-pill-empty {
   border-style: dashed;
   background: rgba(17, 19, 25, 0.58);
@@ -764,6 +784,14 @@ label span {
   margin-top: 0.18rem;
 }
 
+.battle-immersive .seat-bot-tag {
+  position: absolute;
+  top: var(--seat-detail-top);
+  left: var(--seat-detail-left);
+  z-index: 3;
+  margin: 0;
+}
+
 .mini-kick-button {
   grid-area: action;
   align-self: center;
@@ -790,6 +818,7 @@ label span {
   margin-bottom: 0.8rem;
 }
 
+/* UI name: battle-root. 对战页面根容器。 */
 .battle {
   display: grid;
   gap: 1rem;
@@ -797,12 +826,101 @@ label span {
 
 .battle-immersive {
   position: relative;
-  width: 100%;
-  height: 100dvh;
+  width: calc(100% * var(--battle-ui-inverse-scale, 1.25));
+  height: calc(100dvh * var(--battle-ui-inverse-scale, 1.25));
   gap: 0;
   overflow: hidden;
+  transform: scale(var(--battle-ui-scale, 0.8));
+  transform-origin: top left;
+  --battle-side-offset: clamp(1rem, 4vw, 60px);
+  --battle-table-y: clamp(-8rem, -12vh, -2rem);
+  --battle-pile-offset: clamp(1.5rem, 6vw, 5.5rem);
+  --battle-center-offset: clamp(-2.7rem, -3.4vw, -0.9rem);
+  --battle-facts-offset: clamp(6rem, 17vw, 15.2rem);
+  --battle-center-scale: 1;
+  --turn-orbit-bottom: 25%;
 }
 
+/* UI name: battle-debug-grid. 临时尺度调试网格线。 */
+.battle-debug-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  border: 2px solid rgba(248, 214, 78, 0.9);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(rgba(68, 140, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(68, 140, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(248, 214, 78, 0.95) calc(50% - 1px), rgba(248, 214, 78, 0.95) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(transparent calc(50% - 1px), rgba(248, 214, 78, 0.95) calc(50% - 1px), rgba(248, 214, 78, 0.95) calc(50% + 1px), transparent calc(50% + 1px));
+  background-size:
+    40px 40px,
+    40px 40px,
+    10% 10%,
+    10% 10%,
+    100% 100%,
+    100% 100%;
+  box-shadow: inset 0 0 0 1px rgba(8, 11, 15, 0.8);
+}
+
+.battle-debug-grid-title {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.55rem;
+  z-index: 3;
+  padding: 0.22rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(8, 11, 15, 0.72);
+  color: #f8d64e;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.battle-debug-label,
+.battle-debug-percent {
+  position: absolute;
+  z-index: 2;
+  padding: 0.08rem 0.2rem;
+  border-radius: 4px;
+  background: rgba(8, 11, 15, 0.62);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
+}
+
+.battle-debug-label-x {
+  top: 1.75rem;
+  transform: translateX(2px) rotate(-35deg);
+  transform-origin: left center;
+}
+
+.battle-debug-label-y {
+  left: 0.35rem;
+  transform: translateY(2px);
+}
+
+.battle-debug-percent {
+  background: rgba(68, 140, 255, 0.72);
+  color: #ffffff;
+}
+
+.battle-debug-percent-x {
+  bottom: 0.35rem;
+  transform: translateX(-50%);
+}
+
+.battle-debug-percent-y {
+  right: 0.35rem;
+  transform: translateY(-50%);
+}
+
+/* UI name: battle-stage. 对战舞台背景区域。 */
 .battle-stage {
   position: relative;
   overflow: hidden;
@@ -856,12 +974,10 @@ label span {
 }
 
 .battle-immersive .table-zone {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: clamp(0.45rem, 1.4vh, 0.9rem);
+  display: block;
   width: 100%;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: 100%;
+  min-height: 100%;
   border: 0;
   border-radius: 0;
   padding:
@@ -880,6 +996,7 @@ label span {
     rgba(8, 11, 15, 0.46);
 }
 
+/* UI name: battle-top-hud. 顶部状态栏。 */
 .battle-hud {
   display: flex;
   flex-wrap: wrap;
@@ -898,7 +1015,7 @@ label span {
   top: max(0.35rem, env(safe-area-inset-top));
   left: clamp(0.65rem, 1.8vw, 1.3rem);
   right: clamp(0.65rem, 1.8vw, 1.3rem);
-  z-index: 12;
+  z-index: 10002;
   align-self: start;
   border-radius: 8px;
   padding: 0.55rem 0.75rem;
@@ -929,7 +1046,7 @@ label span {
 
 .battle-error-line {
   position: absolute;
-  top: calc(max(0.65rem, env(safe-area-inset-top)) + 3.35rem);
+  top: calc(max(0.35rem, env(safe-area-inset-top)) + 3.05rem);
   left: 50%;
   z-index: 17;
   width: min(32rem, calc(100% - 1.5rem));
@@ -960,6 +1077,7 @@ label span {
   gap: 0.35rem;
 }
 
+.hud-settings-button,
 .hud-rule-button,
 .hud-leave-button {
   min-height: 2.2rem;
@@ -967,8 +1085,14 @@ label span {
   font-size: 0.82rem;
 }
 
-.hud-rule-button {
+.hud-settings-button {
   margin-left: auto;
+}
+
+.battle-hud .hud-settings-button {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: #252832;
+  color: #f6f1e8;
 }
 
 .battle-hud .hud-rule-button {
@@ -986,6 +1110,147 @@ label span {
 .battle-hud .hud-leave-button:disabled {
   opacity: 0.52;
   filter: grayscale(0.3);
+}
+
+.settings-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10003;
+  display: grid;
+  place-items: start end;
+  padding: calc(max(0.35rem, env(safe-area-inset-top)) + 3.8rem) clamp(0.65rem, 1.8vw, 1.3rem) 1rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.settings-modal {
+  width: min(22rem, calc(100vw - 1.3rem));
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(18, 21, 28, 0.96);
+  color: #f6f1e8;
+  box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.settings-modal-header strong {
+  font-size: 1rem;
+}
+
+.settings-modal-header button {
+  width: 2.1rem;
+  height: 2.1rem;
+  min-height: 2.1rem;
+  padding: 0;
+}
+
+.settings-segment {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings-segment legend {
+  color: #d7dde8;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.settings-segment-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.settings-segment-options button {
+  min-height: 2.35rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #252832;
+  color: #f6f1e8;
+  font-size: 0.84rem;
+}
+
+.settings-segment-options button.active {
+  border-color: rgba(248, 214, 78, 0.78);
+  background: #f8d64e;
+  color: #161616;
+}
+
+.settings-slider-segment {
+  gap: 0.55rem;
+}
+
+.settings-slider-row {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) 3.3rem;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.settings-mute-button {
+  width: 2.2rem;
+  height: 2.2rem;
+  min-height: 2.2rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: #252832;
+  color: #f6f1e8;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.settings-mute-button-on {
+  border-color: rgba(80, 210, 126, 0.7);
+  background: #1f7a3d;
+  color: #ffffff;
+}
+
+.settings-mute-button-muted {
+  border-color: rgba(255, 91, 91, 0.78);
+  background: #b5252f;
+  color: #ffffff;
+}
+
+.settings-slider-row input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  accent-color: #f8d64e;
+}
+
+.settings-slider-row output {
+  color: #f6f1e8;
+  font-size: 0.85rem;
+  font-weight: 900;
+  text-align: right;
+}
+
+.settings-grid-toggle {
+  width: 100%;
+  min-height: 2.55rem;
+  margin-top: 0.2rem;
+  border-color: rgba(68, 140, 255, 0.42);
+}
+
+.settings-grid-toggle.active {
+  border-color: rgba(248, 214, 78, 0.78);
+  background: #f8d64e;
+  color: #161616;
 }
 
 .hud-chip {
@@ -1032,9 +1297,48 @@ label span {
 }
 
 .table-zone.battle-stage {
+  position: relative;
+  overflow: hidden;
   background:
     linear-gradient(180deg, rgba(12, 16, 22, 0.35), rgba(12, 16, 22, 0.12)),
     url("/battle-stage.png") center/cover no-repeat;
+}
+
+/* UI name: battle-stage-layering. 除方向底图外的对战内容层级。 */
+.table-zone.battle-stage > :not(.turn-direction-orbit):not(.battle-hud):not(.battle-table):not(.battle-action-dock):not(.settings-modal-backdrop):not(.event-modal-backdrop):not(.normal-draw-offer-backdrop) {
+  position: relative;
+  z-index: 2;
+}
+
+/* UI name: battle-turn-orbit. 顺/逆时针旋转方向底图。 */
+.turn-direction-orbit {
+  position: absolute;
+  left: 50%;
+  bottom: var(--turn-orbit-bottom);
+  z-index: 1;
+  width: clamp(17.16rem, 45.24vw, 45.24rem);
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transform-origin: center center;
+  animation: turn-direction-orbit-spin 42s linear infinite;
+}
+
+.turn-direction-orbit-clockwise {
+  animation-direction: normal;
+}
+
+.turn-direction-orbit-counter {
+  animation-direction: reverse;
+}
+
+.turn-direction-orbit img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0.3;
+  transform-origin: center center;
+  user-select: none;
 }
 
 .battle-immersive .ui-toast {
@@ -1054,39 +1358,83 @@ label span {
   border-color: #f8d64e;
 }
 
+/* UI name: battle-table. 玩家卡片、中心牌区和特效的主体容器。 */
 .battle-table {
   position: relative;
   min-height: 33rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .battle-immersive .battle-table {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
   min-height: 0;
-  height: 200%;
-  overflow: hidden;
-  margin-top: -3rem;
+  height: 100%;
+  overflow: visible;
+  margin-top: 0;
   padding-top: 0;
 }
 
+.battle-immersive .table-zone.battle-stage > .battle-table {
+  position: absolute;
+}
+
+/* UI names: battle-opponent-seat / battle-self-seat. 玩家卡片通用样式。 */
 .seat {
   position: absolute;
-  z-index: 3;
+  z-index: 18;
   display: grid;
-  grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
-    "avatar name count"
-    "avatar state count"
+    "name count"
+    "state count"
     "actions actions actions";
   align-items: center;
   width: clamp(10rem, 18vw, 14rem);
+  overflow: hidden;
   box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.24);
+}
+
+.seat::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: var(--seat-avatar-image);
+  background-position: center 30%;
+  background-size: cover;
+  opacity: 0.9;
+  filter: brightness(0.9);
+}
+
+.seat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(9, 12, 18, 0.82), rgba(9, 12, 18, 0.45));
+}
+
+.seat.current::before {
+  opacity: 1;
+  filter: brightness(1);
+}
+
+.seat.current::after {
+  background: linear-gradient(90deg, rgba(9, 12, 18, 0.48), rgba(9, 12, 18, 0.16));
+}
+
+.seat > * {
+  position: relative;
+  z-index: 2;
 }
 
 .seat-badge {
   position: absolute;
   top: 0.5rem;
   right: 0.55rem;
-  z-index: 2;
+  z-index: 3;
   padding: 0.2rem 0.45rem;
   border-radius: 999px;
   background: rgba(248, 214, 78, 0.16);
@@ -1120,12 +1468,32 @@ label span {
   color: #cfd7e6;
 }
 
-.seat .avatar {
-  grid-area: avatar;
-}
-
 .seat strong {
   grid-area: name;
+}
+
+/* UI name: battle-seat-name. 玩家卡片姓名 label。 */
+.battle-immersive .seat strong {
+  position: absolute !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: var(--seat-name-bottom) !important;
+  left: var(--seat-name-left) !important;
+  z-index: 3;
+  max-width: calc(100% - 4.55rem);
+  overflow: hidden;
+  margin: 0;
+  padding: 0.18rem 0.42rem;
+  background: #ffffff;
+  color: #161616;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: left;
+  text-overflow: ellipsis;
+  justify-self: start;
+  transform: none;
+  white-space: nowrap;
 }
 
 .seat small {
@@ -1133,18 +1501,39 @@ label span {
   color: #aeb5c4;
 }
 
+.battle-immersive .seat small {
+  position: absolute;
+  top: var(--seat-detail-top);
+  left: var(--seat-detail-left);
+  z-index: 3;
+  max-width: calc(100% - 4.8rem);
+  margin: 0;
+}
+
+/* UI name: battle-seat-count. 玩家卡片手牌数量 label。 */
 .hand-count-badge {
   grid-area: count;
   align-self: center;
   justify-self: end;
-  min-width: 2.25rem;
-  min-height: 2.25rem;
+  min-width: 2.7rem;
+  min-height: 1.96rem;
   display: grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: 0;
   background: #f8d64e;
   color: #161616 !important;
+  font-size: 1.8em;
   font-weight: 900;
+  line-height: 1;
+}
+
+.battle-immersive .hand-count-badge {
+  position: absolute;
+  top: var(--seat-count-top);
+  right: var(--seat-count-right);
+  z-index: 3;
+  align-self: auto;
+  justify-self: auto;
 }
 
 .seat.current {
@@ -1158,13 +1547,6 @@ label span {
     0 0.75rem 2rem rgba(0, 0, 0, 0.32);
 }
 
-.seat.current .avatar {
-  border-color: #f8d64e;
-  box-shadow:
-    0 0 0 3px rgba(248, 214, 78, 0.24),
-    0 0 1rem rgba(248, 214, 78, 0.36);
-}
-
 .seat.current .seat-badge {
   animation: current-seat-breathe 2.4s ease-in-out infinite;
 }
@@ -1176,9 +1558,12 @@ label span {
     0 0.75rem 2rem rgba(0, 0, 0, 0.32);
 }
 
-.seat.round-eliminated .avatar {
-  border-color: #ff7a7a;
-  box-shadow: 0 0 0 3px rgba(232, 75, 75, 0.24);
+.seat.round-left {
+  border-color: rgba(239, 68, 68, 0.92);
+  box-shadow:
+    0 0 0 3px rgba(239, 68, 68, 0.58),
+    0 0 1.1rem rgba(239, 68, 68, 0.24),
+    0 0.75rem 2rem rgba(0, 0, 0, 0.32);
 }
 
 .seat.round-winner {
@@ -1186,11 +1571,6 @@ label span {
   box-shadow:
     0 0 0 2px rgba(99, 221, 139, 0.36),
     0 0.75rem 2rem rgba(0, 0, 0, 0.32);
-}
-
-.seat.round-winner .avatar {
-  border-color: #63dd8b;
-  box-shadow: 0 0 0 3px rgba(99, 221, 139, 0.22);
 }
 
 .seat-top {
@@ -1250,17 +1630,56 @@ label span {
   top: 48%;
 }
 
+.battle-immersive .seat-side {
+  top: var(--seat-top);
+  width: clamp(9.5rem, 15vw, 12.25rem);
+  transform: translateY(-50%) scale(var(--seat-scale, 0.8));
+  transform-origin: center center;
+}
+
+.battle-immersive .seat {
+  display: block;
+  min-height: 5.1rem;
+  padding: 0;
+  --seat-scale: 0.8;
+  --seat-name-left: 0;
+  --seat-name-bottom: 0;
+  --seat-count-top: 0;
+  --seat-count-right: 0;
+  --seat-action-right: 0;
+  --seat-action-bottom: 0;
+  --seat-detail-left: 0.45rem;
+  --seat-detail-top: 0.45rem;
+}
+
+.battle-immersive .seat-side-left {
+  left: calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)));
+  right: auto;
+}
+
+.battle-immersive .seat-side-right {
+  right: calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)));
+  left: auto;
+}
+
 .self-seat {
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
+  left: auto;
+  right: 0;
+  bottom: auto;
+  top: -12vh;
+  transform: translateY(-50%);
   background: #262b36;
 }
 
 .battle-immersive .self-seat {
-  bottom: 0.2rem;
-  transform: translateX(-50%) scale(0.92);
-  transform-origin: bottom center;
+  top: var(--seat-top);
+  right: calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)));
+  left: auto;
+  bottom: auto;
+  width: clamp(9.5rem, 15vw, 12.25rem);
+  --seat-scale: 0.92;
+  transform: translateY(-50%) scale(var(--seat-scale));
+  transform-origin: center center;
   opacity: 0.96;
 }
 
@@ -1272,14 +1691,34 @@ label span {
   margin-top: 0.65rem;
 }
 
+.battle-immersive .opponent-actions {
+  position: absolute;
+  right: var(--seat-action-right);
+  bottom: var(--seat-action-bottom);
+  z-index: 3;
+  width: min(4.4rem, 42%);
+  margin: 0;
+}
+
+/* UI name: battle-catch-uno-button. 抓 UNO 按钮。 */
 .opponent-actions button {
   min-height: 2rem;
   padding: 0.35rem;
-  background: #323744;
-  color: #f6f1e8;
+  border: 2px solid #ffffff;
+  background: transparent;
+  color: #ffffff;
   font-size: 0.8rem;
+  font-weight: 900;
 }
 
+.opponent-actions button.uno-catch-available {
+  border-color: #ef4444;
+  color: #ffffff;
+  background: rgba(239, 68, 68, 0.92);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+/* UI name: battle-center-table. 摸牌区、牌堆区、状态提示区的总容器。 */
 .center-table {
   display: grid;
   grid-template-columns: minmax(7rem, 8rem) minmax(8rem, 10rem) minmax(0, 12rem);
@@ -1292,10 +1731,19 @@ label span {
 }
 
 .battle-immersive .center-table {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
   width: min(43rem, calc(100% - 2rem));
   min-height: clamp(12rem, 34vh, 18rem);
-  margin: clamp(0.15rem, 1.2vh, 0.8rem) auto clamp(0.7rem, 3vh, 1.8rem);
-  transform: translateY(12rem);
+  margin: 0;
+  gap: clamp(0.55rem, 1.8vw, 1.2rem);
+  transform:
+    translate(-50%, -50%)
+    translateY(var(--battle-table-y, clamp(2rem, 17vh, 12rem)))
+    scale(var(--battle-center-scale, 1));
+  transform-origin: center center;
 }
 
 .draw-pile,
@@ -1305,16 +1753,37 @@ label span {
   gap: 0.5rem;
 }
 
+/* UI name: battle-draw-pile. 摸牌区。 */
+@media (max-height: 720px) {
+  .battle-immersive {
+    --battle-center-scale: 0.86;
+  }
+}
+
+@media (max-height: 600px) {
+  .battle-immersive {
+    --battle-center-scale: 0.74;
+  }
+}
+
 .battle-immersive .draw-pile {
-  transform: translateX(-5.5rem);
+  position: relative;
+  z-index: 5;
+  transform: translateX(calc(var(--battle-center-offset) - var(--battle-pile-offset, clamp(1.5rem, 6vw, 5.5rem))));
 }
 
+/* UI name: battle-discard-pile. 牌堆区。 */
 .battle-immersive .discard-pile {
-  transform: translateX(5.5rem);
+  position: relative;
+  z-index: 3;
+  transform: translateX(calc(var(--battle-center-offset) + var(--battle-pile-offset, clamp(1.5rem, 6vw, 5.5rem))));
 }
 
+/* UI name: battle-table-facts. 牌堆旁边的状态提示区。 */
 .battle-immersive .table-facts {
-  transform: translateX(11rem);
+  position: relative;
+  z-index: 5;
+  transform: translateX(calc(var(--battle-center-offset) + var(--battle-facts-offset, clamp(2.8rem, 14vw, 11rem))));
 }
 
 .draw-pile img,
@@ -1336,6 +1805,7 @@ label span {
   min-height: 3.2rem;
 }
 
+/* UI name: battle-discard-pile. 牌堆区基础样式。 */
 .discard-pile {
   min-height: 13rem;
 }
@@ -1351,12 +1821,17 @@ label span {
   position: absolute;
   inset: 0;
   z-index: var(--pile-index);
+  border-radius: 8px;
+  transform-origin: center;
   transform: translate(var(--pile-x), var(--pile-y)) rotate(var(--pile-rotate));
   filter: drop-shadow(0 0.45rem 0.6rem rgba(0, 0, 0, 0.28));
 }
 
 .history-discard-card {
-  opacity: 0.9;
+  opacity: var(--pile-opacity, 0.9);
+  filter:
+    brightness(0.8)
+    drop-shadow(0 0.45rem 0.6rem rgba(0, 0, 0, 0.28));
 }
 
 .history-discard-card:nth-child(n + 2) {
@@ -1364,6 +1839,7 @@ label span {
 }
 
 .latest-play-group,
+/* UI name: battle-active-draw-chain. 加牌链平铺展示。 */
 .active-draw-chain,
 .draw-stack-burst {
   position: absolute;
@@ -1406,7 +1882,7 @@ label span {
 
 .draw-chain-card {
   width: min(7.2rem, 82%);
-  margin-left: -4.9rem;
+  margin-left: -3.8rem;
   border-radius: 8px;
   outline: 3px solid #f8d64e;
   outline-offset: 2px;
@@ -1451,6 +1927,12 @@ label span {
   animation: fly-from-opponent 0.62s ease-out forwards;
 }
 
+.flying-card.from-seat {
+  top: var(--seat-effect-top, 44%);
+  left: var(--seat-effect-left, 50%);
+  animation-name: fly-from-seat;
+}
+
 .flying-card.from-self {
   animation-name: fly-from-self;
 }
@@ -1467,6 +1949,10 @@ label span {
   animation-name: fly-from-right;
 }
 
+.flying-card.from-seat {
+  animation-name: fly-from-seat;
+}
+
 .draw-flying-card {
   position: absolute;
   z-index: 7;
@@ -1477,6 +1963,10 @@ label span {
   transform-origin: center;
   filter: drop-shadow(0 0.65rem 0.9rem rgba(0, 0, 0, 0.34));
   animation: draw-to-top 0.68s ease-in-out forwards;
+}
+
+.draw-flying-card.to-seat {
+  animation-name: draw-to-seat;
 }
 
 .draw-flying-card.from-self {
@@ -1493,6 +1983,218 @@ label span {
 .draw-flying-card.from-mid-right,
 .draw-flying-card.from-top-right {
   animation-name: draw-to-right;
+}
+
+.draw-flying-card.to-seat {
+  animation-name: draw-to-seat;
+}
+
+.draw-stack-explosion {
+  position: absolute;
+  left: var(--seat-effect-left, 50%);
+  top: var(--seat-effect-top, 42%);
+  z-index: 9;
+  width: calc(4rem * var(--explosion-scale, 1));
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.draw-stack-explosion.from-self {
+  top: var(--seat-effect-top, calc(100% - 4.2rem));
+  bottom: auto;
+  left: var(--seat-effect-left, 50%);
+  transform: translate(-50%, -50%);
+}
+
+.draw-stack-explosion.from-side-left,
+.draw-stack-explosion.from-left,
+.draw-stack-explosion.from-mid-left,
+.draw-stack-explosion.from-top-left {
+  left: var(--seat-effect-left, calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, 60px) + 5.8rem));
+  top: var(--seat-effect-top, 48%);
+}
+
+.draw-stack-explosion.from-side-right,
+.draw-stack-explosion.from-right,
+.draw-stack-explosion.from-mid-right,
+.draw-stack-explosion.from-top-right {
+  left: var(--seat-effect-left, calc(100% - calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, 60px) + 5.8rem)));
+  right: auto;
+  top: var(--seat-effect-top, 48%);
+  transform: translate(-50%, -50%);
+}
+
+.explosion-core,
+.explosion-ring,
+.explosion-spark,
+.explosion-shard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+}
+
+.explosion-core {
+  width: 38%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #ffffff 0 20%, #f8d64e 21% 48%, rgba(239, 68, 68, 0.08) 70%);
+  box-shadow:
+    0 0 calc(1.5rem * var(--explosion-scale, 1)) rgba(248, 214, 78, 0.85),
+    0 0 calc(3.4rem * var(--explosion-scale, 1)) rgba(239, 68, 68, 0.45);
+  transform: translate(-50%, -50%) scale(0.25);
+  animation: draw-stack-explosion-core 0.72s ease-out forwards;
+}
+
+.explosion-ring {
+  width: 52%;
+  aspect-ratio: 1;
+  border: 0.18rem solid rgba(255, 245, 157, 0.9);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.15);
+  animation: draw-stack-explosion-ring 0.78s ease-out forwards;
+}
+
+.explosion-spark {
+  width: calc(0.34rem * var(--explosion-scale, 1));
+  height: calc(0.9rem * var(--explosion-scale, 1));
+  border-radius: 999px;
+  background: linear-gradient(#ffffff, #f8d64e 45%, #ef4444);
+  box-shadow: 0 0 0.65rem rgba(248, 214, 78, 0.72);
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--spark-angle))
+    translateY(0)
+    scale(0.5);
+  animation: draw-stack-explosion-spark 0.76s ease-out forwards;
+}
+
+.explosion-shard {
+  width: calc(0.54rem * var(--explosion-scale, 1));
+  height: calc(0.82rem * var(--explosion-scale, 1));
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  border-radius: 3px;
+  background:
+    linear-gradient(135deg, rgba(45, 118, 255, 0.95), rgba(16, 20, 32, 0.96) 55%, rgba(239, 68, 68, 0.9));
+  box-shadow: 0 0.35rem 0.65rem rgba(0, 0, 0, 0.28);
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--shard-angle))
+    translateY(0)
+    rotate(0deg)
+    scale(0.45);
+  animation: draw-stack-explosion-shard 0.78s cubic-bezier(0.18, 0.82, 0.24, 1) forwards;
+}
+
+.spark-1 { --spark-angle: 0deg; }
+.spark-2 { --spark-angle: 28deg; }
+.spark-3 { --spark-angle: 56deg; }
+.spark-4 { --spark-angle: 84deg; }
+.spark-5 { --spark-angle: 112deg; }
+.spark-6 { --spark-angle: 140deg; }
+.spark-7 { --spark-angle: 168deg; }
+.spark-8 { --spark-angle: 196deg; }
+.spark-9 { --spark-angle: 224deg; }
+.spark-10 { --spark-angle: 252deg; }
+.spark-11 { --spark-angle: 280deg; }
+.spark-12 { --spark-angle: 308deg; }
+.spark-13 { --spark-angle: 336deg; }
+.spark-14 { --spark-angle: 18deg; }
+
+.shard-1 { --shard-angle: 18deg; }
+.shard-2 { --shard-angle: 63deg; }
+.shard-3 { --shard-angle: 108deg; }
+.shard-4 { --shard-angle: 153deg; }
+.shard-5 { --shard-angle: 198deg; }
+.shard-6 { --shard-angle: 243deg; }
+.shard-7 { --shard-angle: 288deg; }
+.shard-8 { --shard-angle: 333deg; }
+
+.penalty-question-burst {
+  position: absolute;
+  left: var(--seat-effect-left, 50%);
+  top: var(--seat-effect-top, 42%);
+  z-index: 9;
+  width: calc(5rem * var(--question-burst-scale, 1));
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.penalty-question-burst.from-self {
+  top: var(--seat-effect-top, calc(100% - 4.2rem));
+  bottom: auto;
+  left: var(--seat-effect-left, 50%);
+  transform: translate(-50%, -50%);
+}
+
+.penalty-question-burst.from-side-left,
+.penalty-question-burst.from-left,
+.penalty-question-burst.from-mid-left,
+.penalty-question-burst.from-top-left {
+  left: var(--seat-effect-left, calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, 60px) + 5.8rem));
+  top: var(--seat-effect-top, 48%);
+}
+
+.penalty-question-burst.from-side-right,
+.penalty-question-burst.from-right,
+.penalty-question-burst.from-mid-right,
+.penalty-question-burst.from-top-right {
+  left: var(--seat-effect-left, calc(100% - calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, 60px) + 5.8rem)));
+  right: auto;
+  top: var(--seat-effect-top, 48%);
+  transform: translate(-50%, -50%);
+}
+
+.penalty-question {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  display: grid;
+  place-items: center;
+  width: calc(1.15rem * var(--question-burst-scale, 1));
+  height: calc(1.15rem * var(--question-burst-scale, 1));
+  border: 2px solid rgba(255, 255, 255, 0.76);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: calc(1rem * var(--question-burst-scale, 1));
+  font-weight: 1000;
+  line-height: 1;
+  text-shadow: 0 0.12rem 0.28rem rgba(0, 0, 0, 0.45);
+  box-shadow:
+    0 0.35rem 0.75rem rgba(0, 0, 0, 0.24),
+    0 0 0.65rem var(--question-glow);
+  transform:
+    translate(-50%, 20%)
+    scale(0.35)
+    rotate(0deg);
+  opacity: 0;
+  animation: penalty-question-pop 0.92s cubic-bezier(0.17, 0.86, 0.28, 1) forwards;
+  animation-delay: var(--question-delay);
+}
+
+.question-red {
+  --question-glow: rgba(239, 68, 68, 0.72);
+  background: #ef4444;
+}
+
+.question-yellow {
+  --question-glow: rgba(248, 214, 78, 0.72);
+  background: #f8d64e;
+  color: #161616;
+  text-shadow: none;
+}
+
+.question-blue {
+  --question-glow: rgba(59, 130, 246, 0.72);
+  background: #3b82f6;
+}
+
+.question-green {
+  --question-glow: rgba(34, 197, 94, 0.72);
+  background: #22c55e;
 }
 
 .challenge-prompt {
@@ -1541,7 +2243,7 @@ label span {
 .event-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 10004;
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -1572,6 +2274,7 @@ label span {
   border-color: rgba(248, 198, 83, 0.48);
 }
 
+/* UI name: rule-modal. 规则讲解弹窗遮罩。 */
 .rule-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1612,6 +2315,7 @@ label span {
   gap: 0.5rem;
 }
 
+/* UI name: rule-image-viewer. 规则图片翻页窗口。 */
 .rule-image-viewer {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1705,6 +2409,7 @@ label span {
   font-weight: 900;
 }
 
+/* UI name: battle-table-facts. 当前玩家、颜色、方向、加牌量提示。 */
 .table-facts {
   display: grid;
   gap: 0.5rem;
@@ -1775,13 +2480,18 @@ label span {
   border-radius: 8px;
 }
 
+/* UI name: battle-action-dock. 底部操作区和手牌区总容器。 */
 .battle-action-dock {
-  position: relative;
-  z-index: 10;
+  position: absolute;
+  right: clamp(0.65rem, 1.8vw, 1.3rem);
+  bottom: max(0.65rem, env(safe-area-inset-bottom));
+  left: clamp(0.65rem, 1.8vw, 1.3rem);
+  z-index: 1000;
   display: grid;
   grid-template-columns: clamp(12rem, 16vw, 15rem) minmax(0, 1fr);
   align-items: end;
   gap: 0.75rem;
+  height: clamp(17rem, 34vh, 22.5rem);
   min-height: 0;
   padding: 0.55rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1791,6 +2501,11 @@ label span {
   box-shadow: 0 -0.75rem 2rem rgba(0, 0, 0, 0.22);
 }
 
+.battle-immersive .table-zone.battle-stage > .battle-action-dock {
+  position: absolute;
+}
+
+/* UI name: battle-actions-panel. UNO 和出牌操作面板。 */
 .battle-action-dock .actions {
   align-self: stretch;
   display: grid;
@@ -1839,6 +2554,7 @@ label span {
   box-shadow: 0 0 0 2px rgba(248, 214, 78, 0.08);
 }
 
+/* UI name: battle-hand-panel. 手牌区域外框。 */
 .hand {
   border-radius: 8px;
   padding: 1rem;
@@ -1848,14 +2564,19 @@ label span {
 
 .battle-action-dock .hand {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
   min-height: 0;
-  max-height: min(66vh, 42rem);
+  max-height: none;
   padding: 0;
   border: 0;
   background: transparent;
   overflow: hidden;
 }
 
+/* UI name: battle-hand-header. 手牌区标题和数量。 */
 .hand-header {
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -1873,6 +2594,7 @@ label span {
   line-height: 1.35;
 }
 
+/* UI name: battle-action-guide. 当前操作提示。 */
 .battle-action-dock .action-guide {
   position: absolute;
   top: 1.60rem;
@@ -1903,6 +2625,7 @@ label span {
   color: #ffd4d4;
 }
 
+/* UI name: battle-hand-cards. 手牌按钮列表。 */
 .cards {
   display: flex;
   flex-wrap: wrap;
@@ -1915,12 +2638,15 @@ label span {
 .battle-action-dock .cards {
   flex-wrap: nowrap;
   gap: 0.55rem;
+  margin-top: auto;
   max-height: 30rem;
   padding: 4rem 0.25rem 0.55rem;
   overflow-x: hidden;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
+  position: relative;
+  z-index: 20;
 }
 
 .battle-action-dock .cards::-webkit-scrollbar {
@@ -1932,12 +2658,17 @@ label span {
   display: block;
   min-height: var(--hand-overlap-height, 11rem);
   max-height: var(--hand-overlap-height, 11rem);
+  overflow: visible;
 }
 
 .battle-action-dock .cards.cards-overlap .card-button {
   position: absolute;
   bottom: 0.55rem;
-  width: clamp(4.7rem, 7vw, 6.6rem);
+  width: clamp(5rem, 7.4vw, 7rem);
+}
+
+.battle-action-dock .cards .card-button {
+  z-index: 1;
 }
 
 .battle-action-dock .cards.cards-overlap .card-button:hover,
@@ -1963,8 +2694,9 @@ label span {
     opacity 0.15s ease;
 }
 
+/* UI name: battle-card-button. 单张手牌按钮。 */
 .battle-action-dock .card-button {
-  flex: 0 0 clamp(4.7rem, 7vw, 6.6rem);
+  flex: 0 0 clamp(5rem, 7.4vw, 7rem);
 }
 
 .card-button.playable {
@@ -1989,13 +2721,13 @@ label span {
 
 .card-button.incompatible {
   opacity: 0.9;
-  filter: grayscale(0.08) brightness(0.98);
+  filter: grayscale(0.08) brightness(0.78);
   cursor: not-allowed;
 }
 
 .card-button.disabled {
   opacity: 0.88;
-  filter: grayscale(0.05) brightness(0.98);
+  filter: grayscale(0.05) brightness(0.78);
   cursor: not-allowed;
 }
 
@@ -2038,14 +2770,17 @@ label span {
 .normal-draw-offer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 58;
+  z-index: 10000 !important;
   display: grid;
   place-items: center;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.5);
+  transform: translateY(20vh);
 }
 
 .normal-draw-offer-modal {
+  position: relative;
+  z-index: 10001 !important;
   width: min(24rem, 100%);
   display: grid;
   gap: 0.8rem;
@@ -2053,6 +2788,54 @@ label span {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
 }
 
+.initial-direction-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 57;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.initial-direction-modal {
+  width: min(24rem, 100%);
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(18, 21, 28, 0.96);
+  color: #f6f1e8;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
+}
+
+.initial-direction-modal strong {
+  font-size: 1.1rem;
+}
+
+.initial-direction-modal p {
+  margin: 0;
+  color: #d9deea;
+}
+
+.initial-direction-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.initial-direction-actions button:first-child {
+  background: #f8d64e;
+  color: #161616;
+}
+
+.initial-direction-actions button:last-child {
+  background: #2f63c9;
+}
+
+/* UI name: battle-selection-panel. 选中手牌后的出牌/清空操作区。 */
 .selection-panel {
   display: grid;
   gap: 0.8rem;
@@ -2138,6 +2921,7 @@ label span {
   background: #f8d64e;
 }
 
+/* UI name: battle-color-picker. 黑牌选择颜色面板遮罩。 */
 .color-picker-backdrop {
   position: fixed;
   inset: 0;
@@ -2276,6 +3060,115 @@ label span {
   }
 }
 
+@keyframes draw-stack-explosion-core {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.18);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.38);
+  }
+}
+
+@keyframes draw-stack-explosion-ring {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(0.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.65);
+  }
+}
+
+@keyframes draw-stack-explosion-spark {
+  0% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--spark-angle))
+      translateY(0)
+      scale(0.35);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--spark-angle))
+      translateY(calc(-2.9rem * var(--explosion-scale, 1)))
+      scale(0.95);
+  }
+}
+
+@keyframes draw-stack-explosion-shard {
+  0% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--shard-angle))
+      translateY(0)
+      rotate(0deg)
+      scale(0.42);
+  }
+  16% {
+    opacity: 0.94;
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--shard-angle))
+      translateY(calc(-2.25rem * var(--explosion-scale, 1)))
+      rotate(72deg)
+      scale(0.86);
+  }
+}
+
+@keyframes penalty-question-pop {
+  0% {
+    opacity: 0;
+    transform:
+      translate(-50%, 20%)
+      scale(0.35)
+      rotate(0deg);
+  }
+  18% {
+    opacity: 1;
+    transform:
+      translate(-50%, 2%)
+      scale(0.82)
+      rotate(calc(var(--question-rotate) * 0.28));
+  }
+  68% {
+    opacity: 1;
+    transform:
+      translate(
+        calc(-50% + var(--question-x)),
+        calc(-1 * var(--question-y))
+      )
+      scale(1.12)
+      rotate(var(--question-rotate));
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate(
+        calc(-50% + var(--question-x)),
+        calc(-1 * var(--question-y) + 1rem)
+      )
+      scale(0.88)
+      rotate(var(--question-rotate));
+  }
+}
+
 @keyframes fly-from-opponent {
   from {
     opacity: 0;
@@ -2284,6 +3177,28 @@ label span {
   to {
     opacity: 1;
     transform: translate(-50%, -50%) translate(0, 0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes fly-from-seat {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.28) rotate(-10deg);
+  }
+  to {
+    top: 44%;
+    left: 50%;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes turn-direction-orbit-spin {
+  from {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  to {
+    transform: translateX(-50%) rotate(360deg);
   }
 }
 
@@ -2361,6 +3276,21 @@ label span {
   to {
     opacity: 0;
     transform: translate(-50%, -50%) translate(18rem, -4rem) scale(0.42) rotate(12deg);
+  }
+}
+
+@keyframes draw-to-seat {
+  from {
+    top: 48%;
+    left: 42%;
+    opacity: 0.94;
+    transform: translate(-50%, -50%) scale(0.48) rotate(-5deg);
+  }
+  to {
+    top: var(--seat-effect-top, 42%);
+    left: var(--seat-effect-left, 50%);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92) rotate(6deg);
   }
 }
 
@@ -2711,11 +3641,17 @@ label span {
   .battle-immersive {
     display: grid;
     grid-template-columns: 1fr;
+    --battle-table-y: clamp(-4rem, -8vh, -1.4rem);
+    --battle-center-offset: clamp(-1.3rem, -2.5vw, -0.35rem);
+    --battle-pile-offset: clamp(0.8rem, 4vw, 2.8rem);
+    --battle-facts-offset: clamp(3.7rem, 11vw, 8rem);
+    --battle-center-scale: 0.86;
+    --turn-orbit-bottom: 38%;
   }
 
   .battle-immersive .table-zone {
-    min-height: 100dvh;
-    height: 100dvh;
+    min-height: 100%;
+    height: 100%;
   }
 
   .battle-immersive .hand {
@@ -2727,17 +3663,27 @@ label span {
 
   .battle-immersive .battle-table {
     min-height: 0;
-    margin-top: -0.75rem;
+    height: 100%;
+    overflow: visible;
+    margin-top: 0;
   }
 
   .battle-immersive .center-table {
-    margin: clamp(0.15rem, 1.6vh, 0.7rem) auto clamp(0.45rem, 2vh, 1rem);
+    margin: 0;
   }
 }
 
 @media (max-width: 820px) {
+  .battle-immersive {
+    --battle-table-y: clamp(-2.8rem, -6vh, -0.9rem);
+    --battle-center-offset: clamp(-0.8rem, -3.2vw, -0.12rem);
+    --battle-pile-offset: clamp(0.75rem, 5vw, 2rem);
+    --battle-facts-offset: clamp(3.6rem, 13vw, 7rem);
+    --battle-center-scale: 0.78;
+    --turn-orbit-bottom: 35%;
+  }
+
   .battle-immersive .table-zone {
-    grid-template-rows: minmax(0, 1fr) auto;
     padding:
       max(0.55rem, env(safe-area-inset-top))
       0.55rem
@@ -2753,19 +3699,19 @@ label span {
     display: block;
     min-height: 0;
     height: 100%;
-    margin-top: -0.85rem;
+    overflow: visible;
+    margin-top: 0;
     padding-top: 0;
   }
 
   .battle-immersive .opponents {
-    display: flex;
-    gap: 0.45rem;
-    overflow-x: auto;
-    padding-bottom: 0.35rem;
-    transform: translateY(-1.9rem);
+    display: contents;
+    overflow: visible;
+    padding-bottom: 0;
+    transform: none;
   }
 
-  .battle-immersive .seat {
+  .battle-immersive .seat:not(.seat-side):not(.self-seat) {
     position: relative;
     width: min(10.5rem, 72vw);
     transform: none !important;
@@ -2775,21 +3721,33 @@ label span {
     bottom: auto !important;
   }
 
+  .battle-immersive .seat-side {
+    position: absolute;
+    top: var(--seat-top) !important;
+    width: clamp(7.2rem, 26vw, 9.2rem);
+    transform: translateY(-50%) scale(calc(var(--seat-scale, 0.8) * 0.72)) !important;
+  }
+
   .battle-immersive .self-seat {
     position: absolute;
-    left: 50%;
-    bottom: 0;
-    width: min(11.5rem, 70vw);
-    transform: translateX(-50%) scale(0.82) !important;
+    top: var(--seat-top) !important;
+    right: calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)));
+    left: auto;
+    bottom: auto;
+    width: clamp(7.2rem, 26vw, 9.2rem);
+    transform: translateY(-50%) scale(0.82) !important;
     margin: 0;
   }
 
   .battle-immersive .center-table {
     width: min(100%, 24rem);
     min-height: clamp(10rem, 31vh, 14rem);
-    margin: clamp(0.15rem, 1vh, 0.45rem) auto;
-    transform: translateY(-1.25rem);
-    gap: 0.65rem;
+    margin: 0;
+    transform:
+      translate(-50%, -50%)
+      translateY(var(--battle-table-y))
+      scale(var(--battle-center-scale, 1));
+    gap: clamp(0.35rem, 2vw, 0.65rem);
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
       "pile top"
@@ -2798,17 +3756,17 @@ label span {
 
   .battle-immersive .draw-pile {
     grid-area: pile;
-    transform: translateX(-2rem);
+    transform: translateX(calc(var(--battle-center-offset) - var(--battle-pile-offset)));
   }
 
   .battle-immersive .discard-pile {
     grid-area: top;
-    transform: translateX(2rem);
+    transform: translateX(calc(var(--battle-center-offset) + var(--battle-pile-offset)));
   }
 
   .battle-immersive .table-facts {
     grid-area: facts;
-    transform: translateX(4rem);
+    transform: translateX(calc(var(--battle-center-offset) + var(--battle-facts-offset)));
   }
 
   .battle-action-dock {
@@ -2867,7 +3825,12 @@ label span {
 
   .battle-immersive .center-table {
     min-height: clamp(8.5rem, 27vh, 12rem);
-    margin-top: 0.1rem;
+    margin-top: 0;
+  }
+
+  .battle-immersive {
+    --battle-center-scale: 0.62;
+    --turn-orbit-bottom: 30%;
   }
 
   .battle-immersive .draw-pile img,

@@ -23,6 +23,8 @@ import type {
   LeaveRoomResult,
   ReconnectPlayerParams,
   ReconnectPlayerResult,
+  RenamePlayerParams,
+  RenamePlayerResult,
   RestartGameParams,
   RestartGameResult,
   RoomRuntime,
@@ -42,6 +44,7 @@ interface RoomManagerOptions {
 
 const MIN_ROOM_PLAYER_COUNT = 3;
 const MAX_ROOM_PLAYER_COUNT = 8;
+const MAX_PLAYER_NICKNAME_LENGTH = 20;
 const BOT_FORGET_UNO_RATE = 0.2;
 const CUSTOM_ROOM_ID_PATTERN = /^\d{6}$/;
 const ROOM_AVATAR_POOL = Array.from(
@@ -112,40 +115,26 @@ export class RoomManager {
     this.assertConnectionExists(params.connectionId);
     const room = this.getRequiredRoom(params.roomId);
 
-    if (room.status !== "waiting") {
-      throw new GameServerError(
-        "room-not-waiting",
-        `Room ${params.roomId} is not waiting for players.`,
-        params.roomId
-      );
-    }
-
     const existingPlayer = room.players.find(
       (player) => player.userId === params.userId
     );
 
     if (existingPlayer !== undefined) {
-      existingPlayer.connectionId = params.connectionId;
-      existingPlayer.connected = true;
-      existingPlayer.hasLeftRoom = false;
-      existingPlayer.isReady =
-        existingPlayer.playerId === room.ownerPlayerId ? true : existingPlayer.isReady;
-      existingPlayer.nickname = params.nickname;
-      existingPlayer.avatarUrl = params.avatarUrl ?? existingPlayer.avatarUrl;
-      room.updatedAt = this.now();
-
-      this.connectionRegistry.bindPlayer(
-        params.connectionId,
-        room.roomId,
-        existingPlayer.playerId,
-        params.userId
-      );
+      this.restoreExistingRoomPlayer(room, existingPlayer, params);
 
       return {
         room,
         player: existingPlayer,
         reconnected: true
       };
+    }
+
+    if (room.status !== "waiting") {
+      throw new GameServerError(
+        "room-not-waiting",
+        `Room ${params.roomId} is not waiting for players.`,
+        params.roomId
+      );
     }
 
     if (room.players.length >= MAX_ROOM_PLAYER_COUNT) {
@@ -331,6 +320,7 @@ export class RoomManager {
       );
     }
 
+    this.pruneLeftPlayersBeforeRestart(room);
     this.startNewGameForRoom(room, params.seed);
 
     return { room };
@@ -439,6 +429,41 @@ export class RoomManager {
     };
   }
 
+  private restoreExistingRoomPlayer(
+    room: RoomRuntime,
+    player: ServerRoomPlayer,
+    params: JoinRoomParams
+  ): void {
+    player.connectionId = params.connectionId;
+    player.connected = true;
+    player.hasLeftRoom = false;
+    player.isReady =
+      player.playerId === room.ownerPlayerId ? true : player.isReady;
+    player.nickname = params.nickname;
+    player.avatarUrl = params.avatarUrl ?? player.avatarUrl;
+
+    const gamePlayer = room.gameState?.players.find(
+      (candidate) => candidate.id === player.playerId
+    );
+
+    if (gamePlayer !== undefined) {
+      gamePlayer.hasLeftRoom = false;
+      gamePlayer.displayName = player.nickname;
+      gamePlayer.avatarUrl = player.avatarUrl;
+      room.gameState!.snapshotVersion += 1;
+      room.snapshotVersion = room.gameState!.snapshotVersion;
+    }
+
+    room.updatedAt = this.now();
+
+    this.connectionRegistry.bindPlayer(
+      params.connectionId,
+      room.roomId,
+      player.playerId,
+      params.userId
+    );
+  }
+
   setPlayerReady(params: SetPlayerReadyParams): SetPlayerReadyResult {
     const room = this.getRequiredRoom(params.roomId);
 
@@ -461,6 +486,56 @@ export class RoomManager {
     }
 
     player.isReady = player.playerId === room.ownerPlayerId ? true : params.ready;
+    room.updatedAt = this.now();
+
+    return {
+      room,
+      player
+    };
+  }
+
+  renamePlayer(params: RenamePlayerParams): RenamePlayerResult {
+    const room = this.getRequiredRoom(params.roomId);
+    const player = room.players.find((candidate) => candidate.playerId === params.playerId);
+
+    if (player === undefined) {
+      throw new GameServerError(
+        "player-not-in-room",
+        `Player ${params.playerId} does not belong to room ${params.roomId}.`,
+        params.roomId
+      );
+    }
+
+    if (player.isBot) {
+      throw new GameServerError(
+        "bot-not-allowed",
+        "Bot players cannot be renamed through the player rename endpoint.",
+        params.roomId
+      );
+    }
+
+    const nickname = params.nickname.trim();
+
+    if (nickname.length === 0 || nickname.length > MAX_PLAYER_NICKNAME_LENGTH) {
+      throw new GameServerError(
+        "invalid-nickname",
+        `Nickname must be between 1 and ${String(MAX_PLAYER_NICKNAME_LENGTH)} characters.`,
+        params.roomId
+      );
+    }
+
+    player.nickname = nickname;
+
+    const gamePlayer = room.gameState?.players.find(
+      (candidate) => candidate.id === params.playerId
+    );
+
+    if (gamePlayer !== undefined) {
+      gamePlayer.displayName = nickname;
+      room.gameState!.snapshotVersion += 1;
+      room.snapshotVersion = room.gameState!.snapshotVersion;
+    }
+
     room.updatedAt = this.now();
 
     return {
@@ -665,6 +740,37 @@ export class RoomManager {
     room.status = "playing";
     room.snapshotVersion = room.gameState.snapshotVersion;
     room.updatedAt = now;
+  }
+
+  private pruneLeftPlayersBeforeRestart(room: RoomRuntime): void {
+    const leftPlayerIds = new Set(
+      room.players
+        .filter((player) => player.hasLeftRoom)
+        .map((player) => player.playerId)
+    );
+
+    if (leftPlayerIds.size === 0) {
+      return;
+    }
+
+    const keptPlayers = room.players.filter((player) => !leftPlayerIds.has(player.playerId));
+    if (
+      keptPlayers.length < MIN_ROOM_PLAYER_COUNT ||
+      keptPlayers.length > MAX_ROOM_PLAYER_COUNT
+    ) {
+      throw new GameServerError(
+        "invalid-player-count",
+        `Room ${room.roomId} must have between 3 and 8 active players to restart.`,
+        room.roomId
+      );
+    }
+
+    room.players = keptPlayers;
+    this.reindexSeats(room.players);
+
+    if (!room.players.some((player) => player.playerId === room.ownerPlayerId)) {
+      room.ownerPlayerId = room.players[0]?.playerId ?? room.ownerPlayerId;
+    }
   }
 
   private hasRoundDecisionReason(room: RoomRuntime): boolean {

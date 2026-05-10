@@ -7,6 +7,7 @@ import type {
   ClientLeaveRoomMessage,
   ClientMessage,
   ClientReconnectMessage,
+  ClientRenamePlayerMessage,
   ClientRestartGameMessage,
   ClientSetReadyMessage,
   ClientStartGameMessage
@@ -64,6 +65,9 @@ export function handleClientMessage(params: HandleClientMessageParams): {
       case "set-ready":
         handleSetReady({ ...params, message });
         return { ok: true, messageType: "set-ready" };
+      case "rename-player":
+        handleRenamePlayer({ ...params, message });
+        return { ok: true, messageType: "rename-player" };
       case "add-bot":
         handleAddBot({ ...params, message });
         return { ok: true, messageType: "add-bot" };
@@ -177,6 +181,29 @@ function handleSetReady(params: {
     params.connectionRegistry,
     params.message.requestId
   );
+}
+
+function handleRenamePlayer(params: {
+  connection: ServerConnection;
+  message: ClientRenamePlayerMessage;
+  roomManager: RoomManager;
+  connectionRegistry: ConnectionRegistry;
+}): void {
+  const result = params.roomManager.renamePlayer({
+    roomId: params.message.roomId,
+    playerId: params.message.playerId,
+    nickname: params.message.nickname
+  });
+
+  broadcastRoomState(
+    result.room,
+    params.connectionRegistry,
+    params.message.requestId
+  );
+
+  if (result.room.gameState !== null) {
+    sendSnapshotsToRoom(result.room, params.connectionRegistry);
+  }
 }
 
 function handleAddBot(params: {

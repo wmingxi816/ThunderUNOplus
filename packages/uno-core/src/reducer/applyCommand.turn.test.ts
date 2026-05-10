@@ -284,6 +284,44 @@ describe("applyCommand - 基础出牌与回合推进", () => {
     });
   });
 
+  it("黑色反转 +4 后普通 +4 即使颜色匹配也不能叠加", () => {
+    const wildReverseDrawFour = blackCard(
+      "wild-reverse-draw-four",
+      "wild-reverse-draw-four"
+    );
+    const redDrawFour = coloredCard("red-draw-four", "red", "draw-four");
+    const state = createGameState({
+      currentPlayerId: "p3",
+      currentColor: "red",
+      topCard: wildReverseDrawFour,
+      discardPile: [wildReverseDrawFour],
+      direction: "counter-clockwise",
+      players: [
+        createPlayerState("p1", []),
+        createPlayerState("p2", []),
+        createPlayerState("p3", [redDrawFour])
+      ],
+      drawStack: {
+        active: true,
+        amount: 4,
+        previousDrawValue: 4,
+        previousDrawKind: "wild-reverse-draw-four",
+        targetPlayerId: "p3"
+      }
+    });
+
+    const result = applyCommand(state, {
+      type: "play-card",
+      playerId: "p3",
+      cardId: redDrawFour.id
+    });
+
+    expect(result.events[0]).toMatchObject({
+      type: "command-rejected",
+      code: "CARD_NOT_PLAYABLE"
+    });
+  });
+
   it("黑色 +6 可以接入任意加牌链", () => {
     const redDrawTwo = coloredCard("red-draw-two", "red", "draw-two");
     const wildSix = blackCard("wild-six", "wild-draw-six");

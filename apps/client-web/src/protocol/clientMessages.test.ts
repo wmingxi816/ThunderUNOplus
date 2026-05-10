@@ -5,6 +5,7 @@ import {
   buildCreateRoomMessage,
   buildJoinRoomMessage,
   buildReconnectMessage,
+  buildRenamePlayerMessage,
   buildRestartGameMessage,
   buildSetReadyMessage
 } from "./clientMessages";
@@ -100,6 +101,23 @@ describe("client message builders", () => {
       roomId: "ROOM1",
       playerId: "player-2",
       ready: true
+    });
+  });
+
+  it("builds rename-player messages", () => {
+    const message = buildRenamePlayerMessage({
+      requestId: "req-rename",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      nickname: "New Name"
+    });
+
+    expect(message).toMatchObject({
+      type: "rename-player",
+      requestId: "req-rename",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      nickname: "New Name"
     });
   });
 

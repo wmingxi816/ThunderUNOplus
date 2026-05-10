@@ -1,5 +1,5 @@
 import type { CardColor } from "./card";
-import type { PlayerId, UnixMs } from "./common";
+import type { PlayerId, TurnDirection, UnixMs } from "./common";
 
 export const GAME_COMMAND_TYPES = [
   "play-card",
@@ -10,6 +10,7 @@ export const GAME_COMMAND_TYPES = [
   "keep-drawn-card",
   "resolve-draw-stack",
   "resolve-draw-until-color",
+  "choose-initial-direction",
   "say-uno",
   "report-uno",
   "challenge-draw"
@@ -52,6 +53,11 @@ export interface ResolveDrawStackCommand
 export interface ResolveDrawUntilColorCommand
   extends CommandBase<"resolve-draw-until-color"> {}
 
+export interface ChooseInitialDirectionCommand
+  extends CommandBase<"choose-initial-direction"> {
+  direction: TurnDirection;
+}
+
 export interface SayUnoCommand extends CommandBase<"say-uno"> {}
 
 export interface ReportUnoCommand extends CommandBase<"report-uno"> {
@@ -71,6 +77,7 @@ export type GameCommand =
   | KeepDrawnCardCommand
   | ResolveDrawStackCommand
   | ResolveDrawUntilColorCommand
+  | ChooseInitialDirectionCommand
   | SayUnoCommand
   | ReportUnoCommand
   | ChallengeDrawCommand;

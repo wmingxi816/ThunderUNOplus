@@ -12,7 +12,12 @@ import {
   applyPlaySequenceCommand
 } from "./applyPlayCard";
 import { applyReportUnoCommand, applySayUnoCommand } from "./applyUno";
-import type { ApplyCommandResult, GameCommand } from "./types";
+import { ERROR_CODES, rejectCommand } from "./errors";
+import type {
+  ApplyCommandResult,
+  ChooseInitialDirectionCommand,
+  GameCommand
+} from "./types";
 
 const TURN_COMPLETING_COMMANDS = new Set<GameCommand["type"]>([
   "play-card",
@@ -46,7 +51,18 @@ function dispatchCommand(
   state: GameState,
   command: GameCommand
 ): ApplyCommandResult {
+  if (state.initialDirectionChoice.active && command.type !== "choose-initial-direction") {
+    return rejectCommand(
+      state,
+      command,
+      ERROR_CODES.initialDirectionChoiceRequired,
+      "Initial turn direction must be chosen before taking actions."
+    );
+  }
+
   switch (command.type) {
+    case "choose-initial-direction":
+      return applyChooseInitialDirectionCommand(state, command);
     case "play-card":
       return applyPlayCardCommand(state, command);
     case "play-sequence":
@@ -74,6 +90,48 @@ function dispatchCommand(
       throw new Error(`Unsupported command: ${String(exhaustiveCheck)}`);
     }
   }
+}
+
+function applyChooseInitialDirectionCommand(
+  state: GameState,
+  command: ChooseInitialDirectionCommand
+): ApplyCommandResult {
+  if (!state.initialDirectionChoice.active) {
+    return rejectCommand(
+      state,
+      command,
+      ERROR_CODES.initialDirectionChoiceNotActive,
+      "Initial turn direction has already been chosen."
+    );
+  }
+
+  if (
+    state.initialDirectionChoice.chooserPlayerId !== command.playerId ||
+    state.currentPlayerId !== command.playerId
+  ) {
+    return rejectCommand(
+      state,
+      command,
+      ERROR_CODES.notCurrentPlayer,
+      "Only the first player can choose the initial turn direction."
+    );
+  }
+
+  state.direction = command.direction;
+  state.initialDirectionChoice = {
+    active: false,
+    chooserPlayerId: null
+  };
+
+  return {
+    state,
+    events: [
+      {
+        type: "direction-changed",
+        direction: state.direction
+      }
+    ]
+  };
 }
 
 /**

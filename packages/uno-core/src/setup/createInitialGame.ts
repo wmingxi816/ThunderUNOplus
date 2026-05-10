@@ -120,6 +120,10 @@ export function createInitialGame(
       playerId: null,
       cardId: null
     },
+    initialDirectionChoice: {
+      active: true,
+      chooserPlayerId: firstPlayer.id
+    },
     challengeWindow: {
       active: false,
       targetPlayerId: null,

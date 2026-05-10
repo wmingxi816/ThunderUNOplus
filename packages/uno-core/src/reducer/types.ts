@@ -3,6 +3,7 @@ export {
   GAME_EVENT_TYPES,
   type ApplyCommandResult,
   type ChallengeDrawCommand,
+  type ChooseInitialDirectionCommand,
   type CommandRejectedEvent,
   type DrawCardCommand,
   type GameCommand,

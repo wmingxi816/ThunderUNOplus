@@ -162,7 +162,15 @@ export function simulateGame(options: SimulationOptions): SimulationResult {
       });
     }
 
-    const decision = chooseCommand(state, currentPlayer);
+    const decision = state.initialDirectionChoice.active
+      ? {
+          command: {
+            type: "choose-initial-direction",
+            playerId: currentPlayer.id,
+            direction: random() < 0.5 ? "clockwise" : "counter-clockwise"
+          } satisfies GameCommand
+        }
+      : chooseCommand(state, currentPlayer);
     const execution = executeCommand({
       state,
       command: decision.command,

@@ -488,6 +488,8 @@ function playResolvedCards({
     playerId,
     cardIds: [...cardsToRemoveIds],
     topCardId: topCard.id,
+    topCardKind: topCard.kind,
+    ...(topCard.drawValue === undefined ? {} : { topCardDrawValue: topCard.drawValue }),
     ...(declaredColor === undefined ? {} : { declaredColor })
   });
 
@@ -533,6 +535,10 @@ function resolveTopCardEffect(
       return;
     case "reverse":
       state.direction = toggleDirection(state.direction);
+      events.push({
+        type: "direction-changed",
+        direction: state.direction
+      });
       resolveAdvance(state, playerId, 1, events);
       return;
     case "swap-hands":
@@ -607,6 +613,10 @@ function resolveDrawCardEffect(
 ): void {
   if (card.kind === "wild-reverse-draw-four") {
     state.direction = toggleDirection(state.direction);
+    events.push({
+      type: "direction-changed",
+      direction: state.direction
+    });
   }
 
   const targetPlayerId = getNextActivePlayerId(state, playerId, 1);

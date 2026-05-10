@@ -9,6 +9,7 @@ import type {
   ClientMessage,
   ClientPingMessage,
   ClientReconnectMessage,
+  ClientRenamePlayerMessage,
   ClientRestartGameMessage,
   ClientSetReadyMessage,
   ClientStartGameMessage
@@ -23,6 +24,7 @@ const CLIENT_MESSAGE_TYPES = new Set<ClientMessage["type"]>([
   "join-room",
   "start-game",
   "set-ready",
+  "rename-player",
   "add-bot",
   "kick-player",
   "restart-game",
@@ -84,6 +86,8 @@ export function parseMessage(rawMessage: RawData): ClientMessage {
       return parseStartGameMessage(parsed);
     case "set-ready":
       return parseSetReadyMessage(parsed);
+    case "rename-player":
+      return parseRenamePlayerMessage(parsed);
     case "add-bot":
       return parseAddBotMessage(parsed);
     case "kick-player":
@@ -196,6 +200,18 @@ function parseSetReadyMessage(record: Record<string, unknown>): ClientSetReadyMe
     roomId: requireString(record, "roomId"),
     playerId: requireString(record, "playerId"),
     ready: requireBoolean(record, "ready"),
+    timestampMs: requireNumber(record, "timestampMs")
+  };
+}
+
+function parseRenamePlayerMessage(record: Record<string, unknown>): ClientRenamePlayerMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "rename-player",
+    requestId: requireString(record, "requestId"),
+    roomId: requireString(record, "roomId"),
+    playerId: requireString(record, "playerId"),
+    nickname: requireString(record, "nickname"),
     timestampMs: requireNumber(record, "timestampMs")
   };
 }

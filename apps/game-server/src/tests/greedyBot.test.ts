@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGame, createNumberCard } from "@thunder-uno/uno-core";
+import {
+  createBlackCard,
+  createColoredActionCard,
+  createInitialGame,
+  createNumberCard
+} from "@thunder-uno/uno-core";
 import type { GameState } from "@thunder-uno/shared-types";
 import { decideGreedyBotAction } from "../bot/greedyBot";
 import { scoreBotCandidates } from "../bot/botScoring";
@@ -84,10 +89,209 @@ describe("Greedy bot decision", () => {
       cardId: redNine.id
     });
   });
+
+  it("strongly prefers swap-hands when the bot has a weak hand with more than 15 cards", () => {
+    const state = createBotTestState();
+    const botPlayer = state.players.find((player) => player.id === "bot-1")!;
+    const swapHands = createColoredActionCard("bot-red-swap", "red", "swap-hands");
+
+    state.topCard = createNumberCard("top-red-5", "red", 5);
+    state.currentColor = "red";
+    state.discardPile = [state.topCard];
+    state.currentPlayerId = "bot-1";
+    botPlayer.hand = [
+      swapHands,
+      ...Array.from({ length: 15 }, (_, index) => {
+        return createNumberCard(
+          `bot-red-filler-${index}`,
+          "red",
+          (index % 10) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+        );
+      })
+    ];
+    botPlayer.handCount = botPlayer.hand.length;
+
+    const decision = decideGreedyBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(decision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: swapHands.id
+    });
+    expect(decision?.score).toBeGreaterThan(2_500);
+    expect(decision?.score).toBeLessThan(3_000);
+  });
+
+  it("strongly prefers swap-hands when most cards are low-value ordinary cards", () => {
+    const state = createBotTestState();
+    const botPlayer = state.players.find((player) => player.id === "bot-1")!;
+    const swapHands = createColoredActionCard("bot-red-swap", "red", "swap-hands");
+
+    state.topCard = createNumberCard("top-red-5", "red", 5);
+    state.currentColor = "red";
+    state.discardPile = [state.topCard];
+    state.currentPlayerId = "bot-1";
+    botPlayer.hand = [
+      swapHands,
+      createNumberCard("bot-red-0", "red", 0),
+      createNumberCard("bot-red-1", "red", 1),
+      createNumberCard("bot-red-2", "red", 2),
+      createNumberCard("bot-red-3", "red", 3),
+      createColoredActionCard("bot-red-skip", "red", "skip"),
+      createColoredActionCard("bot-blue-reverse", "blue", "reverse"),
+      createColoredActionCard("bot-green-discard", "green", "discard-same-color")
+    ];
+    botPlayer.handCount = botPlayer.hand.length;
+
+    const decision = decideGreedyBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(decision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: swapHands.id
+    });
+    expect(decision?.score).toBeGreaterThan(2_500);
+    expect(decision?.score).toBeLessThan(3_000);
+  });
+
+  it("scores a large weak hand higher than a large strong hand for swap-hands", () => {
+    const weakState = createBotTestState();
+    const weakBotPlayer = weakState.players.find((player) => player.id === "bot-1")!;
+    const weakSwapHands = createColoredActionCard(
+      "bot-red-weak-swap",
+      "red",
+      "swap-hands"
+    );
+    const strongState = createBotTestState();
+    const strongBotPlayer = strongState.players.find((player) => player.id === "bot-1")!;
+    const strongSwapHands = createColoredActionCard(
+      "bot-red-strong-swap",
+      "red",
+      "swap-hands"
+    );
+
+    setupPlayableRedTop(weakState);
+    setupPlayableRedTop(strongState);
+    weakBotPlayer.hand = [
+      weakSwapHands,
+      ...Array.from({ length: 15 }, (_, index) => {
+        return createNumberCard(
+          `bot-red-weak-${index}`,
+          "red",
+          (index % 10) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+        );
+      })
+    ];
+    weakBotPlayer.handCount = weakBotPlayer.hand.length;
+    strongBotPlayer.hand = [
+      strongSwapHands,
+      ...Array.from({ length: 15 }, (_, index) => {
+        return createBlackCard(`bot-strong-wild-ten-${index}`, "wild-draw-ten");
+      })
+    ];
+    strongBotPlayer.handCount = strongBotPlayer.hand.length;
+
+    const [weakSwapAction] = scoreBotCandidates(
+      weakState,
+      "bot-1",
+      [createSinglePlayCandidate("bot-1", weakSwapHands.id)],
+      () => 0
+    );
+    const [strongSwapAction] = scoreBotCandidates(
+      strongState,
+      "bot-1",
+      [createSinglePlayCandidate("bot-1", strongSwapHands.id)],
+      () => 0
+    );
+
+    expect(weakSwapAction?.score).toBeGreaterThan(strongSwapAction?.score ?? 0);
+    expect(strongSwapAction?.score).toBeLessThan(2_000);
+  });
+
+  it("does not boost swap-hands when the bot has a strong hand", () => {
+    const state = createBotTestState();
+    const botPlayer = state.players.find((player) => player.id === "bot-1")!;
+    const swapHands = createColoredActionCard("bot-red-swap", "red", "swap-hands");
+
+    state.topCard = createNumberCard("top-red-5", "red", 5);
+    state.currentColor = "red";
+    state.discardPile = [state.topCard];
+    state.currentPlayerId = "bot-1";
+    botPlayer.hand = [
+      swapHands,
+      createBlackCard("bot-wild", "wild"),
+      createBlackCard("bot-penalty", "penalty-draw"),
+      createBlackCard("bot-wild-reverse-four", "wild-reverse-draw-four"),
+      createBlackCard("bot-wild-six", "wild-draw-six"),
+      createBlackCard("bot-wild-ten", "wild-draw-ten"),
+      createColoredActionCard("bot-red-draw-two", "red", "draw-two")
+    ];
+    botPlayer.handCount = botPlayer.hand.length;
+
+    const [swapAction] = scoreBotCandidates(
+      state,
+      "bot-1",
+      [
+        {
+          command: {
+            type: "play-card",
+            playerId: "bot-1",
+            cardId: swapHands.id
+          },
+          cardIds: [swapHands.id],
+          reasons: ["single-card"]
+        }
+      ],
+      () => 0
+    );
+
+    expect(swapAction?.score).toBeLessThan(3_000);
+  });
+
+  it("does not throw away a small low-value hand by forcing swap-hands", () => {
+    const state = createBotTestState();
+    const botPlayer = state.players.find((player) => player.id === "bot-1")!;
+    const swapHands = createColoredActionCard("bot-red-swap", "red", "swap-hands");
+    const redNine = createNumberCard("bot-red-9", "red", 9);
+
+    state.topCard = createNumberCard("top-red-5", "red", 5);
+    state.currentColor = "red";
+    state.discardPile = [state.topCard];
+    state.currentPlayerId = "bot-1";
+    botPlayer.hand = [
+      swapHands,
+      redNine,
+      createNumberCard("bot-red-8", "red", 8)
+    ];
+    botPlayer.handCount = botPlayer.hand.length;
+
+    const decision = decideGreedyBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(decision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: redNine.id
+    });
+  });
 });
 
 function createBotTestState(): GameState {
-  return createInitialGame({
+  const state = createInitialGame({
     players: [
       { id: "bot-1", isBot: true },
       { id: "player-2" },
@@ -96,4 +300,31 @@ function createBotTestState(): GameState {
     mode: "no-challenge",
     seed: "greedy-bot-test"
   });
+  state.initialDirectionChoice = {
+    active: false,
+    chooserPlayerId: null
+  };
+  return state;
+}
+
+function setupPlayableRedTop(state: GameState): void {
+  state.topCard = createNumberCard("top-red-5", "red", 5);
+  state.currentColor = "red";
+  state.discardPile = [state.topCard];
+  state.currentPlayerId = "bot-1";
+}
+
+function createSinglePlayCandidate(
+  playerId: "bot-1",
+  cardId: string
+): BotCandidateAction {
+  return {
+    command: {
+      type: "play-card",
+      playerId,
+      cardId
+    },
+    cardIds: [cardId],
+    reasons: ["single-card"]
+  };
 }

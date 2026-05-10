@@ -50,6 +50,10 @@ export function createPlayerGameSnapshot(
           ? state.normalDrawOffer.cardId
           : null
     },
+    initialDirectionChoice: {
+      active: state.initialDirectionChoice.active,
+      chooserPlayerId: state.initialDirectionChoice.chooserPlayerId
+    },
     challengeWindow: {
       active: state.challengeWindow.active,
       targetPlayerId: state.challengeWindow.targetPlayerId
@@ -73,8 +77,7 @@ export function createPlayerGameSnapshot(
         : { displayName: self.displayName }),
       ...(self.avatarUrl === undefined ? {} : { avatarUrl: self.avatarUrl })
     },
-    opponents: state.players
-      .filter((player) => player.id !== viewerPlayerId)
+    opponents: getOpponentPlayersInClockwiseSeatOrder(state, viewerPlayerId)
       .map((player) => {
         return {
           playerId: player.id,
@@ -97,4 +100,45 @@ export function createPlayerGameSnapshot(
         };
       })
   };
+}
+
+function getOpponentPlayersInClockwiseSeatOrder(
+  state: GameState,
+  viewerPlayerId: string
+) {
+  const orderedPlayers = getPlayersInSeatOrder(state);
+  const viewerIndex = orderedPlayers.findIndex(
+    (player) => player.id === viewerPlayerId
+  );
+
+  if (viewerIndex < 0) {
+    return orderedPlayers.filter((player) => player.id !== viewerPlayerId);
+  }
+
+  const opponents: GameState["players"] = [];
+  let cursor = viewerIndex;
+
+  for (let step = 1; step < orderedPlayers.length; step += 1) {
+    cursor = (cursor + 1) % orderedPlayers.length;
+
+    const player = orderedPlayers[cursor];
+    if (player !== undefined && player.id !== viewerPlayerId) {
+      opponents.push(player);
+    }
+  }
+
+  return opponents;
+}
+
+function getPlayersInSeatOrder(state: GameState): GameState["players"] {
+  const playerById = new Map(state.players.map((player) => [player.id, player]));
+  const orderedPlayers = state.playerOrder
+    .map((playerId) => playerById.get(playerId))
+    .filter((player): player is GameState["players"][number] => player !== undefined);
+  const orderedPlayerIds = new Set(orderedPlayers.map((player) => player.id));
+  const missingPlayers = state.players.filter(
+    (player) => !orderedPlayerIds.has(player.id)
+  );
+
+  return [...orderedPlayers, ...missingPlayers];
 }

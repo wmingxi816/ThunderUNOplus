@@ -142,6 +142,17 @@ export interface SetPlayerReadyResult {
   player: ServerRoomPlayer;
 }
 
+export interface RenamePlayerParams {
+  roomId: string;
+  playerId: string;
+  nickname: string;
+}
+
+export interface RenamePlayerResult {
+  room: RoomRuntime;
+  player: ServerRoomPlayer;
+}
+
 export interface ReconnectPlayerParams {
   roomId: string;
   userId: string;

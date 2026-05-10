@@ -15,6 +15,7 @@ import type {
   GameMode,
   GamePlayerState,
   GameState,
+  InitialDirectionChoiceState,
   NormalDrawOfferState,
   TurnDirection
 } from "../gameState";
@@ -79,6 +80,7 @@ interface CreateGameStateParams {
   drawStack?: DrawStackState;
   drawUntilColor?: DrawUntilColorState;
   normalDrawOffer?: NormalDrawOfferState;
+  initialDirectionChoice?: InitialDirectionChoiceState;
   challengeWindow?: ChallengeWindowState;
   status?: GameState["status"];
   winnerPlayerIds?: string[];
@@ -129,6 +131,10 @@ export function createGameState(
       active: false,
       playerId: null,
       cardId: null
+    },
+    initialDirectionChoice: params.initialDirectionChoice ?? {
+      active: false,
+      chooserPlayerId: null
     },
     challengeWindow: params.challengeWindow ?? {
       active: false,

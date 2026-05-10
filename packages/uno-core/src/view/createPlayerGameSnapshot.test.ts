@@ -117,4 +117,50 @@ describe("createPlayerGameSnapshot", () => {
     expect(snapshot.drawPileCount).toBe(2);
     expect(snapshot).not.toHaveProperty("drawPile");
   });
+
+  it("orders opponents from the viewer by clockwise seat order", () => {
+    const state = createGameState({
+      direction: "clockwise",
+      players: [
+        createPlayerState("p1", []),
+        createPlayerState("p2", []),
+        createPlayerState("p3", []),
+        createPlayerState("p4", []),
+        createPlayerState("p5", [])
+      ],
+      playerOrder: ["p1", "p2", "p3", "p4", "p5"]
+    });
+
+    const snapshot = createPlayerGameSnapshot(state, "p3");
+
+    expect(snapshot.opponents.map((player) => player.playerId)).toEqual([
+      "p4",
+      "p5",
+      "p1",
+      "p2"
+    ]);
+  });
+
+  it("keeps opponent seats stable when turn direction is counter-clockwise", () => {
+    const state = createGameState({
+      direction: "counter-clockwise",
+      players: [
+        createPlayerState("p1", []),
+        createPlayerState("p2", []),
+        createPlayerState("p3", []),
+        createPlayerState("p4", []),
+        createPlayerState("p5", [])
+      ],
+      playerOrder: ["p1", "p2", "p3", "p4", "p5"]
+    });
+
+    const snapshot = createPlayerGameSnapshot(state, "p3");
+
+    expect(snapshot.opponents.map((player) => player.playerId)).toEqual([
+      "p4",
+      "p5",
+      "p1",
+      "p2"
+    ]);
+  });
 });

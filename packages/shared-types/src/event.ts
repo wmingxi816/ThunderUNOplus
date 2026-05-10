@@ -1,5 +1,5 @@
-import type { CardColor } from "./card";
-import type { PlayerId } from "./common";
+import type { CardColor, CardKind, DrawValue } from "./card";
+import type { CardId, PlayerId, TurnDirection } from "./common";
 import type { GameState } from "./game";
 import type { GameCommandType } from "./command";
 import type { ErrorCode } from "./errors";
@@ -13,6 +13,7 @@ export const GAME_EVENT_TYPES = [
   "turn-advanced",
   "draw-stack-updated",
   "draw-stack-cleared",
+  "direction-changed",
   "draw-until-color-started",
   "draw-until-color-resolved",
   "challenge-window-opened",
@@ -41,6 +42,8 @@ export interface CardsPlayedEvent {
   playerId: PlayerId;
   cardIds: string[];
   topCardId: string;
+  topCardKind?: CardKind;
+  topCardDrawValue?: DrawValue;
   declaredColor?: CardColor;
 }
 
@@ -88,6 +91,12 @@ export interface DrawStackUpdatedEvent {
 export interface DrawStackClearedEvent {
   type: "draw-stack-cleared";
   reason: "resolved" | "canceled-by-draw-ten";
+  topCardId?: CardId;
+}
+
+export interface DirectionChangedEvent {
+  type: "direction-changed";
+  direction: TurnDirection;
 }
 
 export interface DrawUntilColorStartedEvent {
@@ -175,6 +184,7 @@ export type GameEvent =
   | TurnAdvancedEvent
   | DrawStackUpdatedEvent
   | DrawStackClearedEvent
+  | DirectionChangedEvent
   | DrawUntilColorStartedEvent
   | DrawUntilColorResolvedEvent
   | ChallengeWindowOpenedEvent

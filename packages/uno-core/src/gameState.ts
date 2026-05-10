@@ -16,6 +16,7 @@ export {
   type GameMode,
   type GameState,
   type GameStatus,
+  type InitialDirectionChoiceState,
   type NormalDrawOfferState,
   type PublicChallengeWindowState,
   type TurnDirection

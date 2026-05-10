@@ -120,6 +120,13 @@ export function createStartedRoomFixture(
     seed: 1001
   });
 
+  if (fixture.room.gameState !== null) {
+    fixture.room.gameState.initialDirectionChoice = {
+      active: false,
+      chooserPlayerId: null
+    };
+  }
+
   return fixture;
 }
 

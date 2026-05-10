@@ -23,6 +23,10 @@ function createStateWithOverrides(overrides: Partial<GameState>): GameState {
 
   return {
     ...baseState,
+    initialDirectionChoice: {
+      active: false,
+      chooserPlayerId: null
+    },
     ...overrides
   };
 }

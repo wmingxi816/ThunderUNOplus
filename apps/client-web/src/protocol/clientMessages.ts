@@ -9,6 +9,7 @@ import type {
   ClientLeaveRoomMessage,
   ClientPingMessage,
   ClientReconnectMessage,
+  ClientRenamePlayerMessage,
   ClientRestartGameMessage,
   ClientSetReadyMessage,
   ClientStartGameMessage
@@ -94,6 +95,23 @@ export function buildSetReadyMessage(params: {
     roomId: params.roomId,
     playerId: params.playerId,
     ready: params.ready,
+    timestampMs: Date.now()
+  };
+}
+
+export function buildRenamePlayerMessage(params: {
+  roomId: RoomId;
+  playerId: PlayerId;
+  nickname: string;
+  requestId?: string;
+}): ClientRenamePlayerMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "rename-player",
+    requestId: params.requestId ?? createRequestId("rename"),
+    roomId: params.roomId,
+    playerId: params.playerId,
+    nickname: params.nickname,
     timestampMs: Date.now()
   };
 }

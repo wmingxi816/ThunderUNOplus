@@ -28,6 +28,7 @@ export function formatCommandSummary(command: GameCommand): string {
     case "keep-drawn-card":
     case "resolve-draw-stack":
     case "resolve-draw-until-color":
+    case "choose-initial-direction":
     case "say-uno":
       return command.type;
     case "report-uno":

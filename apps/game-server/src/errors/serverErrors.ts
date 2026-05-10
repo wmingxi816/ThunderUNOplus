@@ -14,6 +14,7 @@ export const GAME_SERVER_ERROR_CODES = [
   "players-not-ready",
   "invalid-room-id",
   "room-id-taken",
+  "invalid-nickname",
   "bot-not-allowed",
   "round-decision-not-available",
   "player-id-mismatch",

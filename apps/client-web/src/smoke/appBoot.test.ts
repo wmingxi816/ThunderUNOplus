@@ -447,7 +447,7 @@ describe("client-web smoke", () => {
       snapshotVersion: 0,
       room: {
         roomId: "ROOM1",
-        roomCode: "ROOM1",
+        roomCode: "123456",
         status: "lobby",
         mode: createRoomMessage.mode,
         hostPlayerId: "player-host",
@@ -478,7 +478,7 @@ describe("client-web smoke", () => {
       snapshotVersion: 1,
       room: {
         roomId: "ROOM1",
-        roomCode: "ROOM1",
+        roomCode: "123456",
         status: "lobby",
         mode: createRoomMessage.mode,
         hostPlayerId: "player-host",
@@ -536,7 +536,7 @@ describe("client-web smoke", () => {
       snapshotVersion: 2,
       room: {
         roomId: "ROOM1",
-        roomCode: "ROOM1",
+        roomCode: "123456",
         status: "playing",
         mode: createRoomMessage.mode,
         hostPlayerId: "player-host",
@@ -697,6 +697,10 @@ describe("client-web smoke", () => {
     });
     expect(document.querySelector("[data-testid='battle-view']")).toBeNull();
     expect(document.querySelector("[data-testid='lobby-view']")).not.toBeNull();
+    expect(document.querySelectorAll("[data-testid='room-player']")).toHaveLength(3);
+    expect(document.querySelector("[data-testid='room-player']")?.classList.contains("left")).toBe(true);
+    expect(document.querySelector<HTMLInputElement>("#room-id-input")?.value).toBe("123456");
+    expect(document.querySelector<HTMLButtonElement>("#join-room-button")?.disabled).toBe(false);
   });
 
   it("sends set-ready when a non-host clicks the ready button", async () => {
@@ -1094,6 +1098,22 @@ describe("client-web smoke", () => {
       isBlack: true,
       displayName: "black +6"
     };
+    const redDrawFour = {
+      id: "red-draw-four",
+      kind: "draw-four",
+      color: "red",
+      drawValue: 4,
+      isBlack: false,
+      displayName: "red +4"
+    };
+    const yellowDrawFour = {
+      id: "yellow-draw-four",
+      kind: "draw-four",
+      color: "yellow",
+      drawValue: 4,
+      isBlack: false,
+      displayName: "yellow +4"
+    };
     const snapshot = {
       roomId: "ROOM1",
       snapshotVersion: 1,
@@ -1152,7 +1172,7 @@ describe("client-web smoke", () => {
         {
           type: "cards-played",
           playerId: "player-1",
-          cardIds: ["red-1", "blue-2", "green-3"],
+          cardIds: ["green-3", "red-1", "blue-2"],
           topCardId: "green-3"
         }
       ]
@@ -1169,6 +1189,11 @@ describe("client-web smoke", () => {
 
     expect(document.querySelector("[data-testid='latest-play-group']")?.className).toContain("sequence");
     expect(document.querySelectorAll(".latest-play-card")).toHaveLength(3);
+    expect([...document.querySelectorAll<HTMLImageElement>(".latest-play-card")].map((image) => image.alt)).toEqual([
+      "red 1",
+      "blue 2",
+      "green 3"
+    ]);
 
     socket?.triggerMessage({
       protocolVersion: "0.1.0",
@@ -1208,6 +1233,403 @@ describe("client-web smoke", () => {
     });
 
     expect(document.querySelector("[data-testid='draw-stack-burst']")).not.toBeNull();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 3,
+      snapshot: {
+        ...snapshot,
+        snapshotVersion: 3,
+        topCard: blackDrawSix,
+        discardPile: [red1, redDrawTwo, blackDrawSix],
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        }
+      }
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 4,
+      snapshot: {
+        ...snapshot,
+        snapshotVersion: 4,
+        topCard: yellowDrawFour,
+        discardPile: [red1, redDrawTwo, blackDrawSix, redDrawFour, yellowDrawFour],
+        drawStack: {
+          active: true,
+          amount: 8,
+          previousDrawValue: 4,
+          previousDrawKind: "draw-four",
+          targetPlayerId: "player-1"
+        }
+      }
+    });
+
+    expect(document.querySelector("[data-testid='active-draw-chain']")).not.toBeNull();
+    expect([...document.querySelectorAll<HTMLImageElement>(".draw-chain-card")].map((image) => image.alt)).toEqual([
+      "red +4",
+      "yellow +4"
+    ]);
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 5,
+      events: [
+        {
+          type: "cards-drawn",
+          playerId: "player-1",
+          count: 8,
+          reason: "draw-stack"
+        }
+      ]
+    });
+
+    expect(document.querySelector("[data-testid='draw-stack-explosion']")).not.toBeNull();
+    expect(document.querySelector("[data-testid='draw-stack-explosion']")?.getAttribute("data-draw-count")).toBe("8");
+  });
+
+  it("does not highlight colored +4 after black reverse +4 draw stack", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const wildReverseDrawFour = {
+      id: "black-reverse-four",
+      kind: "wild-reverse-draw-four",
+      drawValue: 4,
+      isBlack: true,
+      displayName: "black reverse +4"
+    };
+    const redDrawFour = {
+      id: "red-draw-four",
+      kind: "draw-four",
+      color: "red",
+      drawValue: 4,
+      isBlack: false,
+      displayName: "red +4"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "counter-clockwise",
+        topCard: wildReverseDrawFour,
+        discardPile: [wildReverseDrawFour],
+        drawPileCount: 80,
+        drawStack: {
+          active: true,
+          amount: 4,
+          previousDrawValue: 4,
+          previousDrawKind: "wild-reverse-draw-four",
+          targetPlayerId: "player-1"
+        },
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [redDrawFour],
+          handCount: 1,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    const cardButton = document.querySelector<HTMLButtonElement>("[data-card-id='red-draw-four']");
+    expect(cardButton?.dataset.cardState).toBe("disabled");
+    expect(cardButton?.classList.contains("playable")).toBe(false);
+  });
+  it("sends rename-player from the lobby rename button and blocks overlong names", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "lobby",
+        mode: "no-challenge",
+        hostPlayerId: "player-1",
+        snapshotVersion: 1,
+        players: [
+          {
+            playerId: "player-1",
+            displayName: "Old Name",
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const nicknameInput = document.querySelector<HTMLInputElement>("#nickname")!;
+    nicknameInput.value = "New Name";
+    document.querySelector<HTMLButtonElement>("#rename-player-button")?.click();
+
+    const renameMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "rename-player");
+
+    expect(renameMessage).toMatchObject({
+      type: "rename-player",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      nickname: "New Name"
+    });
+
+    const sentCount = socket?.sentMessages.length ?? 0;
+    nicknameInput.value = "123456789012345678901";
+    document.querySelector<HTMLButtonElement>("#rename-player-button")?.click();
+
+    expect(socket?.sentMessages).toHaveLength(sentCount);
+    expect(document.querySelector(".ui-toast")?.textContent).toContain("20");
+  });
+
+  it("simplifies lobby bot display and hides the seed input", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      snapshotVersion: 1,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "lobby",
+        mode: "no-challenge",
+        hostPlayerId: "player-host",
+        snapshotVersion: 1,
+        players: [
+          {
+            playerId: "player-host",
+            displayName: "Host",
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            isBot: false,
+            connectionStatus: "connected"
+          },
+          {
+            playerId: "player-2",
+            displayName: "Guest",
+            avatarUrl: null,
+            seatIndex: 1,
+            isHost: false,
+            isReady: true,
+            isBot: false,
+            connectionStatus: "connected"
+          },
+          {
+            playerId: "bot-1",
+            displayName: "雷霆bot1",
+            avatarUrl: null,
+            seatIndex: 2,
+            isHost: false,
+            isReady: true,
+            isBot: true,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const botPill = document.querySelector<HTMLElement>("[data-room-bot='true']");
+    expect(botPill?.querySelector(".avatar")).not.toBeNull();
+    expect(botPill?.textContent).toContain("雷霆bot1");
+    expect(botPill?.textContent).not.toContain("BOT");
+    expect(botPill?.textContent).not.toContain("已准备");
+  });
+
+  it("counts penalty draw toast messages and resets when resolved", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 0,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 0,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        drawUntilColor: {
+          active: true,
+          color: "red",
+          targetPlayerId: "player-1"
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      events: [
+        {
+          type: "draw-until-color-started",
+          targetPlayerId: "player-1",
+          color: "red"
+        },
+        {
+          type: "cards-drawn",
+          playerId: "player-1",
+          count: 1,
+          reason: "draw-until-color",
+          drawUntilColor: {
+            targetColor: "red",
+            revealedColor: "blue",
+            matched: false
+          }
+        }
+      ]
+    });
+
+    expect(document.querySelector(".ui-toast")?.textContent).toContain("第 1 张");
+    expect(document.querySelector("[data-testid='penalty-question-burst']")?.getAttribute("data-draw-index")).toBe("1");
+    expect(document.querySelectorAll(".penalty-question")).toHaveLength(1);
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 2,
+      events: [
+        {
+          type: "cards-drawn",
+          playerId: "player-1",
+          count: 1,
+          reason: "draw-until-color",
+          drawUntilColor: {
+            targetColor: "red",
+            revealedColor: "red",
+            matched: true
+          }
+        },
+        {
+          type: "draw-until-color-resolved",
+          targetPlayerId: "player-1",
+          color: "red",
+          drawnCount: 1
+        }
+      ]
+    });
+
+    expect(document.querySelector(".ui-toast")?.textContent).toContain("第 2 张");
+    expect(document.querySelector(".ui-toast")?.textContent).toContain("罚摸结束");
+    expect(document.querySelector("[data-testid='penalty-question-burst']")?.getAttribute("data-draw-index")).toBe("2");
+    expect(document.querySelectorAll(".penalty-question")).toHaveLength(2);
   });
 });
 

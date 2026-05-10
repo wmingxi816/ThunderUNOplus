@@ -46,6 +46,11 @@ export interface NormalDrawOfferState {
   cardId: string | null;
 }
 
+export interface InitialDirectionChoiceState {
+  active: boolean;
+  chooserPlayerId: PlayerId | null;
+}
+
 export interface PublicChallengeWindowState {
   active: boolean;
   targetPlayerId: PlayerId | null;
@@ -70,6 +75,7 @@ export interface GameState {
   drawStack: DrawStackState;
   drawUntilColor: DrawUntilColorState;
   normalDrawOffer: NormalDrawOfferState;
+  initialDirectionChoice: InitialDirectionChoiceState;
   challengeWindow: ChallengeWindowState;
   winnerPlayerIds: PlayerId[];
   seed?: ShuffleSeed;
