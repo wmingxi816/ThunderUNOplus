@@ -1354,6 +1354,7 @@ label span {
   transform: translateX(-50%);
   transform-origin: center center;
   animation: turn-direction-orbit-spin 42s linear infinite;
+  animation-delay: var(--turn-orbit-animation-delay, 0ms);
 }
 
 .turn-direction-orbit-clockwise {
@@ -1950,7 +1951,7 @@ label span {
 
 .flying-card {
   position: absolute;
-  z-index: 5;
+  z-index: 64;
   width: 7rem;
   top: 44%;
   left: 50%;
@@ -1987,7 +1988,7 @@ label span {
 
 .draw-flying-card {
   position: absolute;
-  z-index: 7;
+  z-index: 64;
   width: 4.8rem;
   top: 48%;
   left: 42%;
@@ -2025,7 +2026,7 @@ label span {
   position: absolute;
   left: var(--seat-effect-left, 50%);
   top: var(--seat-effect-top, 42%);
-  z-index: 9;
+  z-index: 66;
   width: calc(4rem * var(--explosion-scale, 1));
   aspect-ratio: 1;
   pointer-events: none;
@@ -2148,7 +2149,7 @@ label span {
   position: absolute;
   left: var(--seat-effect-left, 50%);
   top: var(--seat-effect-top, 42%);
-  z-index: 9;
+  z-index: 66;
   width: calc(5rem * var(--question-burst-scale, 1));
   aspect-ratio: 1;
   pointer-events: none;
@@ -2792,6 +2793,43 @@ label span {
 .card-button:hover,
 .card-button:focus-visible {
   outline: 2px solid #f8d64e;
+}
+
+.card-button[data-card-tooltip]:hover,
+.card-button[data-card-tooltip]:focus-visible {
+  overflow: visible;
+}
+
+.card-button[data-card-tooltip]::after {
+  content: attr(data-card-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.55rem);
+  z-index: 120;
+  width: max-content;
+  max-width: min(16rem, 70vw);
+  padding: 0.38rem 0.55rem;
+  border: 1px solid rgba(248, 214, 78, 0.55);
+  border-radius: 8px;
+  background: rgba(18, 21, 28, 0.96);
+  color: #f6f1e8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 0.25rem);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+  white-space: normal;
+  box-shadow: 0 0.5rem 1.2rem rgba(0, 0, 0, 0.3);
+}
+
+.card-button[data-card-tooltip]:hover::after,
+.card-button[data-card-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .card-button.disabled:hover,

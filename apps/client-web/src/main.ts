@@ -78,6 +78,8 @@ interface AppState {
   soundEffectBeforeMutePercent: UiSettingPercent | null;
   showDebugGrid: boolean;
   turnOrbitYOffsetPercent: number;
+  turnOrbitAnimationStartedAtMs: number;
+  turnOrbitAnimationDirection: TurnDirection | null;
   uiToast: UiToastState | null;
   dismissedFinishedNoticeKey: string | null;
   snapshotRecoveryRoomId: RoomId | null;
@@ -486,6 +488,8 @@ const state: AppState = {
   soundEffectBeforeMutePercent: null,
   showDebugGrid: readStoredBoolean(DEBUG_GRID_STORAGE_KEY),
   turnOrbitYOffsetPercent: readStoredNumber(TURN_ORBIT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
+  turnOrbitAnimationStartedAtMs: Date.now(),
+  turnOrbitAnimationDirection: null,
   uiToast: null,
   dismissedFinishedNoticeKey: null,
   snapshotRecoveryRoomId: null,
@@ -1455,6 +1459,11 @@ function isInitialDirectionChoicePending(snapshot: PlayerGameSnapshot): boolean 
 
 // UI name: battle-turn-orbit. 顺/逆时针旋转方向底图。
 function renderTurnDirectionOrbit(snapshot: PlayerGameSnapshot): string {
+  if (state.turnOrbitAnimationDirection !== snapshot.direction) {
+    state.turnOrbitAnimationDirection = snapshot.direction;
+    state.turnOrbitAnimationStartedAtMs = Date.now();
+  }
+
   const directionClass =
     snapshot.direction === "clockwise"
       ? "turn-direction-orbit-clockwise"
@@ -1463,11 +1472,13 @@ function renderTurnDirectionOrbit(snapshot: PlayerGameSnapshot): string {
     snapshot.direction === "clockwise"
       ? "/turn-clockwise.png"
       : "/%E9%80%86%E6%97%B6%E9%92%88.png";
+  const elapsedMs = Math.max(0, Date.now() - state.turnOrbitAnimationStartedAtMs);
 
   return `
     <div
       class="turn-direction-orbit ${directionClass}"
       data-turn-direction="${snapshot.direction}"
+      style="--turn-orbit-animation-delay: -${String(elapsedMs)}ms;"
       aria-hidden="true"
     >
       <img src="${directionImage}" alt="" />
@@ -3012,10 +3023,15 @@ function renderCardButtonV2(
     classes.push("recent-drawn");
   }
 
+  const cardTooltip = getHandCardTooltip(card, info.reason);
+  const tooltipAttribute =
+    cardTooltip === null ? "" : `data-card-tooltip="${escapeHtml(cardTooltip)}"`;
+
   return `
     <button
       class="${classes.join(" ")}"
       data-card-id="${escapeHtml(card.id)}"
+      data-card-kind="${escapeHtml(card.kind)}"
       data-card-index="${String(index)}"
       style="--card-index: ${String(index)}"
       data-card-state="${escapeHtml(info.baseState)}"
@@ -3023,11 +3039,20 @@ function renderCardButtonV2(
       aria-pressed="${info.relationState === "selected" ? "true" : "false"}"
       aria-disabled="${info.canSelect ? "false" : "true"}"
       aria-label="${escapeHtml(`${card.displayName} · ${info.reason}`)}"
-      title="${escapeHtml(info.reason)}"
+      title="${escapeHtml(cardTooltip ?? info.reason)}"
+      ${tooltipAttribute}
     >
       <img src="${getCardAssetPath(card)}" alt="${escapeHtml(card.displayName)}" />
     </button>
   `;
+}
+
+function getHandCardTooltip(card: Card, fallbackReason: string): string | null {
+  if (card.kind !== "discard-same-color" || card.color === undefined) {
+    return null;
+  }
+
+  return `${fallbackReason}；双击可选中所有${getColorDisplayName(card.color)}手牌`;
 }
 
 function getHandCardPresentation(
@@ -5177,6 +5202,17 @@ function bindBattlePanel(): void {
 
       handleHandCardClick(cardId);
     });
+
+    button.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      const cardId = button.dataset.cardId;
+
+      if (cardId === undefined) {
+        return;
+      }
+
+      handleHandCardDoubleClick(cardId);
+    });
   });
 
   document.querySelector("#draw-card-button")?.addEventListener("click", () => {
@@ -6077,6 +6113,78 @@ function handleHandCardClick(cardId: string): void {
   }
 
   toggleSelectedCard(cardId);
+  render();
+}
+
+function handleHandCardDoubleClick(cardId: string): void {
+  if (state.snapshot === null) {
+    return;
+  }
+
+  const hand = state.snapshot.self.hand;
+  const card = hand.find((candidate) => candidate.id === cardId);
+
+  if (card === undefined || card.kind !== "discard-same-color" || card.color === undefined) {
+    return;
+  }
+
+  const canTakeTurnAction =
+    state.connectionStatus === "open" &&
+    state.playerId === state.snapshot.currentPlayerId &&
+    state.snapshot.status !== "finished" &&
+    !isInitialDirectionChoicePending(state.snapshot) &&
+    !state.snapshot.self.isEliminated &&
+    !state.snapshot.self.isRoundWinner;
+  const selectedCards = getSelectedCards(hand, state.selectedCardIds);
+  const sequenceCandidateCardIds = getSequenceCandidateCardIds(hand, {
+    currentColor: state.snapshot.currentColor,
+    topCard: state.snapshot.topCard
+  });
+  const info = getHandCardPresentation(
+    card,
+    state.snapshot,
+    canTakeTurnAction,
+    selectedCards,
+    sequenceCandidateCardIds
+  );
+
+  if (!info.canSelect) {
+    showToast(info.reason, "warning");
+    pushLog(info.reason);
+    render();
+    return;
+  }
+
+  const sameColorCardIds = [
+    card.id,
+    ...hand
+      .filter((candidate) => {
+        return (
+          candidate.id !== card.id &&
+          !candidate.isBlack &&
+          candidate.color === card.color
+        );
+      })
+      .map((candidate) => candidate.id)
+  ];
+  const nextSelectedIds = sameColorCardIds;
+  const previousSelectedIds = new Set(state.selectedCardIds);
+  const nextSelectedIdSet = new Set(nextSelectedIds);
+
+  for (const selectedCardId of nextSelectedIds) {
+    if (!previousSelectedIds.has(selectedCardId)) {
+      setHandCardMotion(selectedCardId, "select");
+    }
+  }
+
+  for (const selectedCardId of state.selectedCardIds) {
+    if (!nextSelectedIdSet.has(selectedCardId)) {
+      setHandCardMotion(selectedCardId, "deselect");
+    }
+  }
+
+  state.selectedCardIds = nextSelectedIds;
+  showToast(`已选中 ${String(nextSelectedIds.length)} 张${getColorDisplayName(card.color)}手牌`, "info");
   render();
 }
 
