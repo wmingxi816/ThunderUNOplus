@@ -1,5 +1,5 @@
 import type { Card, CardColor, GameCommand, GameState, PlayerId } from "@thunder-uno/shared-types";
-import { applyCommand, isDrawCard, isNumberCard } from "@thunder-uno/uno-core";
+import { applyCommand, canPlayCard, isDrawCard, isNumberCard } from "@thunder-uno/uno-core";
 import type { BotCandidateAction } from "./botCandidates";
 
 export interface ScoredBotAction extends BotCandidateAction {
@@ -7,14 +7,113 @@ export interface ScoredBotAction extends BotCandidateAction {
   resultingState: GameState;
 }
 
+export interface BotScoringWeights {
+  cardReduction: number;
+  winBonus: number;
+  unoBonus: number;
+  twoCardsLeftBonus: number;
+  largeHandComboBonus: number;
+  mediumHandComboBonus: number;
+  drawCommandPenalty: number;
+  keepDrawnCardBonus: number;
+  randomJitter: number;
+  nextPlayerOneCardDangerBonus: number;
+  nextPlayerTwoCardsDangerBonus: number;
+  nextPlayerFourCardsDangerBonus: number;
+  nonPressureDangerPenaltyRatio: number;
+  drawTwoPressure: number;
+  drawFourPressure: number;
+  wildReverseDrawFourPressure: number;
+  wildDrawSixPressure: number;
+  wildDrawTenPressure: number;
+  penaltyDrawPressure: number;
+  drawStackAvoidedDrawMultiplier: number;
+  colorNumberCardValue: number;
+  colorDrawCardValue: number;
+  colorActionCardValue: number;
+  currentColorBonus: number;
+  reserveWildDrawTenCost: number;
+  reserveWildDrawSixCost: number;
+  reserveWildReverseDrawFourCost: number;
+  reservePenaltyDrawCost: number;
+  swapHugeWeakHandMin: number;
+  swapHugeWeakHandMax: number;
+  swapMediumWeakHandMin: number;
+  swapMediumWeakHandMax: number;
+  swapCountPressureWeight: number;
+  swapQualityPressureWeight: number;
+  swapLowValuePressureWeight: number;
+  swapWeakHandPressureWeight: number;
+  discardLargeHandBonus: number;
+  discardLargeHandPerCardBonus: number;
+  discardMediumHandBonus: number;
+  discardTinyHandPenalty: number;
+  discardSmallHandPenalty: number;
+  isolatedNumberBaseBonus: number;
+  isolatedNumberDistanceBonus: number;
+  pairStructurePenalty: number;
+  sequenceStructurePenalty: number;
+  structuredNumberDistanceBonus: number;
+}
+
+export const DEFAULT_BOT_SCORING_WEIGHTS: BotScoringWeights = {
+  cardReduction: 100,
+  winBonus: 10_000,
+  unoBonus: 1_200,
+  twoCardsLeftBonus: 350,
+  largeHandComboBonus: 120,
+  mediumHandComboBonus: 70,
+  drawCommandPenalty: 80,
+  keepDrawnCardBonus: 10,
+  randomJitter: 8,
+  nextPlayerOneCardDangerBonus: 500,
+  nextPlayerTwoCardsDangerBonus: 300,
+  nextPlayerFourCardsDangerBonus: 150,
+  nonPressureDangerPenaltyRatio: 0.45,
+  drawTwoPressure: 120,
+  drawFourPressure: 180,
+  wildReverseDrawFourPressure: 260,
+  wildDrawSixPressure: 420,
+  wildDrawTenPressure: 700,
+  penaltyDrawPressure: 280,
+  drawStackAvoidedDrawMultiplier: 55,
+  colorNumberCardValue: 40,
+  colorDrawCardValue: 70,
+  colorActionCardValue: 55,
+  currentColorBonus: 20,
+  reserveWildDrawTenCost: 680,
+  reserveWildDrawSixCost: 520,
+  reserveWildReverseDrawFourCost: 80,
+  reservePenaltyDrawCost: 50,
+  swapHugeWeakHandMin: 1_500,
+  swapHugeWeakHandMax: 3_000,
+  swapMediumWeakHandMin: 1_600,
+  swapMediumWeakHandMax: 3_000,
+  swapCountPressureWeight: 0.35,
+  swapQualityPressureWeight: 0.65,
+  swapLowValuePressureWeight: 0.6,
+  swapWeakHandPressureWeight: 0.4,
+  discardLargeHandBonus: 160,
+  discardLargeHandPerCardBonus: 20,
+  discardMediumHandBonus: 220,
+  discardTinyHandPenalty: 260,
+  discardSmallHandPenalty: 180,
+  isolatedNumberBaseBonus: 160,
+  isolatedNumberDistanceBonus: 28,
+  pairStructurePenalty: 70,
+  sequenceStructurePenalty: 90,
+  structuredNumberDistanceBonus: 6
+};
+
 export function scoreBotCandidates(
   state: GameState,
   playerId: PlayerId,
   candidates: readonly BotCandidateAction[],
-  random: () => number
+  random: () => number,
+  weights: BotScoringWeights = DEFAULT_BOT_SCORING_WEIGHTS
 ): ScoredBotAction[] {
   return candidates
-    .map((candidate) => scoreCandidate(state, playerId, candidate, random))
+    .map((candidate) => scoreCandidate(state, playerId, candidate, random, weights))
     .filter((candidate): candidate is ScoredBotAction => candidate !== null)
     .sort((left, right) => right.score - left.score);
 }
@@ -23,7 +122,8 @@ function scoreCandidate(
   state: GameState,
   playerId: PlayerId,
   candidate: BotCandidateAction,
-  random: () => number
+  random: () => number,
+  weights: BotScoringWeights
 ): ScoredBotAction | null {
   const command = candidate.command;
   const result = applyCommand(cloneGameState(state), command);
@@ -39,38 +139,43 @@ function scoreCandidate(
     return null;
   }
 
-  let score = candidate.cardIds.length * 100;
+  let score = candidate.cardIds.length * weights.cardReduction;
   const remainingCount = afterPlayer.handCount;
 
   if (remainingCount === 0) {
-    score += 10_000;
+    score += weights.winBonus;
   } else if (remainingCount === 1) {
-    score += 1_200;
+    score += weights.unoBonus;
   } else if (remainingCount === 2) {
-    score += 350;
+    score += weights.twoCardsLeftBonus;
   }
 
   if (beforePlayer.handCount >= 15 && candidate.cardIds.length >= 2) {
-    score += 120;
+    score += weights.largeHandComboBonus;
   } else if (beforePlayer.handCount >= 10 && candidate.cardIds.length >= 2) {
-    score += 70;
+    score += weights.mediumHandComboBonus;
   }
 
-  score += scorePressure(state, command);
-  score += scoreDrawStack(state, command);
-  score += scoreDeclaredColor(state, playerId, candidate.declaredColor);
-  score += scoreReserveCost(state, beforePlayer.hand, command);
-  score += scoreSwapHandsOpportunity(beforePlayer.hand, command);
-  score += scoreDiscardSameColor(beforePlayer.handCount, command, candidate.cardIds.length);
-  score += scoreSingleNumberStructure(beforePlayer.hand, command);
-  score += random() * 8;
+  score += scorePressure(state, command, weights);
+  score += scoreDrawStack(state, command, weights);
+  score += scoreDeclaredColor(state, playerId, candidate.declaredColor, weights);
+  score += scoreReserveCost(state, beforePlayer.hand, command, weights);
+  score += scoreSwapHandsOpportunity(beforePlayer.hand, command, weights);
+  score += scoreDiscardSameColor(
+    beforePlayer.handCount,
+    command,
+    candidate.cardIds.length,
+    weights
+  );
+  score += scoreSingleNumberStructure(beforePlayer.hand, command, weights);
+  score += random() * weights.randomJitter;
 
   if (command.type === "draw-card") {
-    score -= 80;
+    score -= weights.drawCommandPenalty;
   }
 
   if (command.type === "keep-drawn-card") {
-    score += 10;
+    score += weights.keepDrawnCardBonus;
   }
 
   return {
@@ -80,7 +185,11 @@ function scoreCandidate(
   };
 }
 
-function scorePressure(state: GameState, command: GameCommand): number {
+function scorePressure(
+  state: GameState,
+  command: GameCommand,
+  weights: BotScoringWeights
+): number {
   if (
     command.type !== "play-card" &&
     command.type !== "play-discard-same-color" &&
@@ -99,15 +208,15 @@ function scorePressure(state: GameState, command: GameCommand): number {
 
   const dangerBonus =
     nextPlayer.handCount === 1
-      ? 500
+      ? weights.nextPlayerOneCardDangerBonus
       : nextPlayer.handCount === 2
-        ? 300
+        ? weights.nextPlayerTwoCardsDangerBonus
         : nextPlayer.handCount <= 4
-          ? 150
+          ? weights.nextPlayerFourCardsDangerBonus
           : 0;
 
   if (dangerBonus === 0) {
-    return scoreDrawCardPressure(topCard);
+    return scoreDrawCardPressure(topCard, weights);
   }
 
   if (
@@ -116,42 +225,50 @@ function scorePressure(state: GameState, command: GameCommand): number {
     topCard.kind === "penalty-draw" ||
     isDrawCard(topCard)
   ) {
-    return dangerBonus + scoreDrawCardPressure(topCard);
+    return dangerBonus + scoreDrawCardPressure(topCard, weights);
   }
 
-  return scoreDrawCardPressure(topCard);
+  if (nextPlayer.handCount <= 2) {
+    return -Math.round(dangerBonus * weights.nonPressureDangerPenaltyRatio);
+  }
+
+  return scoreDrawCardPressure(topCard, weights);
 }
 
-function scoreDrawCardPressure(card: Card): number {
+function scoreDrawCardPressure(card: Card, weights: BotScoringWeights): number {
   switch (card.kind) {
     case "draw-two":
-      return 120;
+      return weights.drawTwoPressure;
     case "draw-four":
-      return 180;
+      return weights.drawFourPressure;
     case "wild-reverse-draw-four":
-      return 260;
+      return weights.wildReverseDrawFourPressure;
     case "wild-draw-six":
-      return 420;
+      return weights.wildDrawSixPressure;
     case "wild-draw-ten":
-      return 700;
+      return weights.wildDrawTenPressure;
     case "penalty-draw":
-      return 280;
+      return weights.penaltyDrawPressure;
     default:
       return 0;
   }
 }
 
-function scoreDrawStack(state: GameState, command: GameCommand): number {
+function scoreDrawStack(
+  state: GameState,
+  command: GameCommand,
+  weights: BotScoringWeights
+): number {
   if (!state.drawStack.active) {
     return 0;
   }
 
   if (command.type === "resolve-draw-stack") {
-    return -state.drawStack.amount * 55;
+    return -state.drawStack.amount * weights.drawStackAvoidedDrawMultiplier;
   }
 
   if (command.type === "play-card") {
-    return state.drawStack.amount * 55;
+    return state.drawStack.amount * weights.drawStackAvoidedDrawMultiplier;
   }
 
   return 0;
@@ -160,7 +277,8 @@ function scoreDrawStack(state: GameState, command: GameCommand): number {
 function scoreDeclaredColor(
   state: GameState,
   playerId: PlayerId,
-  declaredColor: CardColor | undefined
+  declaredColor: CardColor | undefined,
+  weights: BotScoringWeights
 ): number {
   if (declaredColor === undefined) {
     return 0;
@@ -177,14 +295,22 @@ function scoreDeclaredColor(
       return sum;
     }
 
-    return sum + (card.kind === "number" ? 40 : isDrawCard(card) ? 70 : 55);
-  }, declaredColor === state.currentColor ? 20 : 0);
+    return (
+      sum +
+      (card.kind === "number"
+        ? weights.colorNumberCardValue
+        : isDrawCard(card)
+          ? weights.colorDrawCardValue
+          : weights.colorActionCardValue)
+    );
+  }, declaredColor === state.currentColor ? weights.currentColorBonus : 0);
 }
 
 function scoreReserveCost(
   state: GameState,
   hand: readonly Card[],
-  command: GameCommand
+  command: GameCommand,
+  weights: BotScoringWeights
 ): number {
   if (command.type !== "play-card") {
     return 0;
@@ -201,9 +327,10 @@ function scoreReserveCost(
   });
   const nextPlayer = getNextActivePlayer(state, command.playerId);
   const nextPlayerDanger = nextPlayer !== null && nextPlayer.handCount <= 2;
+  const hasPressureAlternative = hasPlayablePressureAlternative(state, hand, card);
   const emergency =
     !hasCurrentColorAlternative ||
-    nextPlayerDanger ||
+    (nextPlayerDanger && !hasPressureAlternative) ||
     state.drawStack.active ||
     state.drawUntilColor.active ||
     hand.length >= 15;
@@ -214,21 +341,50 @@ function scoreReserveCost(
 
   switch (card.kind) {
     case "wild-draw-ten":
-      return -360;
+      return -weights.reserveWildDrawTenCost;
     case "wild-draw-six":
-      return -220;
+      return -weights.reserveWildDrawSixCost;
     case "wild-reverse-draw-four":
-      return -80;
+      return -weights.reserveWildReverseDrawFourCost;
     case "penalty-draw":
-      return -50;
+      return -weights.reservePenaltyDrawCost;
     default:
       return 0;
   }
 }
 
+function hasPlayablePressureAlternative(
+  state: GameState,
+  hand: readonly Card[],
+  playedCard: Card
+): boolean {
+  return hand.some((candidate) => {
+    if (candidate.id === playedCard.id || candidate.isBlack) {
+      return false;
+    }
+
+    if (
+      candidate.kind !== "skip" &&
+      candidate.kind !== "reverse" &&
+      candidate.kind !== "draw-two" &&
+      candidate.kind !== "draw-four" &&
+      candidate.kind !== "penalty-draw"
+    ) {
+      return false;
+    }
+
+    return canPlayCard({
+      card: candidate,
+      topCard: state.topCard,
+      currentColor: state.currentColor
+    });
+  });
+}
+
 function scoreSwapHandsOpportunity(
   hand: readonly Card[],
-  command: GameCommand
+  command: GameCommand,
+  weights: BotScoringWeights
 ): number {
   if (command.type !== "play-card") {
     return 0;
@@ -243,7 +399,13 @@ function scoreSwapHandsOpportunity(
   const profile = evaluateHandExchangeProfile(hand);
 
   if (hand.length > 15) {
-    return calculateSwapHandsDynamicScore(hand.length, profile, 1_500, 3_000);
+    return calculateSwapHandsDynamicScore(
+      hand.length,
+      profile,
+      weights.swapHugeWeakHandMin,
+      weights.swapHugeWeakHandMax,
+      weights
+    );
   }
 
   if (
@@ -251,7 +413,13 @@ function scoreSwapHandsOpportunity(
     profile.lowValueRatio >= 0.7 &&
     profile.averageValue <= 3
   ) {
-    return calculateSwapHandsDynamicScore(hand.length, profile, 1_600, 3_000);
+    return calculateSwapHandsDynamicScore(
+      hand.length,
+      profile,
+      weights.swapMediumWeakHandMin,
+      weights.swapMediumWeakHandMax,
+      weights
+    );
   }
 
   return 0;
@@ -264,13 +432,18 @@ function calculateSwapHandsDynamicScore(
     lowValueRatio: number;
   },
   minScore: number,
-  maxScore: number
+  maxScore: number,
+  weights: BotScoringWeights
 ): number {
   const countPressure = clamp((handCount - 7) / 18, 0, 1);
   const lowValuePressure = clamp((profile.lowValueRatio - 0.45) / 0.55, 0, 1);
   const weakHandPressure = clamp((7 - profile.averageValue) / 6, 0, 1);
-  const qualityPressure = lowValuePressure * 0.6 + weakHandPressure * 0.4;
-  const totalPressure = countPressure * 0.35 + qualityPressure * 0.65;
+  const qualityPressure =
+    lowValuePressure * weights.swapLowValuePressureWeight +
+    weakHandPressure * weights.swapWeakHandPressureWeight;
+  const totalPressure =
+    countPressure * weights.swapCountPressureWeight +
+    qualityPressure * weights.swapQualityPressureWeight;
 
   return Math.round(minScore + (maxScore - minScore) * totalPressure);
 }
@@ -336,26 +509,30 @@ function clamp(value: number, min: number, max: number): number {
 function scoreDiscardSameColor(
   handCount: number,
   command: GameCommand,
-  playedCount: number
+  playedCount: number,
+  weights: BotScoringWeights
 ): number {
   if (command.type !== "play-discard-same-color") {
     return 0;
   }
 
   if (handCount >= 10) {
-    return 160 + playedCount * 20;
+    return (
+      weights.discardLargeHandBonus +
+      playedCount * weights.discardLargeHandPerCardBonus
+    );
   }
 
   if (handCount >= 7 && playedCount >= 3) {
-    return 220;
+    return weights.discardMediumHandBonus;
   }
 
   if (handCount <= 3 && playedCount <= 2) {
-    return -260;
+    return -weights.discardTinyHandPenalty;
   }
 
   if (handCount <= 4) {
-    return -180;
+    return -weights.discardSmallHandPenalty;
   }
 
   return 0;
@@ -363,7 +540,8 @@ function scoreDiscardSameColor(
 
 function scoreSingleNumberStructure(
   hand: readonly Card[],
-  command: GameCommand
+  command: GameCommand,
+  weights: BotScoringWeights
 ): number {
   if (command.type !== "play-card") {
     return 0;
@@ -395,20 +573,23 @@ function scoreSingleNumberStructure(
   const belongsToSequence = isNumberPartOfSequenceRun(card.number, numberCards);
 
   if (!belongsToPair && !belongsToSequence) {
-    return 160 + distanceFromAverage * 28;
+    return (
+      weights.isolatedNumberBaseBonus +
+      distanceFromAverage * weights.isolatedNumberDistanceBonus
+    );
   }
 
   let score = 0;
 
   if (belongsToPair) {
-    score -= 70;
+    score -= weights.pairStructurePenalty;
   }
 
   if (belongsToSequence) {
-    score -= 90;
+    score -= weights.sequenceStructurePenalty;
   }
 
-  return score + distanceFromAverage * 6;
+  return score + distanceFromAverage * weights.structuredNumberDistanceBonus;
 }
 
 function isNumberPartOfSequenceRun(

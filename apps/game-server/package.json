@@ -12,7 +12,9 @@
     "test": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/protocol build && corepack pnpm --filter @thunder-uno/uno-core build && vitest run",
     "dev": "tsx src/dev/runLocalServer.ts",
     "dev:client": "tsx src/dev/devClient.ts",
-    "dev:scenario": "tsx src/dev/multiClientScenario.ts"
+    "dev:scenario": "tsx src/dev/multiClientScenario.ts",
+    "bot:self-play": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/protocol build && corepack pnpm --filter @thunder-uno/uno-core build && tsx src/dev/botSelfPlay.ts",
+    "bot:scenario": "corepack pnpm --filter @thunder-uno/shared-types build && corepack pnpm --filter @thunder-uno/protocol build && corepack pnpm --filter @thunder-uno/uno-core build && tsx src/dev/botScenarioLab.ts"
   },
   "dependencies": {
     "@thunder-uno/protocol": "workspace:*",

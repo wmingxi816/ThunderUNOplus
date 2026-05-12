@@ -69,6 +69,8 @@ interface AppState {
   challengePrompt: ChallengePromptState | null;
   eventModal: EventModalState | null;
   ruleModal: RuleModalView | null;
+  battleLoadingOverlayStartedAtMs: number | null;
+  battleLoadingOverlayDone: boolean;
   settingsModalOpen: boolean;
   settingsAdjustPanelOpen: boolean;
   uiScalePercent: UiSettingPercent;
@@ -78,6 +80,9 @@ interface AppState {
   soundEffectBeforeMutePercent: UiSettingPercent | null;
   showDebugGrid: boolean;
   turnOrbitYOffsetPercent: number;
+  seatYOffsetPercent: number;
+  battleTableYOffsetPercent: number;
+  handCardScalePercent: number;
   turnOrbitAnimationStartedAtMs: number;
   turnOrbitAnimationDirection: TurnDirection | null;
   uiToast: UiToastState | null;
@@ -231,7 +236,11 @@ const BACKGROUND_MUSIC_STORAGE_KEY = "thunder-uno.background-music-percent";
 const SOUND_EFFECT_STORAGE_KEY = "thunder-uno.sound-effect-percent";
 const DEBUG_GRID_STORAGE_KEY = "thunder-uno.debug-grid";
 const TURN_ORBIT_Y_OFFSET_STORAGE_KEY = "thunder-uno.turn-orbit-y-offset-percent";
+const SEAT_Y_OFFSET_STORAGE_KEY = "thunder-uno.seat-y-offset-percent";
+const BATTLE_TABLE_Y_OFFSET_STORAGE_KEY = "thunder-uno.battle-table-y-offset-percent";
+const HAND_CARD_SCALE_STORAGE_KEY = "thunder-uno.hand-card-scale-percent";
 const DEFAULT_UI_SETTING_PERCENT = 80;
+const BATTLE_LOADING_OVERLAY_MS = 5_000;
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
@@ -479,6 +488,8 @@ const state: AppState = {
   challengePrompt: null,
   eventModal: null,
   ruleModal: null,
+  battleLoadingOverlayStartedAtMs: null,
+  battleLoadingOverlayDone: false,
   settingsModalOpen: false,
   settingsAdjustPanelOpen: false,
   uiScalePercent: readStoredUiScalePercent(UI_SCALE_STORAGE_KEY),
@@ -488,6 +499,9 @@ const state: AppState = {
   soundEffectBeforeMutePercent: null,
   showDebugGrid: readStoredBoolean(DEBUG_GRID_STORAGE_KEY),
   turnOrbitYOffsetPercent: readStoredNumber(TURN_ORBIT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
+  seatYOffsetPercent: readStoredNumber(SEAT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
+  battleTableYOffsetPercent: readStoredNumber(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
+  handCardScalePercent: readStoredNumber(HAND_CARD_SCALE_STORAGE_KEY, 100, 60, 140),
   turnOrbitAnimationStartedAtMs: Date.now(),
   turnOrbitAnimationDirection: null,
   uiToast: null,
@@ -553,6 +567,9 @@ function handleServerMessage(message: ServerMessage): void {
     case "snapshot":
       const previousSnapshot = state.snapshot;
       const snapshot = normalizePlayerGameSnapshot(message.snapshot);
+      if (previousSnapshot === null) {
+        startBattleLoadingOverlay();
+      }
       if (snapshot.status !== "finished") {
         state.dismissedFinishedNoticeKey = null;
       }
@@ -641,6 +658,23 @@ function render(): void {
   if (isBattleView) {
     window.requestAnimationFrame(syncHandOverlapLayout);
   }
+}
+
+function startBattleLoadingOverlay(): void {
+  const startedAt = Date.now();
+  state.battleLoadingOverlayStartedAtMs = startedAt;
+  state.battleLoadingOverlayDone = false;
+
+  window.setTimeout(() => {
+    if (state.battleLoadingOverlayStartedAtMs !== startedAt) {
+      return;
+    }
+
+    state.battleLoadingOverlayDone = true;
+    if (state.snapshot !== null) {
+      render();
+    }
+  }, BATTLE_LOADING_OVERLAY_MS);
 }
 
 // UI name: lobby-connection-panel. 服务端地址、昵称、改名、连接按钮区域。
@@ -1368,6 +1402,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
     >
       ${state.showDebugGrid ? renderBattleDebugGrid() : ""}
       <div class="table-zone battle-stage">
+        ${renderBattleLoadingOverlay()}
         ${renderTurnDirectionOrbit(snapshot)}
         ${renderBattleHud(snapshot, isMyTurn)}
         <p
@@ -1428,7 +1463,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
           <div class="hand">
             <div class="hand-header">
               <h2>${escapeHtml(snapshot.self.displayName ?? "我")} 的手牌</h2>
-              <span>${String(snapshot.self.hand.length)} 张</span>
+              <span class="hand-total-count">${String(snapshot.self.hand.length)} 张</span>
             </div>
             ${renderActionGuide(snapshot, canTakeTurnAction, isGameFinished, isConnected)}
             <div class="cards" data-testid="hand-area">
@@ -1545,6 +1580,26 @@ function renderBattleDebugGrid(): string {
           `;
         })
         .join("")}
+    </div>
+  `;
+}
+
+function renderBattleLoadingOverlay(): string {
+  if (
+    state.battleLoadingOverlayStartedAtMs === null ||
+    state.battleLoadingOverlayDone
+  ) {
+    return "";
+  }
+
+  return `
+    <div class="battle-loading-overlay" aria-live="polite" data-testid="battle-loading-overlay">
+      <div class="battle-loading-panel">
+        <strong>加载中</strong>
+        <div class="battle-loading-track" aria-hidden="true">
+          <span></span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -2470,7 +2525,10 @@ function renderBattleUiScaleStyle(): string {
   return [
     `--battle-ui-scale: ${scale.toFixed(2)}`,
     `--battle-ui-inverse-scale: ${inverseScale.toFixed(4)}`,
-    `--turn-orbit-y-offset: ${String(state.turnOrbitYOffsetPercent)}%`
+    `--turn-orbit-y-offset: ${String(state.turnOrbitYOffsetPercent)}%`,
+    `--battle-seat-y-offset: ${String(state.seatYOffsetPercent)}%`,
+    `--battle-table-adjust-y: ${String(state.battleTableYOffsetPercent)}%`,
+    `--hand-card-scale: ${(state.handCardScalePercent / 100).toFixed(2)}`
   ].join("; ");
 }
 
@@ -2530,7 +2588,71 @@ function renderInterfaceAdjustPanel(): string {
           <output data-turn-orbit-y-output>${String(state.turnOrbitYOffsetPercent)}%</output>
         </label>
       </fieldset>
+      ${renderInterfaceAdjustSlider({
+        label: "玩家卡片上下",
+        id: "settings-seat-y-slider",
+        value: state.seatYOffsetPercent,
+        min: -30,
+        max: 30,
+        step: 1,
+        unit: "%",
+        icon: "↕",
+        dataName: "seat-y"
+      })}
+      ${renderInterfaceAdjustSlider({
+        label: "对战区域主体上下",
+        id: "settings-battle-table-y-slider",
+        value: state.battleTableYOffsetPercent,
+        min: -30,
+        max: 30,
+        step: 1,
+        unit: "%",
+        icon: "⇅",
+        dataName: "battle-table-y"
+      })}
+      ${renderInterfaceAdjustSlider({
+        label: "手牌缩放",
+        id: "settings-hand-card-scale-slider",
+        value: state.handCardScalePercent,
+        min: 60,
+        max: 140,
+        step: 1,
+        unit: "%",
+        icon: "⤢",
+        dataName: "hand-card-scale"
+      })}
     </div>
+  `;
+}
+
+function renderInterfaceAdjustSlider(params: {
+  label: string;
+  id: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  unit: string;
+  icon: string;
+  dataName: "seat-y" | "battle-table-y" | "hand-card-scale";
+}): string {
+  return `
+    <fieldset class="settings-segment settings-slider-segment">
+      <legend>${escapeHtml(params.label)}</legend>
+      <label class="settings-slider-row settings-orbit-slider-row" for="${params.id}">
+        <span class="settings-slider-icon" aria-hidden="true">${escapeHtml(params.icon)}</span>
+        <input
+          id="${params.id}"
+          type="range"
+          min="${String(params.min)}"
+          max="${String(params.max)}"
+          step="${String(params.step)}"
+          value="${String(params.value)}"
+          data-interface-adjust-range="${params.dataName}"
+        />
+        <output data-interface-adjust-output="${params.dataName}">${String(params.value)}${escapeHtml(params.unit)}</output>
+      </label>
+    </fieldset>
   `;
 }
 
@@ -5182,6 +5304,19 @@ function bindBattlePanel(): void {
     syncTurnOrbitYOffsetControls(value);
   });
 
+  document.querySelectorAll<HTMLInputElement>("[data-interface-adjust-range]").forEach((slider) => {
+    slider.addEventListener("input", () => {
+      const setting = slider.dataset.interfaceAdjustRange;
+      const value = parseInterfaceAdjustValue(setting, slider.value);
+
+      if (value === null) {
+        return;
+      }
+
+      applyInterfaceAdjustSetting(setting, value);
+    });
+  });
+
   document.querySelector("#battle-leave-room-button")?.addEventListener("click", () => {
     leaveCurrentRoomFromBattle();
   });
@@ -5518,6 +5653,53 @@ function syncTurnOrbitYOffsetControls(value: number): void {
   if (battleRoot !== null) {
     battleRoot.style.setProperty("--turn-orbit-y-offset", `${String(value)}%`);
   }
+  if (output !== null) {
+    output.value = `${String(value)}%`;
+    output.textContent = `${String(value)}%`;
+  }
+}
+
+function parseInterfaceAdjustValue(
+  setting: string | undefined,
+  rawValue: string
+): number | null {
+  switch (setting) {
+    case "seat-y":
+    case "battle-table-y":
+      return parseNumberInRange(rawValue, -30, 30);
+    case "hand-card-scale":
+      return parseNumberInRange(rawValue, 60, 140);
+    default:
+      return null;
+  }
+}
+
+function applyInterfaceAdjustSetting(setting: string | undefined, value: number): void {
+  const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
+  const output = document.querySelector<HTMLOutputElement>(
+    `[data-interface-adjust-output="${setting ?? ""}"]`
+  );
+
+  switch (setting) {
+    case "seat-y":
+      state.seatYOffsetPercent = value;
+      setStoredValue(SEAT_Y_OFFSET_STORAGE_KEY, String(value));
+      battleRoot?.style.setProperty("--battle-seat-y-offset", `${String(value)}%`);
+      break;
+    case "battle-table-y":
+      state.battleTableYOffsetPercent = value;
+      setStoredValue(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, String(value));
+      battleRoot?.style.setProperty("--battle-table-adjust-y", `${String(value)}%`);
+      break;
+    case "hand-card-scale":
+      state.handCardScalePercent = value;
+      setStoredValue(HAND_CARD_SCALE_STORAGE_KEY, String(value));
+      battleRoot?.style.setProperty("--hand-card-scale", (value / 100).toFixed(2));
+      break;
+    default:
+      return;
+  }
+
   if (output !== null) {
     output.value = `${String(value)}%`;
     output.textContent = `${String(value)}%`;
@@ -6224,6 +6406,8 @@ function resetRoomContext(): void {
   state.penaltyDrawProgress = null;
   state.eventModal = null;
   state.ruleModal = null;
+  state.battleLoadingOverlayStartedAtMs = null;
+  state.battleLoadingOverlayDone = false;
   state.dismissedFinishedNoticeKey = null;
   clearSelectedCards();
   removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);

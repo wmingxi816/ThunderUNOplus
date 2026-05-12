@@ -1,6 +1,10 @@
 import type { GameCommand, GameState, PlayerId } from "@thunder-uno/shared-types";
 import { generateBotCandidates } from "./botCandidates";
-import { scoreBotCandidates, type ScoredBotAction } from "./botScoring";
+import {
+  scoreBotCandidates,
+  type BotScoringWeights,
+  type ScoredBotAction
+} from "./botScoring";
 
 export interface GreedyBotDecision {
   command: GameCommand;
@@ -14,6 +18,7 @@ export interface DecideGreedyBotActionParams {
   playerId: PlayerId;
   forgetUnoRate: number;
   random?: () => number;
+  weights?: BotScoringWeights;
 }
 
 export function decideGreedyBotAction(
@@ -25,7 +30,8 @@ export function decideGreedyBotAction(
     params.state,
     params.playerId,
     candidates,
-    random
+    random,
+    params.weights
   );
   const bestAction = scoredCandidates[0];
 
