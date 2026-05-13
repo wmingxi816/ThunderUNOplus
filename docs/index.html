@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雷霆 UNOplus 文档总览</title>
+    <style>
+      :root {
+        --bg-top: #f7fbfd;
+        --bg-bottom: #e6eff5;
+        --panel: rgba(255, 255, 255, 0.9);
+        --panel-strong: rgba(255, 255, 255, 0.96);
+        --text: #17344b;
+        --muted: #56738a;
+        --line: rgba(17, 57, 84, 0.1);
+        --accent: #0c79af;
+        --accent-strong: #084f76;
+        --shadow: 0 22px 54px rgba(16, 49, 74, 0.14);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 18%, rgba(84, 187, 228, 0.24), transparent 26%),
+          radial-gradient(circle at 85% 12%, rgba(10, 121, 175, 0.18), transparent 22%),
+          linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .hero {
+        padding: 30px;
+        border-radius: 30px;
+        background:
+          linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(232, 242, 247, 0.92)),
+          linear-gradient(135deg, rgba(12, 121, 175, 0.06), rgba(78, 178, 223, 0.15));
+        border: 1px solid rgba(255, 255, 255, 0.78);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(12px);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(12, 121, 175, 0.1);
+        color: var(--accent-strong);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 14px 0 12px;
+        font-size: clamp(34px, 4.6vw, 56px);
+        line-height: 1.04;
+      }
+
+      .hero p {
+        margin: 0;
+        max-width: 860px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.8;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .stat {
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.76);
+        border: 1px solid rgba(17, 57, 84, 0.08);
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .stat span {
+        display: block;
+        margin-top: 6px;
+        font-size: 24px;
+        font-weight: 800;
+      }
+
+      .entry-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 18px;
+        margin-top: 28px;
+      }
+
+      .entry-card {
+        display: block;
+        padding: 24px;
+        border-radius: 24px;
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        box-shadow: var(--shadow);
+        transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+      }
+
+      .entry-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(12, 121, 175, 0.2);
+        box-shadow: 0 28px 60px rgba(16, 49, 74, 0.16);
+      }
+
+      .entry-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: flex-start;
+      }
+
+      .entry-kicker {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(12, 121, 175, 0.1);
+        color: var(--accent-strong);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .entry-count {
+        font-size: 14px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .entry-card h2 {
+        margin: 16px 0 10px;
+        font-size: 28px;
+        line-height: 1.12;
+      }
+
+      .entry-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .entry-points {
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .entry-points li {
+        position: relative;
+        padding-left: 16px;
+        color: var(--text);
+        line-height: 1.8;
+      }
+
+      .entry-points li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 12px;
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #0c79af, #4ab5de);
+      }
+
+      .entry-action {
+        margin-top: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #0c79af, #1698c8);
+        color: white;
+        font-weight: 800;
+        box-shadow: 0 12px 26px rgba(12, 121, 175, 0.22);
+      }
+
+      .sub-links {
+        margin-top: 26px;
+        padding: 20px 22px;
+        border-radius: 20px;
+        background: var(--panel-strong);
+        box-shadow: var(--shadow);
+      }
+
+      .sub-links h3 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+
+      .sub-links p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        line-height: 1.75;
+      }
+
+      .sub-links ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .sub-links li + li {
+        margin-top: 8px;
+      }
+
+      .sub-links code {
+        padding: 2px 6px;
+        border-radius: 8px;
+        background: rgba(17, 57, 84, 0.08);
+        font-family: Consolas, "Courier New", monospace;
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          width: min(100% - 20px, 1180px);
+          padding-top: 18px;
+          padding-bottom: 36px;
+        }
+
+        .hero {
+          padding: 22px 18px;
+          border-radius: 24px;
+        }
+
+        .entry-card {
+          padding: 20px 18px;
+        }
+
+        .entry-card h2 {
+          font-size: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <span class="eyebrow">Docs Portal</span>
+        <h1>雷霆 UNOplus 文档总览</h1>
+        <p>把项目阶段记录和问题拆解放进同一个入口。适合先快速了解项目演进，再按需要进入具体 Phase 或 Problem 页面展开阅读。</p>
+        <div class="stats">
+          <article class="stat">
+            <strong>Phase 文档</strong>
+            <span>21</span>
+          </article>
+          <article class="stat">
+            <strong>Problem 文档</strong>
+            <span>8</span>
+          </article>
+          <article class="stat">
+            <strong>阅读方式</strong>
+            <span>总览 + 展开</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="entry-grid">
+        <a class="entry-card" href="./phase-overview.html">
+          <div class="entry-top">
+            <span class="entry-kicker">Development Flow</span>
+            <span class="entry-count">21 份</span>
+          </div>
+          <h2>Phase 总览</h2>
+          <p>按开发阶段串起项目脉络，适合快速看每一阶段做了什么、为什么这样做、下一步准备接什么。</p>
+          <ul class="entry-points">
+            <li>按基础架构、Web 转向、机器人与打磨分板块整理</li>
+            <li>每份文档都有摘要、标签、展开内容和原文入口</li>
+            <li>适合回看长期演进路线和里程碑成果</li>
+          </ul>
+          <span class="entry-action">进入 Phase 总览</span>
+        </a>
+
+        <a class="entry-card" href="./problem-overview.html">
+          <div class="entry-top">
+            <span class="entry-kicker">Issue Map</span>
+            <span class="entry-count">8 份</span>
+          </div>
+          <h2>Problem 总览</h2>
+          <p>按问题主题回看缺陷背景、修复方向和验收重点，适合定位曾经出现过的坑和当前规则边界。</p>
+          <ul class="entry-points">
+            <li>按规则修正、对战反馈、体验优化三段分组</li>
+            <li>快速查看每个 Problem 的核心目标和详细内容</li>
+            <li>适合修复回归、试玩复盘和需求核对</li>
+          </ul>
+          <span class="entry-action">进入 Problem 总览</span>
+        </a>
+      </section>
+
+      <section class="sub-links">
+        <h3>原始入口</h3>
+        <p>如果你需要继续维护或重新生成这些页面，可以直接使用现有入口和脚本。</p>
+        <ul>
+          <li><a href="./项目开发文档.md"><code>docs/项目开发文档.md</code></a></li>
+          <li><a href="./phase-overview.html"><code>docs/phase-overview.html</code></a></li>
+          <li><a href="./problem-overview.html"><code>docs/problem-overview.html</code></a></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雷霆 UNOplus Problem 总览</title>
+    <style>
+      :root {
+        --bg: #eef4f8;
+        --panel: rgba(255, 255, 255, 0.86);
+        --panel-strong: rgba(255, 255, 255, 0.96);
+        --line: rgba(15, 53, 86, 0.14);
+        --text: #16344c;
+        --muted: #537089;
+        --accent: #0f7db5;
+        --accent-strong: #0a5d88;
+        --chip: rgba(15, 125, 181, 0.1);
+        --shadow: 0 18px 48px rgba(17, 52, 77, 0.14);
+        --radius: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(108, 189, 232, 0.28), transparent 28%),
+          radial-gradient(circle at top right, rgba(19, 108, 173, 0.18), transparent 22%),
+          linear-gradient(180deg, #f7fbfd 0%, #edf4f8 42%, #e7eff4 100%);
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      a {
+        color: var(--accent-strong);
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .hero {
+        padding: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 28px;
+        background:
+          linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(232, 242, 247, 0.92)),
+          linear-gradient(135deg, rgba(12, 98, 144, 0.06), rgba(79, 177, 221, 0.14));
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--accent-strong);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 14px 0 12px;
+        font-size: clamp(32px, 4.2vw, 52px);
+        line-height: 1.06;
+      }
+
+      .hero p {
+        margin: 0;
+        max-width: 840px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.75;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #0f7db5, #1697c7);
+        color: white;
+        padding: 12px 18px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 10px 24px rgba(15, 125, 181, 0.22);
+        transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+      }
+
+      button.secondary {
+        background: rgba(255, 255, 255, 0.82);
+        color: var(--accent-strong);
+        border: 1px solid rgba(15, 125, 181, 0.18);
+        box-shadow: none;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .meta-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin: 22px 0 10px;
+      }
+
+      .meta-card {
+        padding: 16px 18px;
+        border-radius: 16px;
+        border: 1px solid rgba(15, 53, 86, 0.08);
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .meta-card strong {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .meta-card span {
+        display: block;
+        margin-top: 6px;
+        font-size: 22px;
+        font-weight: 800;
+      }
+
+      .group {
+        margin-top: 28px;
+      }
+
+      .group-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-end;
+        margin-bottom: 14px;
+      }
+
+      .group-head h2 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .group-head p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .group-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(22, 136, 184, 0.12);
+        color: var(--accent-strong);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .doc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 16px;
+      }
+
+      .doc-card {
+        border-radius: var(--radius);
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.65);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        backdrop-filter: blur(12px);
+      }
+
+      .doc-summary {
+        padding: 20px 20px 18px;
+      }
+
+      .doc-topline {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .doc-index {
+        display: inline-flex;
+        min-width: 44px;
+        justify-content: center;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(15, 125, 181, 0.1);
+        color: var(--accent-strong);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .doc-summary h3 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.35;
+      }
+
+      .doc-summary p {
+        margin: 12px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .doc-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .doc-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: rgba(15, 53, 86, 0.06);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .doc-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .doc-actions button {
+        flex: 1;
+      }
+
+      .doc-actions a {
+        flex: 1;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        padding: 12px 16px;
+        border-radius: 999px;
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(15, 125, 181, 0.16);
+        color: var(--accent-strong);
+        font-weight: 700;
+      }
+
+      .doc-body {
+        padding: 0 20px 20px;
+        border-top: 1px solid var(--line);
+        background: var(--panel-strong);
+      }
+
+      .doc-body[hidden] {
+        display: none;
+      }
+
+      .doc-body-inner {
+        padding-top: 18px;
+      }
+
+      .doc-body h1,
+      .doc-body h2,
+      .doc-body h3,
+      .doc-body h4 {
+        margin: 20px 0 10px;
+        line-height: 1.35;
+      }
+
+      .doc-body h1 {
+        font-size: 24px;
+      }
+
+      .doc-body h2 {
+        font-size: 20px;
+      }
+
+      .doc-body h3 {
+        font-size: 17px;
+      }
+
+      .doc-body h4 {
+        font-size: 15px;
+      }
+
+      .doc-body p,
+      .doc-body li,
+      .doc-body blockquote {
+        line-height: 1.8;
+      }
+
+      .doc-body ul,
+      .doc-body ol {
+        margin: 10px 0 14px 20px;
+        padding: 0;
+      }
+
+      .doc-body li + li {
+        margin-top: 6px;
+      }
+
+      .doc-body code {
+        padding: 2px 6px;
+        border-radius: 8px;
+        background: rgba(15, 53, 86, 0.08);
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.95em;
+      }
+
+      .doc-body pre {
+        margin: 14px 0;
+        padding: 16px;
+        overflow-x: auto;
+        border-radius: 16px;
+        background: #10283a;
+        color: #e8f5ff;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      .doc-body pre code {
+        padding: 0;
+        background: transparent;
+        color: inherit;
+      }
+
+      .doc-body table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 14px 0 18px;
+        overflow: hidden;
+        border-radius: 14px;
+        box-shadow: inset 0 0 0 1px rgba(15, 53, 86, 0.08);
+      }
+
+      .doc-body th,
+      .doc-body td {
+        padding: 12px 12px;
+        text-align: left;
+        border-bottom: 1px solid rgba(15, 53, 86, 0.08);
+        vertical-align: top;
+      }
+
+      .doc-body th {
+        background: rgba(15, 125, 181, 0.09);
+      }
+
+      .doc-body blockquote {
+        margin: 14px 0;
+        padding: 14px 16px;
+        border-left: 4px solid rgba(15, 125, 181, 0.45);
+        border-radius: 0 14px 14px 0;
+        background: rgba(15, 125, 181, 0.08);
+        color: var(--text);
+      }
+
+      .footer {
+        margin-top: 32px;
+        padding: 18px 22px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          width: min(100% - 20px, 1180px);
+          padding-top: 18px;
+          padding-bottom: 36px;
+        }
+
+        .hero {
+          padding: 22px 18px;
+          border-radius: 24px;
+        }
+
+        .doc-summary,
+        .doc-body {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .doc-actions {
+          flex-direction: column;
+        }
+
+        .doc-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <span class="eyebrow">Issue Map</span>
+        <h1>雷霆 UNOplus Problem 总览</h1>
+        <p>把问题文档整理成一张清晰的问题地图，方便按主题回看缺陷、修复方向、验收标准和风险边界。</p>
+        <div class="toolbar">
+          <button type="button" data-action="expand-all">展开全部</button>
+          <button type="button" class="secondary" data-action="collapse-all">收起全部</button>
+        </div>
+        <div class="meta-strip">
+          <article class="meta-card">
+            <strong>收录文档</strong>
+            <span>8</span>
+          </article>
+          <article class="meta-card">
+            <strong>分组板块</strong>
+            <span>3</span>
+          </article>
+          <article class="meta-card">
+            <strong>阅读方式</strong>
+            <span>先总览再展开</span>
+          </article>
+        </div>
+      </section>
+      <section class="group">
+        <div class="group-head">
+          <div>
+            <h2>规则与资源修正</h2>
+            <p>聚焦规则引擎、牌资源映射、非法出牌与状态约束。</p>
+          </div>
+          <span class="group-chip">3 份文档</span>
+        </div>
+        <div class="doc-grid">
+          <article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">01</div>
+            <h3>Problem 1：卡牌资源与核心规则纠错</h3>
+          </div>
+        </div>
+        <p>problem1.md</p>
+        <div class="doc-tags">
+          <span class="doc-tag">Problem1</span><span class="doc-tag">159 行内容</span><span class="doc-tag">含测试/验收</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-1" aria-expanded="false">展开内容</button>
+          <a href="./Problem1.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-1" hidden>
+        <div class="doc-body-inner">
+          <p>problem1.md</p>
+<h1>Problem 1：卡牌资源与核心规则纠错</h1>
+<h2>问题背景</h2>
+<p>当前《雷霆UNOplus》已经可以进行网页端对局，但有一些核心规则和卡牌资源映射存在错误。这一轮优先修复规则层和资源层问题，不要先做动画和复杂 UI。</p>
+<p>本问题对应原问题：</p>
+<ul><li>5. 反转+4 叠加规则、+10 高亮错误</li><li>8. 同类型技能牌可以互接，但当前逻辑错误</li><li>9. 加牌链叠加规则不完整</li><li>10. 交换手牌规则没有实现</li><li>12. 反转牌和交换手牌牌的 UI 弄反了</li></ul>
+<h2>本阶段目标</h2>
+<p>修复会直接影响游戏正确性的规则 bug：</p>
+<ol><li>修正反转牌和交换手牌牌的 UI 资源映射。</li><li>修正“相同类型技能牌可以互接”的规则。</li><li>修正完整加牌链叠加规则。</li><li>修正 +10 场景下普通绿色牌错误高亮的问题。</li><li>实现交换手牌牌的实际手牌交换效果。</li></ol>
+<h2>不要做什么</h2>
+<p>本阶段不要做：</p>
+<ul><li>不做出牌动画。</li><li>不做弃牌堆散落效果。</li><li>不做移动端视觉重构。</li><li>不做数据库、登录、商城、支付。</li><li>不新增新玩法规则。</li><li>不修改 CARD-CONFIG 的牌库数量。</li><li>不改变服务端权威规则架构。</li></ul>
+<h2>需要检查的文件</h2>
+<p>请优先审计：</p>
+<ol><li><code>apps/client-web/src/cards/cardAssets.ts</code></li><li><code>packages/uno-core/src/rules/canPlayCard.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.ts</code></li><li><code>packages/uno-core/src/rules/discardSameColor.ts</code></li><li><code>packages/uno-core/src/reducer/applyPlayCard.ts</code></li><li><code>packages/uno-core/src/reducer/effects.ts</code></li><li><code>packages/uno-core/src/reducer/applyCommand.ts</code></li><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/battle/selection.ts</code></li><li><code>packages/shared-types/src/card.ts</code></li></ol>
+<h2>任务 1：修正反转牌和交换手牌牌 UI 映射</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">反转牌和交换手牌牌的 UI 图片弄反了。
+
+要求：
+
+检查所有颜色版本的反转牌图片映射。
+检查所有颜色版本的交换手牌图片映射。
+确保 reverse 类型渲染的是反转牌图片。
+确保 swap-hand 类型渲染的是交换手牌图片。
+增加测试，防止未来再次映射反。
+
+建议新增或修改测试：
+
+apps/client-web/src/cards/cardAssets.test.ts
+
+测试内容：
+
+red reverse -&gt; red reverse image
+yellow reverse -&gt; yellow reverse image
+blue reverse -&gt; blue reverse image
+green reverse -&gt; green reverse image
+
+red swap-hand -&gt; red swap-hand image
+yellow swap-hand -&gt; yellow swap-hand image
+blue swap-hand -&gt; blue swap-hand image
+green swap-hand -&gt; green swap-hand image
+任务 2：修正相同类型技能牌可以互接
+
+当前问题：
+
+同色丢弃之后不能接其他颜色的同色丢弃，这是错误的。
+
+正确规则：
+
+红“同色丢弃”
+可以接
+绿“同色丢弃” + 绿2 + 绿禁
+
+同理：
+
+黄“反转” 可以接 红“反转”
+绿“交换手牌” 可以接 黄“交换手牌”
+蓝“禁” 可以接 红“禁”
+
+要求：
+
+普通接牌规则支持“相同技能类型可以互接”。
+不同颜色但相同技能类型的功能牌可以打出。
+这个规则要覆盖：
+禁
+反转
+交换手牌
+同色丢弃
+普通 +2
+普通 +4
+罚抽
+黑牌仍按黑牌自身规则处理。
+
+建议规则结构：
+
+可以接牌 =
+颜色相同
+OR 数字相同
+OR 技能类型相同
+OR 黑牌特殊规则允许
+
+注意：
+
+同类型技能牌可互接，不等于所有技能牌都可以互接。
+任务 3：修正完整加牌链叠加规则
+
+当前问题：
+
+加牌叠加链没有完整实现。
++10 存在时，普通绿色牌错误高亮。
+反转+4 不能正确叠反转+4。
+
+正确规则：
+
+普通 +2 后面，可以按照颜色叠普通 +4。
+
+黑色反转 +4 可以叠在：
+- 普通 +2
+- 普通 +4
+- 黑色反转 +4
+
+黑色 +6 可以叠在：
+- 普通 +2
+- 普通 +4
+- 黑色反转 +4
+- 黑色 +6
+
+黑色 +10 可以叠在所有加牌牌后面。
+
++10 可以叠 +10。
+
+罚抽可以叠罚抽。
+
+要求：
+
+canStackDrawCard() 必须严格实现这些规则。
+drawStack 激活时，只允许合法加牌牌高亮。
+drawStack 激活时，普通数字牌、普通非加牌技能牌不应该高亮。
+当前颜色不能让普通绿色牌错误变成可出。
+服务端 reducer 和前端高亮逻辑必须一致。
+
+需要补测试：
+
+普通 +2 后可以叠同色普通 +4
+普通 +2 后可以叠反转+4
+普通 +4 后可以叠反转+4
+反转+4 后可以叠反转+4
+反转+4 后可以叠 +6
++6 后可以叠 +6
++6 后可以叠 +10
++10 后可以叠 +10
+罚抽后可以叠罚抽
+drawStack 激活时普通绿色牌不能出
+任务 4：实现交换手牌效果
+
+当前问题：
+
+交换手牌牌打出后，玩家手牌并没有真正交换。
+
+要求：
+
+打出交换手牌后，必须根据规则执行手牌交换。
+交换完成后更新双方 hand。
+所有玩家收到新的 snapshot。
+事件里应能体现交换手牌发生过。
+如果交换对象有规则限制，必须按 rule 文档实现。
+如果规则是“按出牌顺序交换”，则严格按出牌顺序处理。
+
+需要补测试：
+
+玩家 A 打出交换手牌后，A 和目标玩家手牌互换
+交换后 handCount 正确
+交换后 snapshot 不泄露其他玩家完整手牌
+交换手牌事件被生成
+验收标准
+
+完成后至少满足：
+
+1. 反转牌和交换手牌牌 UI 映射正确。
+2. 同类型技能牌可以跨颜色互接。
+3. 加牌链叠加规则符合 rule 文档。
+4. drawStack 激活时不会错误高亮普通绿色牌。
+5. 交换手牌牌会真实交换玩家手牌。
+6. uno-core 相关测试通过。
+7. client-web cardAssets 测试通过。
+8. 全仓 typecheck / test 通过。
+测试命令
+
+至少运行：
+
+corepack pnpm --filter @thunder-uno/uno-core test
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/game-server test
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">02</div>
+            <h3>problem2.md</h3>
+          </div>
+        </div>
+        <p>```md</p>
+        <div class="doc-tags">
+          <span class="doc-tag">Problem2</span><span class="doc-tag">160 行内容</span><span class="doc-tag">含测试/验收</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-2" aria-expanded="false">展开内容</button>
+          <a href="./Problem2.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-2" hidden>
+        <div class="doc-body-inner">
+          <h1>problem2.md</h1>
+<pre><code class="language-md"># Problem 2：手牌可选状态与非法出牌提示系统
+
+## 问题背景
+
+当前手牌 UI 中，不可出的牌仍然可以被选中，或者只是高亮不明确。玩家不知道为什么某些牌不能出，也不知道当前选中的牌还能和哪些牌组合。
+
+本问题对应原问题：
+
+- 1. 不可出的牌应禁止选中，而不是可选但不高亮
+- 2. 选中可出牌后，该牌上移，不可搭配牌变暗，点击非法牌弹窗提示
+- 5. +10 存在时错误高亮绿色普通牌
+- 14. 不可出的牌太黑，只需要稍微暗一点
+- 18. 手牌第一张和第二张有重叠
+
+## 本阶段目标
+
+重构手牌选择体验：
+
+1. 不可出的牌不能被选中。
+2. 点击不可出的牌时，显示明确原因。
+3. 选中一张牌后，能搭配的牌保持亮，不可搭配的牌轻微变暗。
+4. 再次点击已选牌时取消选中。
+5. 顺子候选牌用紫色框提示。
+6. 不可出牌只轻微变暗，不要黑成看不清。
+7. 修复手牌第一张和第二张重叠问题。
+
+## 不要做什么
+
+本阶段不要做：
+
+- 不改核心规则结果，规则 bug 已在 Problem 1 处理。
+- 不做出牌飞行动画。
+- 不做弃牌堆散落。
+- 不做摸牌动画。
+- 不做大规模 UI 重构。
+- 不做移动端整体重写。
+
+## 需要检查的文件
+
+请优先审计：
+
+1. `apps/client-web/src/main.ts`
+2. `apps/client-web/src/battle/selection.ts`
+3. `apps/client-web/src/styles.css`
+4. `apps/client-web/src/cards/cardAssets.ts`
+5. `packages/uno-core/src/rules/canPlayCard.ts`
+6. `packages/uno-core/src/rules/sequence.ts`
+7. `packages/uno-core/src/rules/multiple.ts`
+8. `packages/uno-core/src/rules/discardSameColor.ts`
+9. `packages/uno-core/src/rules/canStackDrawCard.ts`
+
+## 任务 1：手牌状态分类
+
+每张手牌在 UI 中应被分成以下状态：
+</code></pre>
+<p>playable 可以直接出，正常亮度，可点击，可选中</p>
+<p>combo-candidate 可以作为组合候选，例如顺子候选，显示紫色边框</p>
+<p>selected 当前已选中，上移约 1/4 张牌高度</p>
+<p>compatible 与当前已选牌可搭配，保持正常亮度</p>
+<p>incompatible 与当前已选牌不可搭配，轻微变暗</p>
+<p>disabled 当前局势下不能出，例如不是当前回合、drawStack 阶段普通牌，不能选中</p>
+<p>要求：</p>
+<p>disabled 和 incompatible 不能被选中。 但点击它们时，要弹窗提示原因。 不要只通过颜色区分所有状态，要有边框、上移、透明度组合。 任务 2：不可出牌点击提示</p>
+<p>当前不可出的牌不能被选中，但玩家点击时需要提示原因。</p>
+<p>示例提示：</p>
+<p>还没轮到你出牌 当前有加牌链，只能叠加加牌牌或结算罚摸 这张牌不能接当前颜色 这张牌不能和已选牌组成顺子 连对必须是相同颜色和相同数字 同色丢弃不能包含黑牌</p>
+<p>建议实现结构：</p>
+<p>type InvalidSelectionReason = { code: string; message: string; priority: number; category:</p>
+<table>
+    <thead>
+      <tr><th>&quot;state&quot;</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>&quot;forced-action&quot;</td></tr><tr><td>&quot;selection-shape&quot;</td></tr><tr><td>&quot;card-match&quot;</td></tr><tr><td>&quot;combo&quot;</td></tr><tr><td>&quot;missing-parameter&quot;;</td></tr>
+    </tbody>
+  </table>
+<p>};</p>
+<p>提醒优先级：</p>
+<ol><li>当前不能操作</li><li>当前局势强约束，例如 drawStack / drawUntilColor</li><li>当前选择形状错误</li><li>牌面颜色 / 数字 / 类型不匹配</li><li>缺少参数，例如未选颜色</li></ol>
+<p>页面只展示一条最高优先级提示。</p>
+<p>任务 3：选中牌上移与取消</p>
+<p>要求：</p>
+<p>玩家点击一张可出的牌，该牌上移约 1/4 张牌高度。 该牌进入 selected 状态。 与它可搭配的牌保持亮。 与它不可搭配的牌轻微变暗。 玩家再次点击这张牌时，该牌缩回。 缩回后恢复初始可出牌提示。</p>
+<p>CSS 建议：</p>
+<p>.selected-card { transform: translateY(-25%); }</p>
+<p>注意：</p>
+<p>上移不能导致手牌区高度剧烈抖动。 任务 4：顺子候选紫色框</p>
+<p>你需要判断玩家手牌是否存在组成顺子的可能。</p>
+<p>要求：</p>
+<p>当玩家手牌中存在可组成顺子的数字链时， 这些顺子候选牌显示紫色边框。</p>
+<p>例如手牌：</p>
+<p>1 2 3 4 4 5 5 6 6 6</p>
+<p>即使有重复数字，所有可能参与顺子的牌都显示紫色框。</p>
+<p>注意：</p>
+<p>紫色框只表示“有顺子潜力”，不表示当前选择一定合法。 最终出牌仍要校验是否满足顺子规则。</p>
+<p>需要支持：</p>
+<p>顺子至少 5 张 只能包含数字牌 数字必须连续 重复数字不能同时组成同一条顺子 任务 5：不可出牌不要太黑</p>
+<p>当前不可出牌 UI 太黑。</p>
+<p>要求：</p>
+<p>不可出牌 opacity 建议 0.55 到 0.7 不要低于 0.45 牌面仍然可读</p>
+<p>同时可以增加：</p>
+<p>轻微灰色蒙层 cursor: not-allowed 点击后提示原因 任务 6：修复第一张和第二张手牌重叠</p>
+<p>当前问题：</p>
+<p>手牌第一张牌和第二张牌有一点重叠。</p>
+<p>检查并修复：</p>
+<p>hand-area padding-left card margin scroll snap 起点 selected 状态 transform 后的位置 移动端横向滚动起点</p>
+<p>要求：</p>
+<p>第一张牌不能被第二张盖住 选中第一张牌时不能被裁切 手机横向滚动时第一张牌完整可见 验收标准</p>
+<p>完成后至少满足：</p>
+<ol><li>不可出的牌不能被选中。</li><li>点击不可出的牌会显示具体原因。</li><li>可出的牌可以选中并上移。</li><li>再次点击已选牌会取消选中。</li><li>选中一张牌后，不可搭配牌轻微变暗。</li><li>顺子候选牌有紫色边框。</li><li>不可出牌仍然能看清牌面。</li><li>手牌第一张和第二张不重叠。</li><li>drawStack 阶段不会错误高亮普通绿色牌。</li><li>原有 E2E 不被破坏。</li></ol>
+<p>测试命令</p>
+<p>至少运行：</p>
+<p>corepack pnpm --filter @thunder-uno/client-web typecheck corepack pnpm --filter @thunder-uno/client-web test corepack pnpm --filter @thunder-uno/client-web test:e2e corepack pnpm --filter @thunder-uno/client-web build corepack pnpm typecheck corepack pnpm test</p>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">03</div>
+            <h3>problem3.md</h3>
+          </div>
+        </div>
+        <p>```md</p>
+        <div class="doc-tags">
+          <span class="doc-tag">Problem3</span><span class="doc-tag">144 行内容</span><span class="doc-tag">含测试/验收</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-3" aria-expanded="false">展开内容</button>
+          <a href="./Problem3.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-3" hidden>
+        <div class="doc-body-inner">
+          <h1>problem3.md</h1>
+<pre><code class="language-md"># Problem 3：摸牌、罚抽与质疑流程重构
+
+## 问题背景
+
+当前摸牌和罚抽流程存在几个问题：
+
+1. 普通摸牌后如果摸到可打出的牌，系统会自动打出。
+2. 罚抽指定颜色时，系统一次性摸完，没有一张一张展示。
+3. 摸牌没有牌落入手牌堆的动画。
+4. 刚摸到的牌没有红色提示。
+5. 质疑判定可能错误地把刚摸到的牌算进去。
+
+本问题对应原问题：
+
+- 3. 罚抽指定颜色后，下家应一张一张摸并提示颜色
+- 4. 摸牌应该有牌落入手牌堆的动画
+- 11. 普通摸牌后应询问是否打出，不应自动打出
+- 13. 摸牌后刚摸到的牌用红色圈出
+- 11. 质疑不应计算刚摸到的牌
+
+## 本阶段目标
+
+重构摸牌相关流程：
+
+1. 普通摸牌后，先加入手牌，再询问是否立即打出。
+2. 罚抽指定颜色时，每次只摸一张，并提示摸到的颜色。
+3. 摸牌有从牌堆到手牌区的动画。
+4. 刚摸到的牌用红色圈出，直到下一个完成出牌。
+5. 质疑判定基于摸牌前手牌，不包括刚摸到的牌。
+
+## 不要做什么
+
+本阶段不要做：
+
+- 不做概率洗牌袋。
+- 不改 CARD-CONFIG。
+- 不做弃牌堆散落动画。
+- 不做完整牌桌重构。
+- 不做新玩法规则。
+- 不做登录、数据库、支付、商城。
+
+## 需要检查的文件
+
+请优先审计：
+
+1. `packages/uno-core/src/reducer/applyDrawCard.ts`
+2. `packages/uno-core/src/reducer/applyDrawUntilColor.ts`
+3. `packages/uno-core/src/reducer/applyChallenge.ts`
+4. `packages/uno-core/src/reducer/drawCardsFromState.ts`
+5. `packages/uno-core/src/reducer/applyCommand.ts`
+6. `packages/uno-core/src/gameState.ts`
+7. `packages/shared-types/src/event.ts`
+8. `packages/protocol/src/messages.ts`
+9. `apps/client-web/src/main.ts`
+10. `apps/client-web/src/styles.css`
+
+## 任务 1：普通摸牌后不自动打出
+
+当前错误逻辑：
+</code></pre>
+<p>玩家普通摸牌后，如果摸到可出的牌，系统立即自动打出。</p>
+<p>正确逻辑：</p>
+<ol><li>玩家没有可出牌时点击摸牌。</li><li>系统摸 1 张牌。</li><li>这张牌先加入玩家手牌。</li><li>如果这张牌可以打出，客户端弹窗询问：</li></ol>
+<p>“刚摸到的牌可以打出，是否立即打出？”</p>
+<ol><li>玩家点击“打出”才发送出牌命令。</li><li>玩家点击“不打出”则保留手牌，并按规则结束或推进回合。</li></ol>
+<p>注意：</p>
+<p>摸到技能牌也可以选择立即打出。</p>
+<p>但只适用于：</p>
+<p>普通摸牌阶段</p>
+<p>不适用于：</p>
+<p>罚抽 加牌链结算 质疑罚摸 UNO 罚摸 淘汰结算摸牌 任务 2：罚抽指定颜色一张一张摸</p>
+<p>当前错误逻辑：</p>
+<p>罚抽直到颜色命中时，系统一次性把所有牌摸完。</p>
+<p>正确逻辑：</p>
+<ol><li>玩家进入 drawUntilColor 状态。</li><li>玩家点击“继续罚抽”。</li><li>系统只摸 1 张。</li><li>弹窗或提示显示：</li></ol>
+<p>“罚摸红色，摸到的是蓝色，请继续摸。”</p>
+<ol><li>如果摸到目标颜色：</li></ol>
+<p>“罚摸红色，摸到的是红色，罚抽结束。”</p>
+<ol><li>罚抽结束后推进回合。</li></ol>
+<p>要求：</p>
+<p>每次罚抽只产生一张新牌。 每次都能触发摸牌动画。 每次都能显示颜色提示。 不允许中途打出罚抽摸到的牌。 罚抽过程中普通出牌按钮应禁用。 任务 3：刚摸到的牌红色圈出</p>
+<p>要求：</p>
+<p>刚摸到的牌在手牌区用红色圈出。</p>
+<p>持续时间：</p>
+<p>直到下一个完成出牌后消失。</p>
+<p>需要区分：</p>
+<p>红色圈 = 刚摸到 上移 = 当前选中 紫色框 = 顺子候选 黄色框 = 当前刚出的牌或加牌链</p>
+<p>建议增加字段：</p>
+<p>lastDrawnCardIdsByPlayer?: Record&lt;PlayerId, CardId[]&gt;</p>
+<p>或者在客户端根据事件记录：</p>
+<p>draw-card event -&gt; 记录 cardId -&gt; 红圈 play-card event -&gt; 清理红圈</p>
+<p>注意：</p>
+<p>其他玩家不应该看到具体牌面，只能看到牌背或手牌数量变化。 任务 4：摸牌动画</p>
+<p>要求：</p>
+<p>摸牌时，牌从摸牌堆位置飞向玩家手牌区。</p>
+<p>本地玩家视角：</p>
+<p>牌背或牌面从牌堆飞到自己的手牌区 落下后插入手牌 刚摸到的牌红色圈出</p>
+<p>其他玩家视角：</p>
+<p>牌背从摸牌堆飞向该玩家头像或座位 该玩家手牌数量 +1</p>
+<p>动画不要影响规则结果。 规则结果仍由服务端 snapshot 决定。</p>
+<p>任务 5：质疑判定不计算刚摸到的牌</p>
+<p>当前需求：</p>
+<p>如果摸牌前手牌没有黑色牌， 摸牌后摸到黑色牌， 别人质疑时，仍然按摸牌前状态判定。</p>
+<p>也就是说：</p>
+<p>质疑判断基于摸牌前手牌。</p>
+<p>要求：</p>
+<p>普通摸牌前记录 hadBlackCardBeforeDraw。 质疑成功 / 失败使用这个字段。 不要扫描摸牌后的 hand 来判断。 玩家刚摸到的黑牌不能影响这次质疑结果。 质疑窗口关闭后清理该字段。 验收标准</p>
+<p>完成后至少满足：</p>
+<ol><li>普通摸牌后不会自动打出。</li><li>普通摸牌后如果可打，弹窗询问是否立即打出。</li><li>罚抽指定颜色每次只摸一张。</li><li>每次罚抽都会提示“目标颜色 / 摸到颜色 / 是否继续”。</li><li>刚摸到的牌有红色圈。</li><li>下一个完成出牌后红色圈消失。</li><li>摸牌有落入手牌区的动画。</li><li>质疑判定不包含刚摸到的牌。</li><li>罚抽、质疑罚摸、UNO 罚摸都不会弹出“是否打出”。</li></ol>
+<p>测试命令</p>
+<p>至少运行：</p>
+<p>corepack pnpm --filter @thunder-uno/uno-core test corepack pnpm --filter @thunder-uno/client-web test corepack pnpm --filter @thunder-uno/client-web test:e2e corepack pnpm --filter @thunder-uno/game-server test corepack pnpm typecheck corepack pnpm test</p>
+        </div>
+      </div>
+    </article>
+        </div>
+      </section>
+<section class="group">
+        <div class="group-head">
+          <div>
+            <h2>对战反馈与交互</h2>
+            <p>聚焦胜负流程、弃牌堆、动画、方向状态和战场表现。</p>
+          </div>
+          <span class="group-chip">3 份文档</span>
+        </div>
+        <div class="doc-grid">
+          <article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">04</div>
+            <h3>problem4.md</h3>
+          </div>
+        </div>
+        <p>```md</p>
+        <div class="doc-tags">
+          <span class="doc-tag">Problem4</span><span class="doc-tag">122 行内容</span><span class="doc-tag">含测试/验收</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-4" aria-expanded="false">展开内容</button>
+          <a href="./Problem4.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-4" hidden>
+        <div class="doc-body-inner">
+          <h1>problem4.md</h1>
+<pre><code class="language-md"># Problem 4：UNO、淘汰与胜负弹窗
+
+## 问题背景
+
+当前 UNO 声明、抓 UNO、淘汰和胜利反馈还不够符合规则和 UI 预期。
+
+本问题对应原问题：
+
+- 17. 玩家仅剩一张牌的 UNO 声明环节
+- 19. 手牌数大于等于 26 张时判负并弹窗
+- 19. 获胜时也需要弹窗
+
+## 本阶段目标
+
+实现更清晰的 UNO、淘汰和胜负反馈：
+
+1. 玩家打出倒数第二张牌后，UNO 按钮变为可点击。
+2. 3 秒保护期从下一个玩家回合开始时计算。
+3. 保护期内抓 UNO 不应导致罚摸。
+4. 保护期后未喊 UNO，其他玩家抓 UNO 才成功。
+5. 玩家手牌数 &gt;= 26 时判负并通知所有人。
+6. 玩家获胜时弹出获胜提示。
+7. 出局和获胜都不能只写日志，必须有明显弹窗。
+
+## 不要做什么
+
+本阶段不要做：
+
+- 不改其他牌型规则。
+- 不做弃牌堆动画。
+- 不做出牌飞行动画。
+- 不做房内重新开局。
+- 不做数据库、登录、排行榜、商城、支付。
+
+## 需要检查的文件
+
+请优先审计：
+
+1. `packages/uno-core/src/reducer/applyUno.ts`
+2. `packages/uno-core/src/reducer/applyPlayCard.ts`
+3. `packages/uno-core/src/reducer/turn.ts`
+4. `packages/uno-core/src/gameState.ts`
+5. `packages/shared-types/src/event.ts`
+6. `packages/shared-types/src/game.ts`
+7. `apps/client-web/src/main.ts`
+8. `apps/client-web/src/styles.css`
+
+## 任务 1：UNO 按钮状态
+
+当玩家打出倒数第二张牌后，手牌剩 1 张。
+
+要求：
+</code></pre>
+<ol><li>该玩家的 UNO 按钮变为可点击。</li><li>其他玩家看到该玩家处于 UNO 待声明状态。</li><li>UI 显示“UNO 待喊”或类似状态。</li></ol>
+<p>注意：</p>
+<p>只有该玩家自己可以点击“喊 UNO”。 其他玩家只能在保护期结束后抓 UNO。 任务 2：UNO 3 秒保护期</p>
+<p>正确规则：</p>
+<p>当玩家手牌变成 1 张后， 从下一个玩家回合开始时， 开始 3 秒保护期。</p>
+<p>保护期内：</p>
+<p>其他玩家点击“抓 UNO”不会导致该玩家罚摸。</p>
+<p>保护期后：</p>
+<p>如果该玩家仍未喊 UNO， 其他玩家抓 UNO 成功， 该玩家被罚摸。</p>
+<p>需要实现：</p>
+<ol><li>unoPending 状态。</li><li>unoProtectionStartTime。</li><li>unoProtectionEndsAt。</li><li>当前时间判断。</li><li>抓 UNO 时根据保护期判断成功或失败。</li></ol>
+<p>UI 建议：</p>
+<p>UNO 保护中：3...2...1 可以抓 UNO 任务 3：保护期内抓 UNO 的提示</p>
+<p>如果其他玩家在保护期内抓 UNO：</p>
+<p>提示：当前仍在 UNO 保护期，抓 UNO 无效。</p>
+<p>不要罚摸。</p>
+<p>如果保护期结束后抓 UNO 成功：</p>
+<p>提示：抓 UNO 成功，玩家 xxx 罚摸。</p>
+<p>如果玩家已经喊 UNO：</p>
+<p>提示：玩家 xxx 已经喊 UNO，不能抓。 任务 4：手牌 &gt;= 26 判负</p>
+<p>要求：</p>
+<p>当某玩家手牌数 &gt;= 26， 该玩家立即出局或判负。</p>
+<p>需要所有玩家收到弹窗：</p>
+<p>玩家 xxx 手牌为 xx 张，已出局。</p>
+<p>要求：</p>
+<p>出局玩家不能继续出牌。 出局玩家不能被选为当前玩家。 当前玩家如果出局，要推进到下一名未出局玩家。 如果只剩一名未出局玩家，该玩家获胜。 UI 要显示该玩家出局状态。 任务 5：胜利弹窗</p>
+<p>当玩家打出最后一张牌或其他规则导致胜利时：</p>
+<p>弹窗显示：玩家 xxx 获胜！</p>
+<p>要求：</p>
+<p>不只显示日志。 禁用出牌、摸牌、UNO、质疑等操作。 显示“返回大厅”或“重新创建房间”的入口。 如果暂不支持房内重开，明确提示“当前版本暂不支持房内重开”。 任务 6：事件与快照</p>
+<p>建议增加或确认事件：</p>
+<p>uno-pending uno-said uno-report-failed-protected uno-report-success player-eliminated game-finished</p>
+<p>客户端根据事件或 snapshot 显示弹窗。</p>
+<p>验收标准</p>
+<p>完成后至少满足：</p>
+<ol><li>玩家剩一张牌后 UNO 按钮可点击。</li><li>3 秒保护期从下一个玩家回合开始。</li><li>保护期内抓 UNO 不罚摸。</li><li>保护期后未喊 UNO，抓 UNO 成功。</li><li>玩家手牌数 &gt;= 26 时出局。</li><li>出局有全员弹窗。</li><li>获胜有全员弹窗。</li><li>游戏结束后所有操作按钮禁用。</li><li>相关 uno-core 测试通过。</li><li>client-web E2E 不回退。</li></ol>
+<p>测试命令</p>
+<p>至少运行：</p>
+<p>corepack pnpm --filter @thunder-uno/uno-core test corepack pnpm --filter @thunder-uno/client-web test corepack pnpm --filter @thunder-uno/client-web test:e2e corepack pnpm --filter @thunder-uno/game-server test corepack pnpm typecheck corepack pnpm test</p>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">05</div>
+            <h3>problem5.md</h3>
+          </div>
+        </div>
+        <p>```md</p>
+        <div class="doc-tags">
+          <span class="doc-tag">Problem5</span><span class="doc-tag">136 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-5" aria-expanded="false">展开内容</button>
+          <a href="./Problem5.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-5" hidden>
+        <div class="doc-body-inner">
+          <h1>problem5.md</h1>
+<pre><code class="language-md"># Problem 5：弃牌堆、加牌链展示与出牌 / 摸牌动画
+
+## 问题背景
+
+当前对战页的牌桌表现还不符合想要的卡牌对战感。弃牌堆没有真正形成“打牌一样的散落牌堆”，多牌出牌、同色丢弃和加牌链没有专门展示，出牌和摸牌动画也需要优化。
+
+本问题对应原问题：
+
+- 4. 摸牌应该有牌落入手牌堆的动画
+- 15. 弃牌堆应该随机散落，顺子 / 连对 / 同色丢弃 / 加牌链有不同表现
+- 16. 玩家出牌动画需要从头像附近冒出来，旋转后落入牌堆
+
+## 本阶段目标
+
+实现牌桌视觉和动画系统：
+
+1. 弃牌堆表现为有厚度的散落牌堆。
+2. 刚出的牌摆正并黄色框高亮。
+3. 历史牌轻微旋转、偏移，叠在底下。
+4. 顺子、连对以扇状展示。
+5. 同色丢弃以扇状展示，但同色丢弃牌放最上方。
+6. 加牌链集中放在牌堆正中最上方，并黄色高亮。
+7. 加牌链结算后散开到弃牌堆。
+8. 玩家出牌从头像或手牌区飞向中央牌堆。
+9. 摸牌从牌堆飞向玩家手牌区或头像区域。
+
+## 不要做什么
+
+本阶段不要做：
+
+- 不修改核心规则。
+- 不修改牌库配置。
+- 不做登录、数据库、支付、商城。
+- 不做大规模 UI 架构重写。
+- 不影响现有 E2E 选择器。
+- 不牺牲移动端基本可用性。
+
+## 需要检查的文件
+
+请优先审计：
+
+1. `apps/client-web/src/main.ts`
+2. `apps/client-web/src/styles.css`
+3. `apps/client-web/src/cards/cardAssets.ts`
+4. `packages/shared-types/src/event.ts`
+5. `packages/shared-types/src/snapshot.ts`
+6. `packages/protocol/src/messages.ts`
+7. `apps/game-server/src/broadcast/sendSnapshotsToRoom.ts`
+
+## 任务 1：弃牌堆基础散落效果
+
+弃牌堆不要只显示一张当前牌。
+
+要求：
+</code></pre>
+<ol><li>保留最近若干张可视弃牌。</li><li>历史弃牌随机轻微位移和旋转。</li><li>刚出的牌放在靠中间位置，角度较正。</li><li>刚出的牌有黄色边框高亮。</li><li>更早的牌用压缩阴影表现厚度。</li></ol>
+<p>建议范围：</p>
+<p>平移：-8px 到 8px 旋转：-10deg 到 10deg 最近可视层：5 到 8 张</p>
+<p>不要渲染全部弃牌，避免 DOM 过多。</p>
+<p>任务 2：顺子 / 连对扇状展示</p>
+<p>当玩家一次出多张牌，例如顺子或连对：</p>
+<p>这些牌应该以扇状排列， 每张牌露出一部分， 整体落入弃牌堆。</p>
+<p>要求：</p>
+<ol><li>多张牌不要完全重叠。</li><li>每张牌都露出部分牌面。</li><li>最新组合整体黄色高亮。</li><li>组合进入弃牌堆后，历史状态可以压缩为一组。</li></ol>
+<p>任务 3：同色丢弃展示</p>
+<p>同色丢弃出牌时：</p>
+<p>依旧使用扇状展示。 但“同色丢弃”那张牌必须放在最顶上。</p>
+<p>例如：</p>
+<p>绿同色丢弃 + 绿2 + 绿禁</p>
+<p>展示顺序：</p>
+<p>底层：绿2、绿禁 顶层：绿同色丢弃 任务 4：加牌链集中展示</p>
+<p>加牌链展示是独立规则。</p>
+<p>要求：</p>
+<ol><li>第一张 +2 先按普通出牌放置。</li><li>如果后续有人继续叠加加牌牌，</li></ol>
+<p>这些牌立刻组成加牌链 UI。</p>
+<ol><li>加牌链牌全部黄色边框高亮。</li><li>加牌链放在牌堆正中最上方。</li><li>一张叠一张，整齐长方形排列。</li><li>直到某玩家吃下这堆加牌。</li><li>玩家吃下后，这条加牌链用动画散开到弃牌堆各处。</li></ol>
+<p>加牌链包含：</p>
+<p>普通 +2 普通 +4 反转 +4 +6 +10 罚抽叠加链 任务 5：出牌动画</p>
+<p>玩家出牌动画要求：</p>
+<p>玩家出的牌从玩家头像附近冒出来， 经过轻微旋转， 飞到中央弃牌堆， 落下后进入对应弃牌堆布局。</p>
+<p>本地玩家：</p>
+<p>可以从手牌区出发。</p>
+<p>其他玩家：</p>
+<p>必须从该玩家头像或座位区域出发。</p>
+<p>不要从固定中心突然出现。</p>
+<p>任务 6：摸牌动画</p>
+<p>摸牌动画要求：</p>
+<p>牌从摸牌堆飞向玩家。</p>
+<p>本地玩家：</p>
+<p>牌飞向手牌区， 落入手牌， 刚摸到的牌红圈提示。</p>
+<p>其他玩家：</p>
+<p>牌背飞向该玩家头像或座位， 该玩家手牌数量增加。 任务 7：动画不能破坏规则状态</p>
+<p>所有动画必须是表现层。</p>
+<p>要求：</p>
+<ol><li>规则结果以服务端 snapshot 为准。</li><li>动画中不能产生额外规则状态。</li><li>动画失败不能导致对局卡死。</li><li>动画结束后 UI 与最新 snapshot 对齐。</li></ol>
+<p>验收标准</p>
+<p>完成后至少满足：</p>
+<ol><li>弃牌堆有散落层次。</li><li>刚出的牌黄色框高亮。</li><li>顺子和连对扇状展示。</li><li>同色丢弃牌在组合最上方。</li><li>加牌链集中居中高亮展示。</li><li>加牌链结算后散开。</li><li>出牌动画从玩家头像或手牌区飞向牌堆。</li><li>摸牌动画从牌堆飞向玩家。</li><li>移动端不明显撑爆。</li><li>原有 E2E 不回退。</li></ol>
+<p>测试命令</p>
+<p>至少运行：</p>
+<p>corepack pnpm --filter @thunder-uno/client-web typecheck corepack pnpm --filter @thunder-uno/client-web test corepack pnpm --filter @thunder-uno/client-web test:e2e corepack pnpm --filter @thunder-uno/client-web build corepack pnpm typecheck corepack pnpm test</p>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">06</div>
+            <h3>problem6.md</h3>
+          </div>
+        </div>
+        <p>```md</p>
+        <div class="doc-tags">
+          <span class="doc-tag">Problem6</span><span class="doc-tag">140 行内容</span><span class="doc-tag">含测试/验收</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-6" aria-expanded="false">展开内容</button>
+          <a href="./Problem6.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-6" hidden>
+        <div class="doc-body-inner">
+          <h1>problem6.md</h1>
+<pre><code class="language-md"># Problem 6：基础 UI 状态、方向图标和当前玩家高亮
+
+## 问题背景
+
+当前对战 UI 中，一些基础视觉状态不够清晰：
+
+1. 顺时针 / 逆时针只是文字，不够直观。
+2. 轮到玩家时的背景高亮不够明显。
+3. 玩家状态、按钮状态、座位表现还不够游戏化。
+4. 部分 UI 信息没有形成明确层级。
+
+本问题对应原问题：
+
+- 6. 顺时针逆时针画一个 UI 表示，不要直接用文字
+- 7. 轮到玩家时背景高亮不够明显
+- 19. 出局和获胜需要弹窗
+- UI Design Spec 中关于座位、头像、中央牌桌和玩家状态的要求
+
+## 本阶段目标
+
+优化基础 UI 表现：
+
+1. 用图标表示顺时针 / 逆时针。
+2. 当前玩家座位高亮更明显。
+3. 玩家座位显示更清楚的头像、昵称、手牌数和状态。
+4. 操作按钮状态更明确。
+5. 出局、胜利、当前回合等信息更容易读。
+6. 不做大规模 UI 重写，但让当前界面更像牌类游戏。
+
+## 不要做什么
+
+本阶段不要做：
+
+- 不改核心规则。
+- 不做复杂动画。
+- 不做完整牌桌重构。
+- 不做数据库、登录、商城、支付。
+- 不重写客户端架构。
+- 不破坏已有 data-testid。
+
+## 需要检查的文件
+
+请优先审计：
+
+1. `apps/client-web/src/main.ts`
+2. `apps/client-web/src/styles.css`
+3. `apps/client-web/src/cards/cardAssets.ts`
+4. `packages/shared-types/src/snapshot.ts`
+5. `packages/shared-types/src/player.ts`
+
+## 任务 1：方向图标化
+
+当前问题：
+</code></pre>
+<p>顺时针 / 逆时针用文字显示，不够直观。</p>
+<p>要求：</p>
+<ol><li>用环形箭头图标表示方向。</li><li>顺时针显示 clockwise icon。</li><li>逆时针显示 counter-clockwise icon。</li><li>当前方向高亮。</li><li>反转牌打出后方向图标变化明显。</li></ol>
+<p>可以用：</p>
+<p>CSS 绘制箭头 SVG 图标 纯文本符号 + 样式包装</p>
+<p>但不要只显示：</p>
+<p>clockwise counter-clockwise 任务 2：当前玩家高亮增强</p>
+<p>当前问题：</p>
+<p>轮到玩家时背景高亮不够明显。</p>
+<p>要求：</p>
+<ol><li>当前玩家座位背景更亮。</li><li>头像外圈有明显高亮。</li><li>显示“当前行动”徽标。</li><li>可以有轻微呼吸效果，但不要过度闪烁。</li><li>本地玩家回合时，自己的操作区也要更明显。</li></ol>
+<p>建议视觉：</p>
+<p>头像外圈发光 座位卡片边框变亮 当前行动标签 桌面状态栏显示“轮到 xxx” 任务 3：玩家座位状态徽标</p>
+<p>每个玩家座位建议显示：</p>
+<p>头像 昵称 手牌数 状态徽标</p>
+<p>状态徽标包括：</p>
+<p>当前行动 等待中 UNO UNO 保护中 可抓 UNO 加牌目标 罚抽目标 已断线 已出局 赢家</p>
+<p>要求：</p>
+<p>状态文字短，不要撑爆座位。 长昵称要省略或换行。 手牌数要清楚。 任务 4：操作按钮状态更明确</p>
+<p>按钮应根据状态禁用或高亮：</p>
+<p>不是你的回合：出牌、摸牌、UNO 禁用 没有选牌：出牌禁用 drawStack 目标：结算加牌按钮可用 drawUntilColor 目标：继续罚抽按钮可用 游戏结束：所有操作按钮禁用 未连接：创建 / 加入禁用</p>
+<p>禁用按钮应：</p>
+<p>不可点击 视觉上变弱 有 title 或点击提示原因 任务 5：中央状态信息条</p>
+<p>建议增加或优化中央信息条：</p>
+<p>当前：玩家 A 行动 颜色：红色 方向：顺时针图标 加牌：+4</p>
+<p>移动端可以压缩成：</p>
+<p>玩家A · 红色 · ↻ · +4</p>
+<p>要求：</p>
+<p>这些信息要比日志更靠近牌桌。 不要让日志抢主要视觉。 任务 6：出局和胜利提示接入</p>
+<p>如果 Problem 4 已经完成事件或状态，本阶段负责 UI 呈现：</p>
+<p>玩家 xxx 手牌为 xx 张，已出局 玩家 xxx 获胜</p>
+<p>要求：</p>
+<p>弹窗明显 所有玩家都能看到 游戏结束后按钮禁用 返回大厅入口可用 验收标准</p>
+<p>完成后至少满足：</p>
+<ol><li>顺时针 / 逆时针不再只用文字。</li><li>当前玩家高亮明显。</li><li>玩家座位有头像、昵称、手牌数和短状态。</li><li>当前行动玩家一眼能看出来。</li><li>操作按钮禁用状态明确。</li><li>中央牌桌附近有清晰状态信息。</li><li>出局和获胜提示明显。</li><li>移动端不撑爆。</li><li>原有 E2E 不回退。</li></ol>
+<p>测试命令</p>
+<p>至少运行：</p>
+<p>corepack pnpm --filter @thunder-uno/client-web typecheck corepack pnpm --filter @thunder-uno/client-web test corepack pnpm --filter @thunder-uno/client-web test:e2e corepack pnpm --filter @thunder-uno/client-web build corepack pnpm typecheck corepack pnpm test</p>
+        </div>
+      </div>
+    </article>
+        </div>
+      </section>
+<section class="group">
+        <div class="group-head">
+          <div>
+            <h2>体验优化与规则收紧</h2>
+            <p>聚焦退出流程、手牌布局、UNO 时机、加牌链和续局能力。</p>
+          </div>
+          <span class="group-chip">2 份文档</span>
+        </div>
+        <div class="doc-grid">
+          <article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">07</div>
+            <h3>Problem 7：规则细节修正、退出房间流程和手牌区体验优化</h3>
+          </div>
+        </div>
+        <p>当前对局已经可以完成多人试玩闭环，但仍有一些细节会影响真实试玩体验：</p>
+        <div class="doc-tags">
+          <span class="doc-tag">Problem7</span><span class="doc-tag">351 行内容</span><span class="doc-tag">含测试/验收</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-7" aria-expanded="false">展开内容</button>
+          <a href="./Problem7.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-7" hidden>
+        <div class="doc-body-inner">
+          <h1>Problem 7：规则细节修正、退出房间流程和手牌区体验优化</h1>
+<h2>问题背景</h2>
+<p>当前对局已经可以完成多人试玩闭环，但仍有一些细节会影响真实试玩体验：</p>
+<ol><li>加牌链叠加规则仍不够严格，部分不应该允许的叠加被允许或在前端误高亮。</li><li>反转牌和交换手牌牌面资源疑似对应反了，导致玩家看到的牌面和实际效果不一致。</li><li>游戏中缺少明确的退出房间入口，退出后 reconnect 仍可能回到对战页面。</li><li>普通 <code>+4</code>、<code>禁</code> 等技能牌存在点击出牌后没有成功打出的情况，需要确认规则层与前端判断是否一致。</li><li>普通摸牌摸到可打出牌时，提示面板位置不够像弹窗，容易被牌桌内容淹没。</li><li>手牌高亮逻辑过宽：只要存在对子或顺子就高亮，但实际颜色不符合时不能打出。</li><li>顺子出牌后的弃牌堆叠放顺序不符合直觉，需要让第一张在最下面，最后一张在最上方。</li><li>手牌区卡牌偏小且横向滚动体验不好，需要扩大卡牌并支持自动换行。</li></ol>
+<p>本问题对应原问题：</p>
+<ul><li>加牌链规则修正。</li><li>反转和交换手牌 UI 资源对应关系修正。</li><li>游戏界面退出房间，并避免退出后自动重连回对战。</li><li>普通 <code>+4</code>、<code>禁</code> 等技能牌出牌失败排查。</li><li>普通摸牌可打出牌提示改成居中弹窗。</li><li>对子、顺子候选高亮逻辑收窄。</li><li>顺子弃牌堆叠放顺序优化。</li><li>手牌区放大、换行和选中动效优化。</li></ul>
+<h2>本阶段目标</h2>
+<p>本阶段要同时处理规则正确性和基础交互体验：</p>
+<ol><li>明确并修复加牌链叠加规则。</li><li>保证前端高亮、按钮可用状态和服务端规则一致。</li><li>修正卡牌图片和卡牌代码之间的对应关系。</li><li>在对战界面提供明确的退出房间入口。</li><li>退出房间后清理本地重连状态，避免点击重新连接又回到旧对战。</li><li>普通摸牌后的“立即打出 / 保留”提示改成牌桌中央弹窗。</li><li>手牌候选高亮只提示真正可能组成合法出牌的牌。</li><li>优化手牌区尺寸、换行和选中动画。</li></ol>
+<h2>不要做什么</h2>
+<p>本阶段不要做：</p>
+<ul><li>不新增玩法规则。</li><li>不改牌库数量和卡牌种类。</li><li>不做房内重新开局。</li><li>不做账号系统、数据库、商城、支付、排行榜。</li><li>不重写 WebSocket 协议整体结构。</li><li>不大规模重构前端架构。</li><li>不破坏已有 <code>data-testid</code>，除非同步更新测试。</li></ul>
+<h2>需要检查的文件</h2>
+<p>请优先审计：</p>
+<ol><li><code>GAME-RULES.md</code></li><li><code>CARD-CONFIG.md</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.test.ts</code></li><li><code>packages/uno-core/src/rules/canPlayCard.ts</code></li><li><code>packages/uno-core/src/reducer/applyPlayCard.ts</code></li><li><code>packages/uno-core/src/reducer/applyCommand.turn.test.ts</code></li><li><code>packages/uno-core/src/reducer/applyCommand.draw.test.ts</code></li><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/battle/selection.ts</code></li><li><code>apps/client-web/src/battle/selection.test.ts</code></li><li><code>apps/client-web/src/cards/cardAssets.ts</code></li><li><code>apps/client-web/src/cards/cardAssets.test.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/game-server/src/room/roomManager.ts</code></li><li><code>apps/game-server/src/gateway/messageHandler.ts</code></li><li><code>packages/protocol/src/messages.ts</code></li><li><code>packages/shared-types/src/player.ts</code></li><li><code>packages/shared-types/src/snapshot.ts</code></li></ol>
+<h2>任务 1：加牌链叠加规则修正</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">普通带颜色的 +4 不能接在黑色 +4 后面。
+黑色 +6 不能接在黑色 +10 后面。
+黑色 +4 不能接在黑色 +10 +6 后面。
+当前加牌链判断疑似只比较 drawValue，导致部分非法叠加被允许或被前端误提示。</code></pre>
+<p>规则要求：</p>
+<ol><li>普通带颜色 <code>+4</code> 只能按规则接在允许的加牌链后面，不能接在黑色 <code>+4</code> 后面。</li><li>黑色 <code>+6</code> 不能接在黑色 <code>+10</code> 后面。</li><li>黑色 <code>+10</code> 应该是更高等级的加牌压力，不能被低等级黑色加牌覆盖。</li><li>加牌链中允许叠加的卡牌种类必须由 <code>uno-core</code> 统一判断。</li><li>前端只能根据快照做展示和提示，不能复制一套独立规则。</li></ol>
+<p>建议修改方案：</p>
+<ol><li>在 <code>packages/uno-core/src/rules/canStackDrawCard.ts</code> 中明确叠加矩阵。</li><li>将判断从“只看 drawValue”改成“同时看上一张加牌类型 / 上一张加牌值 / 下一张牌类型”。</li><li>如果当前 <code>drawStack</code> 只保存 <code>previousDrawValue</code> 不够表达规则，优先评估是否需要在核心状态中补充上一张加牌 kind，例如 <code>previousDrawKind</code> 或 <code>lastStackCardKind</code>。</li><li>如果需要扩展状态，必须同步更新：</li></ol>
+<ul><li><code>packages/shared-types/src/game.ts</code></li><li><code>packages/shared-types/src/snapshot.ts</code></li><li><code>packages/uno-core/src/view/createPlayerGameSnapshot.ts</code></li><li><code>packages/protocol/src/messages.test.ts</code></li></ul>
+<ol><li>补充规则测试，至少覆盖：</li></ol>
+<ul><li>普通 <code>+4</code> 不能接黑色 <code>wild-reverse-draw-four</code>。</li><li>黑色 <code>wild-draw-six</code> 不能接黑色 <code>wild-draw-ten</code>。</li><li>合法的同类或更高优先级叠加仍可正常出。</li><li>非加牌牌不能在加牌链中打出。</li></ul>
+<p>验收标准：</p>
+<ol><li>服务端拒绝非法加牌叠加。</li><li>前端不再把非法加牌牌标成可出。</li><li>非法点击时页面能显示明确错误。</li><li>原有合法加牌链流程不回退。</li></ol>
+<h2>任务 2：修正反转和交换手牌卡牌图片对应关系</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">反转和交换手牌对应的卡牌 UI 疑似弄反。
+玩家看到的图片可能是反转，但实际代码执行交换手牌；或看到交换手牌，实际执行反转。</code></pre>
+<p>要求：</p>
+<ol><li><code>reverse</code> 必须显示反转牌图片。</li><li><code>swap-hands</code> 必须显示交换手牌图片。</li><li>四种颜色都要检查：红、黄、蓝、绿。</li><li>黑色反转变色 <code>+4</code> 不要误改成普通交换手牌。</li></ol>
+<p>建议修改方案：</p>
+<ol><li>检查 <code>apps/client-web/src/cards/cardAssets.ts</code> 中 <code>actionIndexes</code> 和 <code>getCardAssetName</code>。</li><li>对照 <code>public/cards</code> 下实际 PNG 文件名和图片内容，确认编号是否正确。</li><li>如果只是编号反了，交换 <code>reverse</code> 和 <code>swap-hands</code> 的编号。</li><li>如果只是文件名映射反了，修正 <code>getCardAssetName</code>。</li><li>更新 <code>apps/client-web/src/cards/cardAssets.test.ts</code>，明确断言：</li></ol>
+<ul><li><code>reverse</code> 指向 <code>*_reverse.png</code></li><li><code>swap-hands</code> 指向 <code>*_swap.png</code></li></ul>
+<ol><li>必要时补一张人工检查清单，避免只看文件名但图片内容仍错。</li></ol>
+<p>验收标准：</p>
+<ol><li>所有颜色的反转牌显示反转图片。</li><li>所有颜色的交换手牌牌显示交换手牌图片。</li><li>点击对应牌后实际效果和图片一致。</li></ol>
+<h2>任务 3：游戏界面退出房间流程</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">等待房间里有离开按钮，但对战界面缺少明显退出房间入口。
+玩家在游戏中想退出时，只能关闭页面或刷新。
+关闭后 reconnect 可能又进入旧对战。
+其他玩家也看不出该玩家是主动退出还是暂时断线。</code></pre>
+<p>要求：</p>
+<ol><li>对战界面也要有“退出房间”按钮。</li><li>点击后发送 <code>leave-room</code>，而不是只清空前端状态。</li><li>成功退出后清理本地 roomId / reconnect 缓存。</li><li>退出后点击“重新连接”不能自动回到旧对战页面。</li><li>其他玩家能看到该玩家状态变为“已退出房间”。</li><li>如果最后一名玩家退出，仍按现有房间关闭逻辑处理。</li></ol>
+<p>建议修改方案：</p>
+<ol><li>在 <code>apps/client-web/src/main.ts</code> 的对战 HUD 或结束页附近加入退出按钮，保留现有 <code>data-testid</code>，新增按钮建议使用 <code>data-testid=&quot;battle-leave-room-button&quot;</code>。</li><li>复用现有 <code>buildLeaveRoomMessage</code> 和 <code>leave-room</code> 协议。</li><li>点击退出成功后清理：</li></ol>
+<ul><li><code>state.roomId</code></li><li><code>state.room</code></li><li><code>state.snapshot</code></li><li><code>LAST_ROOM_STORAGE_KEY</code></li><li>必要的 snapshot recovery 标记</li></ul>
+<ol><li>检查 <code>apps/game-server/src/room/roomManager.ts</code> 当前 leave 行为：</li></ol>
+<ul><li>如果是 lobby，可直接移除玩家。</li><li>如果是 playing，需要决定是“移除玩家”还是“保留座位并标记 left”。</li></ul>
+<ol><li>为了让其他玩家看到“已退出房间”，建议在共享玩家状态中增加或复用明确状态：</li></ol>
+<ul><li>如果已有 <code>connectionStatus</code>，可扩展为 <code>left</code>。</li><li>如果不希望改通用连接状态，可新增 <code>hasLeftRoom</code> / <code>leftAtMs</code>。</li></ul>
+<ol><li>同步更新玩家视角快照，确保 playing 中其他玩家能看到退出状态，但不能泄露手牌。</li><li>更新前端座位徽标：退出玩家显示“已退出”，操作按钮禁用。</li><li>更新 reconnect 流程：主动退出的用户不应自动发起旧房间 reconnect。</li></ol>
+<p>验收标准：</p>
+<ol><li>游戏中可以点击退出房间。</li><li>退出后自己回到大厅。</li><li>退出后重新连接不会回到刚退出的对局。</li><li>其他玩家看到该玩家“已退出房间”。</li><li>断线重连和主动退出是两个不同状态。</li></ol>
+<h2>任务 4：普通 <code>+4</code>、<code>禁</code> 等技能牌出牌失败排查</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">普通 +4、禁 等技能牌有时点击出牌后没有成功打出。
+需要确认是前端误判可出、选牌 payload 错误、颜色选择流程缺失，还是 uno-core 规则拒绝。</code></pre>
+<p>要求：</p>
+<ol><li>客户端展示“可出”的牌，服务端也应该接受。</li><li>服务端拒绝时，前端必须显示明确错误原因。</li><li>黑牌、带颜色技能牌、同色技能牌、同类型跨色技能牌都要区分测试。</li></ol>
+<p>建议修改方案：</p>
+<ol><li>审计 <code>packages/uno-core/src/rules/canPlayCard.ts</code>，确认普通技能牌连接规则：</li></ol>
+<ul><li>同色可接。</li><li>同类型是否可跨色接，以 <code>GAME-RULES.md</code> 为准。</li><li><code>skip</code>、<code>reverse</code>、<code>swap-hands</code>、<code>draw-four</code> 的规则不要互相串。</li></ul>
+<ol><li>审计 <code>apps/client-web/src/main.ts</code> 中单牌出牌 payload：</li></ol>
+<ul><li>普通带颜色技能牌不应该要求选色。</li><li>黑牌必须走颜色选择。</li><li>当前处于 <code>drawStack</code> / <code>drawUntilColor</code> / <code>normalDrawOffer</code> 时，按钮状态要符合当前流程。</li></ul>
+<ol><li>审计 <code>getPlaySelectionPreview</code>、<code>getCardPlayDisabledReason</code> 等前端判断，避免前端显示可出但 core 拒绝。</li><li>在 core 测试中补充普通 <code>+4</code>、<code>skip</code> 的合法和非法出牌用例。</li><li>在 client smoke 测试中补充点击普通技能牌后发出的 command 结构。</li></ol>
+<p>验收标准：</p>
+<ol><li>普通 <code>+4</code> 在合法条件下能成功打出。</li><li><code>禁</code> 在合法条件下能成功打出并跳过目标玩家。</li><li>非法条件下不会被高亮成可出。</li><li>如果服务端拒绝，页面有清楚错误提示。</li></ol>
+<h2>任务 5：普通摸牌可打出提示改成居中弹窗</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">普通摸牌阶段摸到可打出的牌后，当前提示位置不够明显。
+它应该像选色弹窗一样覆盖在对战页面最上层，居中显示。</code></pre>
+<p>要求：</p>
+<ol><li>弹窗覆盖在对战页面之上。</li><li>弹窗居中显示。</li><li>背景有轻微遮罩，但不要完全遮住牌桌信息。</li><li>显示刚摸到的牌名或牌面。</li><li>按钮包含：</li></ol>
+<ul><li>立即打出</li><li>保留</li></ul>
+<ol><li>弹窗期间不要误触其他对战按钮。</li></ol>
+<p>建议修改方案：</p>
+<ol><li>将 <code>renderNormalDrawOfferPrompt</code> 从普通 panel 改成 modal/backdrop 结构。</li><li>样式可复用或参考 <code>color-picker-backdrop</code>、<code>color-picker-panel</code>。</li><li>新增 class，例如：</li></ol>
+<ul><li><code>normal-draw-offer-backdrop</code></li><li><code>normal-draw-offer-modal</code></li></ul>
+<ol><li>保留 <code>data-testid=&quot;normal-draw-offer&quot;</code>，避免测试失效。</li><li>如果摸到的牌无法找到，<code>立即打出</code> 按钮禁用，并显示“牌数据同步中”之类的提示。</li><li>点击“立即打出”仍必须走服务端命令，不在前端裁定结果。</li></ol>
+<p>验收标准：</p>
+<ol><li>摸到可出牌时弹窗出现在屏幕中心。</li><li>弹窗视觉层级和选色弹窗一致。</li><li>立即打出和保留功能保持可用。</li><li>移动端竖屏不撑爆。</li></ol>
+<h2>任务 6：对子和顺子候选高亮逻辑收窄</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">现在只要手里存在对子或顺子，相关牌就可能被高亮。
+但颜色不符合当前出牌颜色时，这些牌实际不能出。
+这会误导玩家。</code></pre>
+<p>明确规则：</p>
+<ol><li>对子候选高亮：</li></ol>
+<ul><li>必须存在同数字、同颜色、可组成合法多牌出牌的对子。</li><li>对子的颜色必须符合当前出牌颜色，或符合当前顶牌允许的连接规则。</li><li>不符合当前颜色的对子不要高亮。</li></ul>
+<ol><li>顺子候选高亮：</li></ol>
+<ul><li>顺子至少满足项目现有规则要求的张数。</li><li>顺子的第一张牌必须能连接当前牌。</li><li>判断第一张牌时要考虑当前颜色。</li><li>只有属于合法顺子路径的牌才高亮。</li></ul>
+<p>例子：</p>
+<pre><code class="language-txt">玩家手牌：红1、红2、绿3、蓝4、蓝5、蓝6、蓝7
+
+当前颜色是绿色：
+只有 3、4、5、6、7 这条顺子候选高亮。
+
+当前颜色是红色：
+1、2、3、4、5、6、7 可以作为顺子候选高亮。
+
+当前颜色是蓝色：
+只高亮蓝色牌本身并不代表顺子成立。
+如果蓝4、蓝5、蓝6、蓝7 只有 4 张，达不到顺子最低要求，则不应该按顺子候选高亮。</code></pre>
+<p>建议修改方案：</p>
+<ol><li>修改 <code>apps/client-web/src/battle/selection.ts</code> 中候选计算函数。</li><li>不要只返回“所有可能参与顺子的数字牌”，而要返回“从当前牌面出发能合法打出的候选组合中的牌”。</li><li>对顺子：</li></ol>
+<ul><li>先按数字连续性找所有长度达标的序列。</li><li>再检查序列第一张是否能连接当前 <code>topCard/currentColor</code>。</li><li>只有通过连接检查的序列才用于高亮。</li></ul>
+<ol><li>对对子：</li></ol>
+<ul><li>找同数字同颜色或项目规则允许的对子组。</li><li>检查该组第一张或主牌是否能连接当前 <code>topCard/currentColor</code>。</li><li>不能连接则不高亮。</li></ul>
+<ol><li>如果前端缺少当前牌面信息，应调整函数签名，让候选计算接收 <code>snapshot</code>，而不是只接收 <code>hand</code>。</li><li>补充 <code>selection.test.ts</code>：</li></ol>
+<ul><li>当前颜色绿色时只高亮从绿3开始的顺子。</li><li>当前颜色红色时高亮从红1开始的完整顺子。</li><li>当前颜色蓝色但长度不足时不按顺子高亮。</li><li>颜色不匹配的对子不高亮。</li></ul>
+<p>验收标准：</p>
+<ol><li>高亮只提示真实可能合法打出的组合。</li><li>不符合当前颜色的对子不会高亮。</li><li>第一张不能连接当前牌的顺子不会高亮。</li><li>单牌可出高亮和组合候选高亮不互相覆盖错乱。</li></ol>
+<h2>任务 7：顺子出牌后的弃牌堆叠放顺序</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">顺子出牌后，弃牌堆 UI 的多张牌叠放顺序不符合直觉。
+需要第一张牌在最下面，最后一张牌显示在最上方。</code></pre>
+<p>要求：</p>
+<ol><li>顺子按出牌顺序展示。</li><li>第一张牌层级最低。</li><li>最后一张牌层级最高。</li><li>不影响同点多牌、同色丢弃、加牌链展示。</li></ol>
+<p>建议修改方案：</p>
+<ol><li>审计 <code>apps/client-web/src/main.ts</code> 中 <code>renderLatestPlayedGroup</code>、<code>orderLatestPlayedCards</code>、<code>classifyPlayedGroup</code>。</li><li>对 <code>sequence</code> 模式单独设置 z-index：</li></ol>
+<ul><li>index 越小层级越低。</li><li>index 越大层级越高。</li></ul>
+<ol><li>如果 CSS 里使用 <code>--fan-index</code>，确保顺子最后一张的 <code>--fan-index</code> 最大。</li><li>检查弃牌堆历史牌和最新牌组是否会互相遮挡。</li><li>补充 smoke 测试：</li></ol>
+<ul><li>打出 <code>1-2-3-4-5</code> 后，最后一张牌 DOM 或样式层级最高。</li></ul>
+<p>验收标准：</p>
+<ol><li>顺子第一张在视觉最下层。</li><li>顺子最后一张在视觉最上层。</li><li>其他多牌展示不回退。</li></ol>
+<h2>任务 8：手牌区放大、换行和选中动画</h2>
+<p>当前问题：</p>
+<pre><code class="language-txt">手牌区卡牌偏小。
+当手牌很多时主要依赖横向拖动条，不够适合试玩。
+选中卡牌的反馈不够明显。</code></pre>
+<p>要求：</p>
+<ol><li>手牌卡牌 UI 整体放大约 50%。</li><li>手牌超出一行时自动换到下一行。</li><li>不使用明显的横向滚动条作为主要浏览方式。</li><li>选中卡牌后向上移动约 1/4 张卡牌高度。</li><li>选中态要有清楚边框或阴影。</li><li>移动端不能撑爆页面。</li></ol>
+<p>建议修改方案：</p>
+<ol><li>修改 <code>apps/client-web/src/styles.css</code> 中 <code>.cards</code> 和 <code>.card-button</code> 布局。</li><li>将当前横向 grid / overflow 模式改成可换行布局，例如：</li></ol>
+<ul><li><code>display: flex</code></li><li><code>flex-wrap: wrap</code></li><li>固定或响应式 <code>flex-basis</code></li></ul>
+<ol><li>桌面端卡牌宽度增加约 50%，但设置 <code>max-width</code>，避免超大屏过度放大。</li><li>移动端单独设置较小尺寸，避免 320px 宽度撑爆。</li><li>选中态使用 <code>transform: translateY(-25%)</code> 或按卡牌高度折算的稳定值。</li><li>选中态需要保留当前已有 selected class，不改变选牌逻辑。</li><li>检查 hover、disabled、recent-drawn、combo-candidate 多状态叠加时是否抖动。</li><li>如果布局换行导致 Playwright 移动端截图变化，更新或补充移动端断言。</li></ol>
+<p>验收标准：</p>
+<ol><li>桌面端手牌明显变大。</li><li>手牌很多时能自动换行。</li><li>页面不出现难用的横向拖动条作为主要浏览方式。</li><li>选中牌明显上移约 1/4 张牌。</li><li>选中、可出、不可出、刚摸到、组合候选状态都能同时看清。</li><li>移动端竖屏和横屏不撑爆。</li></ol>
+<h2>验收标准</h2>
+<p>完成后至少满足：</p>
+<ol><li>加牌链非法叠加被服务端拒绝，前端也不误高亮。</li><li>普通带颜色 <code>+4</code> 不能接黑色 <code>+4</code>。</li><li>黑色 <code>+6</code> 不能接黑色 <code>+10</code>。</li><li>反转和交换手牌图片与实际效果一致。</li><li>对战界面可以退出房间。</li><li>主动退出后不会自动重连回旧对战。</li><li>其他玩家能看到“已退出房间”状态。</li><li>普通 <code>+4</code>、<code>禁</code> 等技能牌合法时能成功打出。</li><li>普通摸牌可出提示为居中弹窗。</li><li>对子和顺子候选高亮符合当前颜色和合法出牌规则。</li><li>顺子弃牌堆中最后一张显示在最上方。</li><li>手牌区更大、可换行，选中动画更明显。</li><li>原有核心测试、前端单测、E2E 不回退。</li></ol>
+<h2>测试命令</h2>
+<p>至少运行：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/uno-core test
+corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/client-web test:e2e
+corepack pnpm --filter @thunder-uno/game-server test
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<p>如果修改了协议或共享类型，还需要重点确认：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/protocol test
+corepack pnpm --filter @thunder-uno/shared-types build</code></pre>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">08</div>
+            <h3>Problem 8：加牌链规则收紧、手牌重叠、UNO 时机、房内续局和自定义房间号</h3>
+          </div>
+        </div>
+        <p>当前版本已经完成了大厅、准备、对战、摸牌、出牌、UNO、淘汰、胜负弹窗和沉浸式 UI 的基础闭环，但真实试玩中又暴露出一批规则与交互细节问题：</p>
+        <div class="doc-tags">
+          <span class="doc-tag">Problem8</span><span class="doc-tag">672 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-8" aria-expanded="false">展开内容</button>
+          <a href="./Problem8.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-8" hidden>
+        <div class="doc-body-inner">
+          <h1>Problem 8：加牌链规则收紧、手牌重叠、UNO 时机、房内续局和自定义房间号</h1>
+<h2>问题背景</h2>
+<p>当前版本已经完成了大厅、准备、对战、摸牌、出牌、UNO、淘汰、胜负弹窗和沉浸式 UI 的基础闭环，但真实试玩中又暴露出一批规则与交互细节问题：</p>
+<ol><li><code>+6</code> 后面不应该继续出黑色变色、黑色 <code>+4</code>、普通 <code>+2</code>、普通 <code>+4</code>。</li><li>黑色 <code>+4</code> 和普通 <code>+4</code> 后面不应该能叠普通 <code>+2</code>。</li><li>当前代码看起来让普通 <code>+2</code> 可以叠在很多不该叠的加牌链后面。</li><li>手牌区超过显示上限时出现横向滚动条，体验不符合预期。</li><li>手牌高亮仍有误导：上一张是 <code>+6</code> 时，下家不该高亮黑色 <code>+4</code> / 普通 <code>+4</code> / 普通 <code>+2</code>。</li><li>同色丢弃候选高亮过宽：当前颜色不对应时，相关主牌和附带牌不应该高亮。</li><li>玩家打出倒数第二张牌后，系统推进回合，导致该玩家此时不是当前回合，不能点击 UNO。</li><li>淘汰或胜利后，房主需要可以选择直接重开一把，或者继续游戏。</li><li>自定义房间号需要更清楚的输入 UI 和服务端校验。</li></ol>
+<p>本 Problem 只以当前代码实现为分析依据，尤其是 <code>packages/uno-core/src/rules/canStackDrawCard.ts</code>、<code>packages/uno-core/src/reducer/applyPlayCard.ts</code> 和 <code>apps/client-web/src/main.ts</code>，不以规则文档做推断。</p>
+<h2>本阶段目标</h2>
+<ol><li>收紧 <code>uno-core</code> 中的加牌链判定规则。</li><li>让服务端规则、前端手牌高亮、按钮可用状态保持一致。</li><li>手牌区改成固定宽度下的自动重叠展示，不再出现横向滚动条。</li><li>打出倒数第二张牌后，玩家可以立即点击 UNO。</li><li>淘汰和胜利状态支持房主选择“重开一局”或“继续游戏”。</li><li>支持自定义 6 位数字房间号，并把大厅输入改成 6 个固定输入框。</li></ol>
+<h2>不要做什么</h2>
+<p>本阶段不要做：</p>
+<ol><li>不改牌库种类和数量。</li><li>不把规则判断复制到客户端作为权威逻辑。</li><li>不绕过 <code>packages/protocol</code> 增加临时 WebSocket 消息。</li><li>不引入数据库，仍然使用当前内存房间。</li><li>不做账号系统、排行榜、商城、支付。</li><li>不破坏现有 <code>data-testid</code>，除非同步更新测试。</li><li>不把淘汰玩家从座位上删除，除非玩家主动退出房间。</li></ol>
+<h2>当前代码里的加牌链规则</h2>
+<p>当前核心函数是：</p>
+<pre><code class="language-txt">packages/uno-core/src/rules/canStackDrawCard.ts</code></pre>
+<p>该函数接收：</p>
+<pre><code class="language-ts">nextCard
+currentColor
+previousDrawValue
+previousDrawKind</code></pre>
+<p>它只判断“下一张牌能不能继续当前加牌链”。真正调用位置在：</p>
+<pre><code class="language-txt">packages/uno-core/src/reducer/applyPlayCard.ts</code></pre>
+<p>当 <code>state.drawStack.active === true</code> 时，单牌出牌必须通过 <code>canStackDrawCard()</code>，否则会返回 <code>CARD_NOT_PLAYABLE</code>。</p>
+<h3>1. 非加牌牌一律不能接加牌链</h3>
+<p>代码：</p>
+<pre><code class="language-ts">if (!isDrawCard(nextCard)) {
+  return false;
+}</code></pre>
+<p>含义：</p>
+<ol><li>数字牌不能接加牌链。</li><li>禁止牌、反转牌、换手牌、同色丢弃、普通变色都不能接加牌链。</li><li>只有有 <code>drawValue</code> 语义的加牌牌能进入后续判断。</li></ol>
+<p>例子：</p>
+<ol><li>前一张是红 <code>+2</code>，下一张出红 <code>5</code>：不允许。</li><li>前一张是普通 <code>+4</code>，下一张出普通变色：不允许。</li><li>前一张是黑色 <code>+6</code>，下一张出同色丢弃：不允许。</li></ol>
+<h3>2. 有色加牌牌：同加牌值可以接</h3>
+<p>当前代码：</p>
+<pre><code class="language-ts">const sameDrawValue = nextCard.drawValue === previousDrawValue;
+const sameColor = currentColor !== undefined &amp;&amp; nextCard.color === currentColor;
+
+return sameDrawValue || sameColor;</code></pre>
+<p>其中有色加牌牌包括：</p>
+<ol><li>普通 <code>+2</code></li><li>普通 <code>+4</code></li></ol>
+<p>当前规则允许“同加牌值跨颜色接链”。</p>
+<p>例子：</p>
+<ol><li>红 <code>+2</code> 后，蓝 <code>+2</code> 可以接。</li><li>红 <code>+4</code> 后，蓝 <code>+4</code> 可以接。</li><li>蓝 <code>+2</code> 后，黄 <code>+2</code> 可以接。</li></ol>
+<p>对应测试：</p>
+<pre><code class="language-txt">packages/uno-core/src/rules/canStackDrawCard.test.ts
+allows red +2 to be followed by blue +2
+allows red +4 to be followed by blue +4</code></pre>
+<h3>3. 有色加牌牌：当前颜色相同也可以接</h3>
+<p>还是这一段：</p>
+<pre><code class="language-ts">return sameDrawValue || sameColor;</code></pre>
+<p>这意味着即使加牌值不同，只要颜色等于 <code>currentColor</code>，就能接。</p>
+<p>例子：</p>
+<ol><li>红 <code>+2</code> 后，如果 <code>currentColor</code> 是红色，红 <code>+4</code> 可以接。</li><li>蓝 <code>+4</code> 后，如果 <code>currentColor</code> 是蓝色，蓝 <code>+2</code> 可以接。</li><li>黑色 <code>+6</code> 声明蓝色后，如果当前颜色是蓝色，蓝 <code>+2</code> 当前代码会允许接。</li></ol>
+<p>这正是问题来源之一：<code>+6</code> 后不应该被普通 <code>+2</code> / <code>+4</code> 接住，但当前代码只要颜色相同就可能放行。</p>
+<h3>4. 当前代码禁止“有色加牌牌接在黑色加牌之后且数值大于等于上一张”</h3>
+<p>当前代码：</p>
+<pre><code class="language-ts">if (
+  previousDrawKind !== null &amp;&amp;
+  isBlackDrawKind(previousDrawKind) &amp;&amp;
+  nextCard.drawValue !== undefined &amp;&amp;
+  nextCard.drawValue &gt;= previousDrawValue
+) {
+  return false;
+}</code></pre>
+<p>黑色加牌种类由 <code>isBlackDrawKind()</code> 定义：</p>
+<pre><code class="language-ts">wild-reverse-draw-four
+wild-draw-six
+wild-draw-ten</code></pre>
+<p>当前效果：</p>
+<ol><li>黑色 <code>+4</code> 后，普通 <code>+4</code> 不允许。</li><li>黑色 <code>+6</code> 后，普通 <code>+6</code> 不存在；普通 <code>+4</code> 因为 <code>4 &gt;= 6</code> 为 false，不会在这里被禁止，还会继续进入 <code>sameColor</code> 判断。</li><li>黑色 <code>+6</code> 声明蓝色后，蓝 <code>+2</code> / 蓝 <code>+4</code> 会因为 <code>sameColor</code> 被允许。</li><li>黑色 <code>+10</code> 后，普通 <code>+2</code> / 普通 <code>+4</code> 也可能因为 <code>sameColor</code> 被允许。</li></ol>
+<p>这条规则的本意像是在禁止“有色高等级牌压黑色加牌”，但实际没有禁止“低数值有色加牌接黑色加牌”，所以和本 Problem 的目标冲突。</p>
+<h3>5. 黑色加牌牌：只要数值大于等于上一张就可以接</h3>
+<p>当前代码：</p>
+<pre><code class="language-ts">if (!isBlackDrawCard(nextCard)) {
+  return false;
+}
+
+if (nextCard.drawValue === undefined) {
+  return false;
+}
+
+return nextCard.drawValue &gt;= previousDrawValue;</code></pre>
+<p>黑色加牌牌包括：</p>
+<ol><li>黑色反转 <code>+4</code></li><li>黑色 <code>+6</code></li><li>黑色 <code>+10</code></li></ol>
+<p>当前效果：</p>
+<ol><li>普通 <code>+2</code> 后，黑色反转 <code>+4</code> 可以接。</li><li>普通 <code>+2</code> 后，黑色 <code>+6</code> 可以接。</li><li>普通 <code>+4</code> 后，黑色反转 <code>+4</code> 可以接。</li><li>普通 <code>+4</code> 后，黑色 <code>+6</code> 可以接。</li><li>黑色 <code>+6</code> 后，黑色 <code>+10</code> 可以接。</li><li>黑色 <code>+10</code> 后，黑色 <code>+6</code> 不可以接。</li><li>黑色 <code>+10</code> 后，黑色反转 <code>+4</code> 不可以接。</li></ol>
+<p>当前问题：</p>
+<ol><li><code>+6</code> 后黑色 <code>+4</code> 因为 <code>4 &gt;= 6</code> 已经不允许，这一点与需求一致。</li><li><code>+6</code> 后黑色变色不是 draw card，本身也不允许，这一点与需求一致。</li><li>但 <code>+6</code> 后普通 <code>+2</code> / 普通 <code>+4</code> 仍可能因为 <code>sameColor</code> 被允许，需要修复。</li><li>普通 <code>+4</code> / 黑色 <code>+4</code> 后普通 <code>+2</code> 也可能因为颜色匹配被允许，需要修复。</li></ol>
+<h3>6. 当前加牌链累计值更新方式</h3>
+<p>当前代码在：</p>
+<pre><code class="language-txt">packages/uno-core/src/reducer/applyPlayCard.ts
+resolveDrawCardEffect()</code></pre>
+<p>关键逻辑：</p>
+<pre><code class="language-ts">const baseAmount = state.drawStack.active ? state.drawStack.amount : 0;
+const nextAmount = baseAmount + drawValue;
+
+state.drawStack = {
+  active: true,
+  amount: nextAmount,
+  previousDrawValue: drawValue,
+  previousDrawKind: card.kind,
+  targetPlayerId
+};</code></pre>
+<p>含义：</p>
+<ol><li>每接一张加牌牌，会把新牌的 <code>drawValue</code> 累加到 <code>drawStack.amount</code>。</li><li><code>previousDrawValue</code> 永远变成最后一张加牌牌的数值。</li><li><code>previousDrawKind</code> 永远变成最后一张加牌牌的种类。</li><li>下一次能不能继续接，只看“上一张加牌牌”，不是看整条链里所有牌。</li></ol>
+<p>例子：</p>
+<ol><li>红 <code>+2</code> -&gt; 蓝 <code>+2</code> 后，累计变成 <code>4</code>，上一张值仍是 <code>2</code>。</li><li>红 <code>+2</code> -&gt; 黑色 <code>+6</code> 后，累计变成 <code>8</code>，上一张值变成 <code>6</code>。</li><li>黑色 <code>+6</code> -&gt; 黑色 <code>+10</code> 后，累计变成 <code>16</code>，上一张值变成 <code>10</code>。</li></ol>
+<h2>目标加牌链规则</h2>
+<p>本阶段建议把规则明确成“有色牌按同等级叠，黑色牌只能升级，不能降级，且 <code>+6</code> 之后只能用更高黑色加牌继续”。</p>
+<h3>目标规则 1：普通 <code>+2</code></h3>
+<p>普通 <code>+2</code> 只能接在上一张普通 <code>+2</code> 后面。</p>
+<p>允许：</p>
+<ol><li>红 <code>+2</code> -&gt; 蓝 <code>+2</code></li><li>红 <code>+2</code> -&gt; 红 <code>+2</code></li></ol>
+<p>禁止：</p>
+<ol><li>普通 <code>+4</code> -&gt; 普通 <code>+2</code></li><li>黑色反转 <code>+4</code> -&gt; 普通 <code>+2</code></li><li>黑色 <code>+6</code> -&gt; 普通 <code>+2</code></li><li>黑色 <code>+10</code> -&gt; 普通 <code>+2</code></li></ol>
+<h3>目标规则 2：普通 <code>+4</code></h3>
+<p>普通 <code>+4</code> 只能接在上一张普通 <code>+4</code> 后面，或者作为普通 <code>+2</code> 链的升级牌是否允许需要产品确认。</p>
+<p>根据本次问题描述，至少必须禁止：</p>
+<ol><li>黑色 <code>+6</code> -&gt; 普通 <code>+4</code></li><li>黑色反转 <code>+4</code> -&gt; 普通 <code>+4</code></li><li>黑色 <code>+10</code> -&gt; 普通 <code>+4</code></li></ol>
+<p>建议本阶段直接收紧为：</p>
+<ol><li>普通 <code>+4</code> 只接普通 <code>+4</code>。</li><li>普通 <code>+2</code> 不再通过颜色接普通 <code>+4</code>。</li></ol>
+<p>这样可以避免“颜色匹配导致跨等级乱接”的问题。</p>
+<h3>目标规则 3：黑色反转 <code>+4</code></h3>
+<p>黑色反转 <code>+4</code> 可以接普通 <code>+2</code> 或普通 <code>+4</code>，但不能接在黑色 <code>+6</code> 或黑色 <code>+10</code> 后面。</p>
+<p>允许：</p>
+<ol><li>普通 <code>+2</code> -&gt; 黑色反转 <code>+4</code></li><li>普通 <code>+4</code> -&gt; 黑色反转 <code>+4</code></li><li>黑色反转 <code>+4</code> -&gt; 黑色反转 <code>+4</code></li></ol>
+<p>禁止：</p>
+<ol><li>黑色 <code>+6</code> -&gt; 黑色反转 <code>+4</code></li><li>黑色 <code>+10</code> -&gt; 黑色反转 <code>+4</code></li></ol>
+<h3>目标规则 4：黑色 <code>+6</code></h3>
+<p>黑色 <code>+6</code> 可以接普通 <code>+2</code>、普通 <code>+4</code>、黑色反转 <code>+4</code>，但 <code>+6</code> 后不能被低级牌继续接。</p>
+<p>允许：</p>
+<ol><li>普通 <code>+2</code> -&gt; 黑色 <code>+6</code></li><li>普通 <code>+4</code> -&gt; 黑色 <code>+6</code></li><li>黑色反转 <code>+4</code> -&gt; 黑色 <code>+6</code></li><li>黑色 <code>+6</code> -&gt; 黑色 <code>+6</code></li><li>黑色 <code>+6</code> -&gt; 黑色 <code>+10</code></li></ol>
+<p>禁止：</p>
+<ol><li>黑色 <code>+6</code> -&gt; 普通 <code>+2</code></li><li>黑色 <code>+6</code> -&gt; 普通 <code>+4</code></li><li>黑色 <code>+6</code> -&gt; 黑色反转 <code>+4</code></li><li>黑色 <code>+6</code> -&gt; 普通变色</li></ol>
+<h3>目标规则 5：黑色 <code>+10</code></h3>
+<p>黑色 <code>+10</code> 是最高等级。</p>
+<p>允许：</p>
+<ol><li>普通 <code>+2</code> -&gt; 黑色 <code>+10</code></li><li>普通 <code>+4</code> -&gt; 黑色 <code>+10</code></li><li>黑色 <code>+6</code> -&gt; 黑色 <code>+10</code></li><li>黑色 <code>+10</code> -&gt; 黑色 <code>+10</code></li></ol>
+<p>禁止：</p>
+<ol><li>黑色 <code>+10</code> -&gt; 普通 <code>+2</code></li><li>黑色 <code>+10</code> -&gt; 普通 <code>+4</code></li><li>黑色 <code>+10</code> -&gt; 黑色反转 <code>+4</code></li><li>黑色 <code>+10</code> -&gt; 黑色 <code>+6</code></li></ol>
+<h2>需要修改的文件</h2>
+<p>优先修改：</p>
+<ol><li><code>packages/uno-core/src/rules/canStackDrawCard.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.test.ts</code></li><li><code>packages/uno-core/src/reducer/applyCommand.turn.test.ts</code></li><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/battle/selection.ts</code></li><li><code>apps/client-web/src/battle/selection.test.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>packages/uno-core/src/reducer/applyUno.ts</code></li><li><code>packages/uno-core/src/reducer/effects.ts</code></li><li><code>packages/uno-core/src/view/createPlayerGameSnapshot.ts</code></li><li><code>packages/shared-types/src/snapshot.ts</code></li><li><code>packages/protocol/src/messages.ts</code></li><li><code>apps/game-server/src/room/roomManager.ts</code></li><li><code>apps/game-server/src/gateway/messageHandler.ts</code></li><li><code>apps/game-server/src/gateway/parseMessage.ts</code></li><li><code>apps/game-server/src/broadcast/createRoomSnapshot.ts</code></li><li><code>apps/client-web/src/protocol/clientMessages.ts</code></li><li><code>apps/client-web/src/smoke/appBoot.test.ts</code></li></ol>
+<h2>任务 1：收紧加牌链规则</h2>
+<h3>当前问题</h3>
+<p>当前 <code>canStackDrawCard()</code> 对有色加牌牌使用：</p>
+<pre><code class="language-ts">sameDrawValue || sameColor</code></pre>
+<p>这导致“颜色相同”可以绕过加牌等级限制。例如：</p>
+<ol><li>黑色 <code>+6</code> 声明蓝色后，蓝 <code>+2</code> 可能被允许。</li><li>黑色 <code>+6</code> 声明蓝色后，蓝 <code>+4</code> 可能被允许。</li><li>普通 <code>+4</code> 后，如果当前颜色匹配，普通 <code>+2</code> 可能被允许。</li><li>黑色反转 <code>+4</code> 后，如果当前颜色匹配，普通 <code>+2</code> 可能被允许。</li></ol>
+<h3>修改方案</h3>
+<p>重写 <code>canStackDrawCard()</code> 的判断，不再用 <code>sameColor</code> 放行跨等级有色加牌。</p>
+<p>建议实现辅助函数：</p>
+<pre><code class="language-ts">function getDrawStackRank(kind: DrawCardKind): number</code></pre>
+<p>建议等级：</p>
+<pre><code class="language-txt">draw-two: 2
+draw-four: 4
+wild-reverse-draw-four: 4
+wild-draw-six: 6
+wild-draw-ten: 10</code></pre>
+<p>然后按种类做判断：</p>
+<ol><li><code>draw-two</code>：只允许接 <code>previousDrawKind === &quot;draw-two&quot;</code>。</li><li><code>draw-four</code>：只允许接 <code>previousDrawKind === &quot;draw-four&quot;</code>。</li><li><code>wild-reverse-draw-four</code>：允许接 <code>draw-two</code>、<code>draw-four</code>、<code>wild-reverse-draw-four</code>；不允许接 <code>wild-draw-six</code>、<code>wild-draw-ten</code>。</li><li><code>wild-draw-six</code>：允许接 rank &lt;= 6 的加牌链。</li><li><code>wild-draw-ten</code>：允许接 rank &lt;= 10 的加牌链。</li></ol>
+<p>如果产品希望保留“普通 <code>+2</code> 可接普通 <code>+4</code> 同色”这种旧规则，需要单独写成明确条件，而不是继续让 <code>sameColor</code> 全面放行。</p>
+<h3>必补测试</h3>
+<p>新增或修改：</p>
+<pre><code class="language-txt">packages/uno-core/src/rules/canStackDrawCard.test.ts</code></pre>
+<p>至少覆盖：</p>
+<ol><li>黑色 <code>+6</code> 后普通 <code>+2</code> 不可接，即使当前颜色匹配。</li><li>黑色 <code>+6</code> 后普通 <code>+4</code> 不可接，即使当前颜色匹配。</li><li>黑色 <code>+6</code> 后黑色反转 <code>+4</code> 不可接。</li><li>黑色 <code>+6</code> 后普通变色不可接。</li><li>普通 <code>+4</code> 后普通 <code>+2</code> 不可接。</li><li>黑色反转 <code>+4</code> 后普通 <code>+2</code> 不可接。</li><li>普通 <code>+2</code> 后普通 <code>+2</code> 仍可接。</li><li>普通 <code>+4</code> 后普通 <code>+4</code> 仍可接。</li><li>普通 <code>+4</code> 后黑色 <code>+6</code> 仍可接。</li><li>黑色 <code>+6</code> 后黑色 <code>+10</code> 仍可接。</li><li>黑色 <code>+10</code> 后黑色 <code>+6</code> 不可接。</li></ol>
+<p>同步修改：</p>
+<pre><code class="language-txt">packages/uno-core/src/reducer/applyCommand.turn.test.ts</code></pre>
+<p>确保 reducer 层真实 <code>play-card</code> 命令也拒绝这些非法加牌链，而不是只有纯规则函数正确。</p>
+<h2>任务 2：修复前端手牌高亮与服务端规则不一致</h2>
+<h3>当前问题 1：加牌链高亮跟随旧规则</h3>
+<p>前端 <code>apps/client-web/src/main.ts</code> 中：</p>
+<pre><code class="language-txt">getBaseHandCardPresentation()
+canContinueDrawStack()
+getPlaySelectionPreview()</code></pre>
+<p>会根据当前 snapshot 决定手牌是否高亮、可选、按钮是否可出。</p>
+<p>如果前端仍然使用旧的 <code>sameColor</code> 或类似判断，即使服务端修复了 <code>canStackDrawCard()</code>，玩家也会看到不能出的牌被高亮。</p>
+<h3>修改方案</h3>
+<ol><li>前端不要手写一套与 <code>uno-core</code> 不一致的加牌链规则。</li><li>如果当前前端已经复制了 <code>canContinueDrawStack()</code> 逻辑，要同步改成与 <code>canStackDrawCard()</code> 相同的规则。</li><li>更推荐把 <code>canStackDrawCard()</code> 从 <code>@thunder-uno/uno-core</code> 暴露给客户端使用，前端只传 <code>snapshot.drawStack.previousDrawValue</code>、<code>snapshot.drawStack.previousDrawKind</code> 和 <code>snapshot.currentColor</code>。</li><li>如果前端不能直接依赖 <code>uno-core</code> 运行时代码，也要在 <code>apps/client-web/src/battle/selection.ts</code> 建一个同名纯函数，并用测试锁住和 core 一致的结果。</li></ol>
+<h3>必补前端测试</h3>
+<p>新增或修改：</p>
+<pre><code class="language-txt">apps/client-web/src/battle/selection.test.ts
+apps/client-web/src/smoke/appBoot.test.ts</code></pre>
+<p>至少覆盖：</p>
+<ol><li>上一张是黑色 <code>+6</code>，手牌里的黑色反转 <code>+4</code> 不高亮。</li><li>上一张是黑色 <code>+6</code>，手牌里的普通 <code>+4</code> 不高亮。</li><li>上一张是黑色 <code>+6</code>，手牌里的普通 <code>+2</code> 不高亮。</li><li>上一张是普通 <code>+4</code>，手牌里的普通 <code>+2</code> 不高亮。</li><li>上一张是黑色反转 <code>+4</code>，手牌里的普通 <code>+2</code> 不高亮。</li></ol>
+<h3>当前问题 2：同色丢弃候选高亮过宽</h3>
+<p>当前 <code>canSelectionPotentiallyBeDiscardSameColor()</code> 只检查：</p>
+<ol><li>已选牌非空。</li><li>都不是黑牌。</li><li>都同色。</li><li>手牌里存在同色 <code>discard-same-color</code> 主牌。</li><li>同色牌数量足够。</li></ol>
+<p>但它没有检查“同色丢弃主牌是否能接当前顶牌 / 当前颜色”。</p>
+<p>因此会出现：</p>
+<pre><code class="language-txt">当前颜色：绿色
+我的手牌：红色同色丢弃、红色禁、红4</code></pre>
+<p>这些红色牌可能被标记为组合候选，但红色同色丢弃主牌不能接绿色当前颜色，所以不应该高亮。</p>
+<h3>修改方案</h3>
+<ol><li><code>canSelectionPotentiallyBeDiscardSameColor()</code> 增加当前牌桌上下文参数。</li><li>只有存在至少一张“同色丢弃主牌”能通过 <code>canPlaySingleCardLike(mainCard, snapshot)</code> 时，才允许该颜色的同色丢弃候选高亮。</li><li><code>canCardJoinAnyCombo()</code> 不应只因为手牌里存在同色丢弃主牌就高亮，必须确认这个主牌能接当前颜色 / 顶牌。</li><li><code>describeSelectionMismatch()</code> 中同色丢弃的错误提示也要跟随这个逻辑，提示“同色丢弃主牌不能接当前颜色”。</li></ol>
+<p>必补测试：</p>
+<ol><li>当前颜色绿色，红色同色丢弃、红禁、红4 不高亮。</li><li>当前颜色红色，红色同色丢弃、红禁、红4 可以作为同色丢弃候选。</li><li>顶牌同类型允许接时，也要按 <code>canPlayCard()</code> 结果判断。</li></ol>
+<h2>任务 3：手牌区固定长度下的自动重叠</h2>
+<h3>当前问题</h3>
+<p>当前手牌区使用横向滚动：</p>
+<pre><code class="language-css">.battle-action-dock .cards {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}</code></pre>
+<p>当手牌很多时，会出现可拖动滚动条。用户希望：</p>
+<ol><li>手牌区长度固定。</li><li>不出现横向滚动条。</li><li>超出显示范围后，所有手牌向左移动并均匀重叠。</li><li>每增加一张牌，重叠程度增加一点。</li><li>打出牌后，如果剩余空间足够，则恢复普通不重叠状态。</li></ol>
+<h3>修改方案</h3>
+<p>前端渲染手牌时计算布局变量。</p>
+<p>位置：</p>
+<pre><code class="language-txt">apps/client-web/src/main.ts
+renderBattlePanel()
+renderCardButtonV2()</code></pre>
+<p>建议做法：</p>
+<ol><li>给 <code>.cards</code> 增加 <code>data-hand-count</code> 或 CSS 变量 <code>--hand-count</code>。</li><li>每张牌按钮增加序号变量 <code>--card-index</code>。</li><li>用 CSS 计算卡牌基础宽度和可用宽度。</li><li>当 <code>hand.length &lt;= 普通可容纳数量</code> 时：</li></ol>
+<ul><li><code>gap</code> 正常。</li><li><code>transform</code> 只保留选中上移动效。</li><li>不重叠。</li></ul>
+<ol><li>当 <code>hand.length &gt; 普通可容纳数量</code> 时：</li></ol>
+<ul><li><code>.cards</code> 改为 <code>position: relative</code>。</li><li>每张 <code>.card-button</code> 使用 <code>position: absolute</code> 或 CSS transform。</li><li>根据 <code>--card-index</code> 计算 <code>left</code>。</li><li><code>left</code> 间距 = <code>(容器宽度 - 单张牌宽度) / (handCount - 1)</code>。</li><li>每多一张牌，间距变小，也就是重叠更多。</li></ul>
+<p>实现上 CSS 很难直接拿到容器真实宽度参与计算，建议使用前端测量：</p>
+<ol><li>在 <code>render()</code> 后用 <code>requestAnimationFrame(syncHandOverlapLayout)</code>。</li><li>读取 <code>.cards</code> 容器宽度和第一张牌宽度。</li><li>如果 <code>handCount <em> cardWidth + gap </em> (handCount - 1) &lt;= containerWidth</code>：</li></ol>
+<ul><li>移除重叠 class。</li><li>清理每张牌 inline style。</li></ul>
+<ol><li>否则：</li></ol>
+<ul><li>添加 <code>cards-overlap</code> class。</li><li>计算 <code>step = (containerWidth - cardWidth) / (handCount - 1)</code>。</li><li>每张牌设置 <code>style.left = index * step + &quot;px&quot;</code>。</li><li>容器高度固定为卡牌高度加选中上移空间。</li></ul>
+<h3>样式要求</h3>
+<ol><li><code>.battle-action-dock .cards</code> 不显示横向滚动条。</li><li>重叠时，后面的牌盖在前面的牌上，<code>z-index</code> 随 index 增加。</li><li>hover / selected 时该牌临时抬高，并提升 <code>z-index</code>。</li><li>最近摸到的红圈、可出牌高亮、选中上移动效必须保留。</li><li>移动端也不能出现横向滚动条。</li></ol>
+<h3>必补测试</h3>
+<p>因为 jsdom 对真实布局测量有限，建议至少补：</p>
+<ol><li><code>renderCardButtonV2()</code> 输出 <code>data-card-index</code> 或 CSS 变量。</li><li>smoke 测试确认大量手牌时 <code>.cards</code> 存在重叠模式 class。</li><li>Playwright 移动端截图 / layout test 检查无横向 overflow。</li></ol>
+<h2>任务 4：打出倒数第二张牌后 UNO 按钮立即可点</h2>
+<h3>当前问题</h3>
+<p>前端 <code>renderBattlePanel()</code> 当前计算 <code>canSayUno</code> 时要求：</p>
+<pre><code class="language-ts">isConnected &amp;&amp;
+isMyTurn &amp;&amp;
+!isGameFinished &amp;&amp;
+snapshot.self.handCount === 1 &amp;&amp;
+!snapshot.self.hasCalledUno &amp;&amp;
+snapshot.self.unoPendingSinceMs !== null &amp;&amp;
+!snapshot.self.isEliminated</code></pre>
+<p>问题是：玩家打出倒数第二张牌后，<code>applyPlayCard.ts</code> 会调用 <code>resolveAdvance()</code> 或 <code>resolveDrawCardEffect()</code>，当前回合通常已经推进到下家。此时 <code>isMyTurn</code> 变成 false，导致 UNO 按钮不亮。</p>
+<p>而 <code>applySayUnoCommand()</code> 服务端并不要求玩家必须是当前回合，只要求：</p>
+<ol><li>对局未结束。</li><li>玩家存在。</li><li>玩家未淘汰。</li><li>手牌数为 1。</li><li><code>unoPendingSinceMs !== null</code>。</li></ol>
+<p>所以前端多加的 <code>isMyTurn</code> 限制是不合理的。</p>
+<h3>修改方案</h3>
+<ol><li>前端 <code>canSayUno</code> 去掉 <code>isMyTurn</code> 限制。</li><li><code>getSayUnoDisabledReason()</code> 同步调整，不要因为“不是你的回合”禁用 UNO。</li><li>只要满足：</li></ol>
+<ul><li>已连接</li><li>对局未结束</li><li>自己未淘汰</li><li><code>handCount === 1</code></li><li><code>hasCalledUno === false</code></li><li><code>unoPendingSinceMs !== null</code></li></ul>
+<p>就让 UNO 按钮亮起。</p>
+<h3>必补测试</h3>
+<ol><li>前端 snapshot 中 <code>currentPlayerId !== self.playerId</code>，但 self 只剩 1 张且 <code>unoPendingSinceMs !== null</code>，UNO 按钮可点。</li><li>点击 UNO 后发送 <code>say-uno</code> command。</li><li>服务端已有 <code>applySayUnoCommand()</code> 不要求当前回合，补充测试明确这一点，避免未来误改。</li></ol>
+<h2>任务 5：淘汰 / 胜利后房主可重开或继续</h2>
+<h3>当前问题</h3>
+<p>当前代码里：</p>
+<ol><li>手牌超过上限会 <code>markPlayerEliminatedIfNeeded()</code>。</li><li>只剩 1 名未淘汰玩家时，<code>finishGame()</code> 结束对局。</li><li>玩家出完最后一张牌会立即 <code>finishGame()</code>。</li><li>前端结束后显示“返回大厅”，当前版本没有房内重开。</li></ol>
+<p>用户期望：</p>
+<ol><li>有人被淘汰时，房主可以选择“重开一把”或“继续游戏”。</li><li>如果继续游戏，被淘汰玩家不能出牌，但他的手牌区保持不动。</li><li>别人看到被淘汰玩家头像框红色高亮。</li><li>有人胜利时，房主也可以选择“重开一把”或“继续游戏”。</li><li>如果继续游戏，胜利玩家头像框绿色高亮。</li></ol>
+<h3>需要先明确的规则问题</h3>
+<p>这里有一个产品规则需要落实到代码：</p>
+<ol><li>“有人胜利”在当前代码中意味着 <code>GameState.status = &quot;finished&quot;</code>。</li><li>如果选择“继续游戏”，需要把 finished 状态恢复为 in-progress，还是把胜利者标记为已完成但保留座位？</li><li>胜利玩家继续留在房间但不能出牌，那么他应该被 <code>getNextActivePlayerId()</code> 跳过，类似淘汰玩家。</li><li>如果胜利玩家不再参与，剩余玩家继续打，最终可能产生多个赢家，需要支持 <code>winnerPlayerIds</code> 追加。</li></ol>
+<p>建议新增概念：</p>
+<pre><code class="language-ts">player.roundOutcome: &quot;active&quot; | &quot;eliminated&quot; | &quot;winner&quot;</code></pre>
+<p>或者复用现有字段并新增：</p>
+<pre><code class="language-ts">player.isRoundWinner: boolean</code></pre>
+<h3>修改方案 A：服务端权威继续 / 重开</h3>
+<p>新增协议消息：</p>
+<pre><code class="language-ts">type ClientRoomDecisionMessage =
+  | {
+      type: &quot;restart-game&quot;;
+      roomId: RoomId;
+      playerId: PlayerId;
+      seed?: ShuffleSeed;
+    }
+  | {
+      type: &quot;continue-game&quot;;
+      roomId: RoomId;
+      playerId: PlayerId;
+    };</code></pre>
+<p>服务端 <code>RoomManager</code> 增加：</p>
+<ol><li><code>restartGame(params)</code></li><li><code>continueGame(params)</code></li></ol>
+<p>要求：</p>
+<ol><li>只有房主可以操作。</li><li>房间必须处于 playing / finished，且存在淘汰或胜利状态。</li><li><code>restartGame</code> 重新调用 <code>createInitialGame()</code>，保留房间号、玩家、头像、座位、房主。</li><li><code>continueGame</code> 不清空手牌，不重置弃牌堆，只调整状态让未结束玩家继续行动。</li></ol>
+<h3>修改方案 B：继续游戏的状态处理</h3>
+<p>被淘汰玩家：</p>
+<ol><li>继续保留 <code>isEliminated = true</code>。</li><li><code>assertPlayableCurrentPlayer()</code> 已经禁止其出牌。</li><li><code>getNextActivePlayerId()</code> 应继续跳过他。</li><li>前端继续显示其手牌数 / 状态，头像框红色高亮。</li></ol>
+<p>胜利玩家：</p>
+<ol><li>新增 <code>isRoundWinner</code> 或类似字段。</li><li>继续游戏时，将该玩家从 active turn order 中跳过。</li><li>前端头像框绿色高亮。</li><li>他的手牌保持不动，可以是 0 张，也可以保留胜利时状态。</li><li><code>winnerPlayerIds</code> 保留历史赢家。</li></ol>
+<h3>前端 UI</h3>
+<ol><li>事件弹窗中，如果当前玩家是房主：</li></ol>
+<ul><li>显示“重开一把”</li><li>显示“继续游戏”</li></ul>
+<ol><li>如果当前玩家不是房主：</li></ol>
+<ul><li>显示“等待房主选择”</li></ul>
+<ol><li>对战 HUD 或弹窗展示当前状态：</li></ol>
+<ul><li><code>玩家 X 已淘汰</code></li><li><code>玩家 Y 已获胜</code></li></ul>
+<ol><li>座位样式：</li></ol>
+<ul><li>淘汰：红色高亮</li><li>胜利：绿色高亮</li></ul>
+<ol><li>继续游戏后：</li></ol>
+<ul><li>被淘汰 / 胜利玩家不能操作</li><li>其他玩家继续正常出牌</li></ul>
+<h3>必补测试</h3>
+<ol><li>淘汰玩家不能出牌。</li><li>淘汰后房主可以 <code>continue-game</code>。</li><li>淘汰后房主可以 <code>restart-game</code>。</li><li>非房主不能 <code>continue-game</code> / <code>restart-game</code>。</li><li>胜利后房主可以选择重开。</li><li>胜利后继续游戏时，胜利玩家被跳过。</li><li>前端弹窗房主显示两个按钮，非房主显示等待文案。</li></ol>
+<h2>任务 6：自定义房间号和 6 位固定输入框</h2>
+<h3>当前问题</h3>
+<p>当前房间号：</p>
+<ol><li>创建时由 <code>apps/game-server/src/ids/createRoomId.ts</code> 自动生成 6 位数字。</li><li>前端大厅只有一个普通输入框 <code>#room-id-input</code>。</li><li>创建房间按钮只有一个“创建房间”。</li></ol>
+<p>用户期望：</p>
+<ol><li>房间号输入框改成 6 个固定数字框。</li><li>一眼能看出必须输入 6 位数字。</li><li>输入非数字时直接弹窗提示“请输入数字”。</li><li>创建房间按钮拆成两个：</li></ol>
+<ul><li>“自定义房间号”</li><li>“生成房间号”</li></ul>
+<h3>协议修改</h3>
+<p>当前：</p>
+<pre><code class="language-ts">ClientCreateRoomMessage {
+  type: &quot;create-room&quot;;
+  mode: GameMode;
+}</code></pre>
+<p>建议新增可选字段：</p>
+<pre><code class="language-ts">customRoomId?: RoomId;</code></pre>
+<p>或更明确：</p>
+<pre><code class="language-ts">roomCode?: string;</code></pre>
+<p>要求：</p>
+<ol><li>不传时，服务端继续自动生成。</li><li>传入时，服务端必须校验：</li></ol>
+<ul><li>正好 6 位</li><li>全部是数字</li><li>当前内存房间里未占用</li></ul>
+<ol><li>占用时返回错误：</li></ol>
+<ul><li><code>room-id-taken</code></li></ul>
+<ol><li>格式错误返回：</li></ol>
+<ul><li><code>invalid-room-id</code></li></ul>
+<h3>服务端修改</h3>
+<p>修改：</p>
+<pre><code class="language-txt">apps/game-server/src/room/roomTypes.ts
+apps/game-server/src/room/roomManager.ts
+apps/game-server/src/gateway/parseMessage.ts
+apps/game-server/src/gateway/messageHandler.ts
+packages/protocol/src/messages.ts
+packages/protocol/src/errors.ts</code></pre>
+<p><code>RoomManager.createRoom()</code>：</p>
+<ol><li>如果 <code>params.roomId</code> 存在，走校验和占用判断。</li><li>如果不存在，调用现有 <code>createRoomId()</code>。</li><li>自定义房间号和自动生成房间号都必须走同一套去重逻辑。</li></ol>
+<h3>前端 UI 修改</h3>
+<p>修改：</p>
+<pre><code class="language-txt">apps/client-web/src/main.ts
+apps/client-web/src/styles.css
+apps/client-web/src/protocol/clientMessages.ts</code></pre>
+<p>大厅中：</p>
+<ol><li>把单个 <code>#room-id-input</code> 改成 6 个输入框。</li><li>每个输入框只允许一位数字。</li><li>输入数字后自动跳到下一格。</li><li>Backspace 时可回到上一格。</li><li>粘贴 <code>123456</code> 时自动填满 6 格。</li><li>如果输入非数字：</li></ol>
+<ul><li>阻止输入。</li><li>显示 toast / 弹窗：“请输入数字”。</li></ul>
+<ol><li><code>加入房间</code> 从 6 格读取房间号。</li><li>“生成房间号”创建房间时不带自定义号。</li><li>“自定义房间号”创建房间时必须读取 6 格。</li><li>如果不足 6 位，提示“请输入 6 位房间号”。</li></ol>
+<p>按钮：</p>
+<pre><code class="language-txt">自定义房间号
+生成房间号
+加入房间
+离开</code></pre>
+<p>注意：</p>
+<ol><li>保留旧的 <code>data-testid=&quot;join-room-input&quot;</code> 可以改成 wrapper，或者同步更新测试。</li><li>新增测试用 id：</li></ol>
+<ul><li><code>room-code-digit-0</code> 到 <code>room-code-digit-5</code></li><li><code>create-custom-room-button</code></li><li><code>create-random-room-button</code></li></ul>
+<h3>必补测试</h3>
+<ol><li>创建随机房间不传 <code>customRoomId</code>。</li><li>创建自定义房间传 6 位数字。</li><li>自定义房间号非数字前端拦截。</li><li>自定义房间号不足 6 位前端拦截。</li><li>服务端拒绝非 6 位数字。</li><li>服务端拒绝已占用房间号。</li><li>加入房间从 6 格读取完整 roomId。</li></ol>
+<h2>任务 7：文档和测试同步</h2>
+<p>需要同步：</p>
+<ol><li><code>README.md</code></li></ol>
+<ul><li>更新房间号输入方式。</li><li>更新创建房间方式。</li><li>更新房主重开 / 继续游戏说明。</li></ul>
+<ol><li><code>docs/项目开发文档.md</code></li></ol>
+<ul><li>加入 Problem8 索引。</li><li>更新当前客户端能力。</li></ul>
+<ol><li><code>UI-DESIGN.md</code></li></ol>
+<ul><li>补充手牌重叠设计。</li><li>补充房间号 6 格输入设计。</li></ul>
+<ol><li>如本 Problem 完成后，加入：</li></ol>
+<ul><li><code>docs/Problem8.md</code></li></ul>
+<h2>完成标准</h2>
+<p>完成后至少满足：</p>
+<ol><li><code>+6</code> 后不能出黑色变色、黑色反转 <code>+4</code>、普通 <code>+2</code>、普通 <code>+4</code>。</li><li>黑色反转 <code>+4</code> 后不能叠普通 <code>+2</code>。</li><li>普通 <code>+4</code> 后不能叠普通 <code>+2</code>。</li><li>前端不再高亮这些非法加牌牌。</li><li>同色丢弃主牌不能接当前颜色时，同色丢弃主牌和附带牌不高亮。</li><li>手牌很多时不出现横向滚动条。</li><li>手牌超出时自动均匀重叠，减少后自动恢复正常间距。</li><li>打出倒数第二张牌后，即使回合已推进，UNO 按钮也会亮起。</li><li>淘汰玩家头像红色高亮，不能出牌，手牌显示保持。</li><li>胜利玩家头像绿色高亮。</li><li>房主可以在淘汰 / 胜利后选择重开或继续。</li><li>非房主不能重开或继续，只能等待房主。</li><li>房间号输入为 6 个固定数字框。</li><li>非数字输入会提示“请输入数字”。</li><li>创建房间拆成“自定义房间号”和“生成房间号”。</li><li>自定义房间号必须是未占用的 6 位数字。</li></ol>
+<h2>至少运行</h2>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/uno-core test
+corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/game-server test
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<p>如果修改了房间号输入和对战 UI，还需要运行：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/client-web test:e2e</code></pre>
+        </div>
+      </div>
+    </article>
+        </div>
+      </section>
+      <section class="footer">
+        页面由 <code>tools/build-doc-overviews.mjs</code> 生成。每个卡片都保留原始 Markdown 文件入口，便于在总览和原文之间来回切换。
+      </section>
+    </main>
+    <script>
+      const detailPanels = Array.from(document.querySelectorAll("[data-detail]"));
+      const toggleButtons = Array.from(document.querySelectorAll("[data-toggle]"));
+
+      function setExpanded(id, expanded) {
+        const panel = document.querySelector('[data-detail="' + id + '"]');
+        const button = document.querySelector('[data-toggle="' + id + '"]');
+        if (!panel || !button) return;
+        panel.hidden = !expanded;
+        button.setAttribute("aria-expanded", String(expanded));
+        button.textContent = expanded ? "收起内容" : "展开内容";
+      }
+
+      toggleButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const id = button.getAttribute("data-toggle");
+          const expanded = button.getAttribute("aria-expanded") === "true";
+          setExpanded(id, !expanded);
+        });
+      });
+
+      document.querySelector('[data-action="expand-all"]')?.addEventListener("click", () => {
+        detailPanels.forEach((panel) => setExpanded(panel.getAttribute("data-detail"), true));
+      });
+
+      document.querySelector('[data-action="collapse-all"]')?.addEventListener("click", () => {
+        detailPanels.forEach((panel) => setExpanded(panel.getAttribute("data-detail"), false));
+      });
+    </script>
+  </body>
+</html>

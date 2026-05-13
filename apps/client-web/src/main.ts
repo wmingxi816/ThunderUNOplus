@@ -630,9 +630,14 @@ function render(): void {
           ? renderBattlePanel(snapshot)
           : `
             <section class="topbar">
-              <div>
-                <p class="eyebrow">HTML Web Client</p>
-                <h1>雷霆UNOplus</h1>
+              <button
+                id="lobby-music-toggle-button"
+                class="secondary lobby-sound-button ${state.backgroundMusicPercent <= 0 ? "is-muted" : ""}"
+                aria-label="${state.backgroundMusicPercent <= 0 ? "恢复大厅音乐" : "关闭大厅音乐"}"
+                title="${state.backgroundMusicPercent <= 0 ? "恢复大厅音乐" : "关闭大厅音乐"}"
+              >${state.backgroundMusicPercent <= 0 ? "🔇" : "🔊"}</button>
+              <div class="lobby-title-wrap">
+                <h1 class="lobby-title" data-title="雷霆UNOplus">雷霆UNOplus</h1>
               </div>
               <span
                 class="status status-${state.connectionStatus}"
@@ -5201,6 +5206,19 @@ function bindLobbyPanel(): void {
     resetRoomContext();
     pushLog("已离开房间");
     render();
+  });
+
+  document.querySelector("#lobby-music-toggle-button")?.addEventListener("click", () => {
+    const nextValue =
+      state.backgroundMusicPercent <= 0
+        ? state.backgroundMusicBeforeMutePercent ?? DEFAULT_UI_SETTING_PERCENT
+        : 0;
+
+    if (state.backgroundMusicPercent > 0) {
+      state.backgroundMusicBeforeMutePercent = state.backgroundMusicPercent;
+    }
+
+    applyUiSetting("background-music", nextValue);
   });
 }
 

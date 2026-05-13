@@ -1,0 +1,2439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雷霆 UNOplus Phase 总览</title>
+    <style>
+      :root {
+        --bg: #eef4f8;
+        --panel: rgba(255, 255, 255, 0.86);
+        --panel-strong: rgba(255, 255, 255, 0.96);
+        --line: rgba(15, 53, 86, 0.14);
+        --text: #16344c;
+        --muted: #537089;
+        --accent: #0f7db5;
+        --accent-strong: #0a5d88;
+        --chip: rgba(15, 125, 181, 0.1);
+        --shadow: 0 18px 48px rgba(17, 52, 77, 0.14);
+        --radius: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(108, 189, 232, 0.28), transparent 28%),
+          radial-gradient(circle at top right, rgba(19, 108, 173, 0.18), transparent 22%),
+          linear-gradient(180deg, #f7fbfd 0%, #edf4f8 42%, #e7eff4 100%);
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      a {
+        color: var(--accent-strong);
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .hero {
+        padding: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 28px;
+        background:
+          linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(232, 242, 247, 0.92)),
+          linear-gradient(135deg, rgba(12, 98, 144, 0.06), rgba(79, 177, 221, 0.14));
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--accent-strong);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 14px 0 12px;
+        font-size: clamp(32px, 4.2vw, 52px);
+        line-height: 1.06;
+      }
+
+      .hero p {
+        margin: 0;
+        max-width: 840px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.75;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #0f7db5, #1697c7);
+        color: white;
+        padding: 12px 18px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 10px 24px rgba(15, 125, 181, 0.22);
+        transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+      }
+
+      button.secondary {
+        background: rgba(255, 255, 255, 0.82);
+        color: var(--accent-strong);
+        border: 1px solid rgba(15, 125, 181, 0.18);
+        box-shadow: none;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .meta-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin: 22px 0 10px;
+      }
+
+      .meta-card {
+        padding: 16px 18px;
+        border-radius: 16px;
+        border: 1px solid rgba(15, 53, 86, 0.08);
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .meta-card strong {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .meta-card span {
+        display: block;
+        margin-top: 6px;
+        font-size: 22px;
+        font-weight: 800;
+      }
+
+      .group {
+        margin-top: 28px;
+      }
+
+      .group-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-end;
+        margin-bottom: 14px;
+      }
+
+      .group-head h2 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .group-head p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .group-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(22, 136, 184, 0.12);
+        color: var(--accent-strong);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .doc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 16px;
+      }
+
+      .doc-card {
+        border-radius: var(--radius);
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.65);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        backdrop-filter: blur(12px);
+      }
+
+      .doc-summary {
+        padding: 20px 20px 18px;
+      }
+
+      .doc-topline {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .doc-index {
+        display: inline-flex;
+        min-width: 44px;
+        justify-content: center;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(15, 125, 181, 0.1);
+        color: var(--accent-strong);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .doc-summary h3 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.35;
+      }
+
+      .doc-summary p {
+        margin: 12px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .doc-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .doc-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: rgba(15, 53, 86, 0.06);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .doc-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .doc-actions button {
+        flex: 1;
+      }
+
+      .doc-actions a {
+        flex: 1;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        padding: 12px 16px;
+        border-radius: 999px;
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(15, 125, 181, 0.16);
+        color: var(--accent-strong);
+        font-weight: 700;
+      }
+
+      .doc-body {
+        padding: 0 20px 20px;
+        border-top: 1px solid var(--line);
+        background: var(--panel-strong);
+      }
+
+      .doc-body[hidden] {
+        display: none;
+      }
+
+      .doc-body-inner {
+        padding-top: 18px;
+      }
+
+      .doc-body h1,
+      .doc-body h2,
+      .doc-body h3,
+      .doc-body h4 {
+        margin: 20px 0 10px;
+        line-height: 1.35;
+      }
+
+      .doc-body h1 {
+        font-size: 24px;
+      }
+
+      .doc-body h2 {
+        font-size: 20px;
+      }
+
+      .doc-body h3 {
+        font-size: 17px;
+      }
+
+      .doc-body h4 {
+        font-size: 15px;
+      }
+
+      .doc-body p,
+      .doc-body li,
+      .doc-body blockquote {
+        line-height: 1.8;
+      }
+
+      .doc-body ul,
+      .doc-body ol {
+        margin: 10px 0 14px 20px;
+        padding: 0;
+      }
+
+      .doc-body li + li {
+        margin-top: 6px;
+      }
+
+      .doc-body code {
+        padding: 2px 6px;
+        border-radius: 8px;
+        background: rgba(15, 53, 86, 0.08);
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.95em;
+      }
+
+      .doc-body pre {
+        margin: 14px 0;
+        padding: 16px;
+        overflow-x: auto;
+        border-radius: 16px;
+        background: #10283a;
+        color: #e8f5ff;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      .doc-body pre code {
+        padding: 0;
+        background: transparent;
+        color: inherit;
+      }
+
+      .doc-body table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 14px 0 18px;
+        overflow: hidden;
+        border-radius: 14px;
+        box-shadow: inset 0 0 0 1px rgba(15, 53, 86, 0.08);
+      }
+
+      .doc-body th,
+      .doc-body td {
+        padding: 12px 12px;
+        text-align: left;
+        border-bottom: 1px solid rgba(15, 53, 86, 0.08);
+        vertical-align: top;
+      }
+
+      .doc-body th {
+        background: rgba(15, 125, 181, 0.09);
+      }
+
+      .doc-body blockquote {
+        margin: 14px 0;
+        padding: 14px 16px;
+        border-left: 4px solid rgba(15, 125, 181, 0.45);
+        border-radius: 0 14px 14px 0;
+        background: rgba(15, 125, 181, 0.08);
+        color: var(--text);
+      }
+
+      .footer {
+        margin-top: 32px;
+        padding: 18px 22px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          width: min(100% - 20px, 1180px);
+          padding-top: 18px;
+          padding-bottom: 36px;
+        }
+
+        .hero {
+          padding: 22px 18px;
+          border-radius: 24px;
+        }
+
+        .doc-summary,
+        .doc-body {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .doc-actions {
+          flex-direction: column;
+        }
+
+        .doc-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <span class="eyebrow">Development Flow</span>
+        <h1>雷霆 UNOplus Phase 总览</h1>
+        <p>把所有阶段文档收拢到一页里，按演进顺序查看每个阶段做了什么、解决了什么，以及接下来怎么接着推进。</p>
+        <div class="toolbar">
+          <button type="button" data-action="expand-all">展开全部</button>
+          <button type="button" class="secondary" data-action="collapse-all">收起全部</button>
+        </div>
+        <div class="meta-strip">
+          <article class="meta-card">
+            <strong>收录文档</strong>
+            <span>21</span>
+          </article>
+          <article class="meta-card">
+            <strong>分组板块</strong>
+            <span>3</span>
+          </article>
+          <article class="meta-card">
+            <strong>阅读方式</strong>
+            <span>先总览再展开</span>
+          </article>
+        </div>
+      </section>
+      <section class="group">
+        <div class="group-head">
+          <div>
+            <h2>基础架构</h2>
+            <p>从 monorepo 脚手架、规则核心、协议到服务端与联调基线。</p>
+          </div>
+          <span class="group-chip">8 份文档</span>
+        </div>
+        <div class="doc-grid">
+          <article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">01</div>
+            <h3>雷霆UNOplus 第一阶段交付清单 1.0.1</h3>
+          </div>
+        </div>
+        <p>1. 在 `packages/uno-core` 实现初始发牌和对局开始逻辑。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE1</span><span class="doc-tag">39 行内容</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-1" aria-expanded="false">展开内容</button>
+          <a href="./PHASE1-SCAFFOLD-1.0.1.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-1" hidden>
+        <div class="doc-body-inner">
+          <h1>雷霆UNOplus 第一阶段交付清单 1.0.1</h1>
+<h2>本次生成内容</h2>
+<h3>Monorepo 根配置</h3>
+<ul><li><code>package.json</code></li><li><code>pnpm-workspace.yaml</code></li><li><code>tsconfig.base.json</code></li></ul>
+<h3>共享包</h3>
+<ul><li><code>packages/shared-types</code></li><li>定义 <code>Card</code>、<code>Player</code>、<code>GameState</code>、<code>RoomState</code>、<code>GameMode</code>、<code>GameCommand</code>、<code>GameEvent</code></li><li><code>packages/protocol</code></li><li>定义命令信封、事件信封、协议版本、错误码、房间快照、对局快照</li><li><code>packages/uno-core</code></li><li>定义规则来源、牌库常量、房间限制、规则引擎接口契约</li></ul>
+<h3>应用入口</h3>
+<ul><li><code>apps/client-wechat</code></li><li>预留微信小游戏客户端入口与运行时契约</li><li><code>apps/game-server</code></li><li>预留权威服务端入口与运行时契约</li></ul>
+<h3>文档</h3>
+<ul><li><code>README.md</code></li><li><code>docs/STATE_MACHINE.md</code></li><li><code>docs/PROTOCOL.md</code></li></ul>
+<h2>本次没有实现的内容</h2>
+<ul><li>Cocos UI</li><li>WebSocket 服务</li><li>数据库</li><li>微信登录</li><li>完整规则引擎</li><li>房间管理器</li><li>断线重连具体实现</li></ul>
+<h2>当前规则来源</h2>
+<ul><li><code>GAME-RULES.md</code></li><li><code>CARD-CONFIG.md</code></li></ul>
+<h2>下一阶段建议</h2>
+<ol><li>在 <code>packages/uno-core</code> 实现初始发牌和对局开始逻辑。</li><li>在 <code>packages/uno-core</code> 实现基础命令校验与状态推进。</li><li>在 <code>apps/game-server</code> 搭建内存房间容器。</li><li>在 <code>packages/protocol</code> 实现面向不同玩家的快照裁剪策略。</li><li>在 <code>apps/client-wechat</code> 开始接入座位布局和房间页。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">02</div>
+            <h3>雷霆UNOplus 第二阶段 A 交付清单 2.0.0</h3>
+          </div>
+        </div>
+        <p>本阶段只实现 `packages/uno-core` 的规则引擎基础层，不实现以下内容：</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE2A</span><span class="doc-tag">253 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-2" aria-expanded="false">展开内容</button>
+          <a href="./PHASE2A-UNO-CORE-2.0.0.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-2" hidden>
+        <div class="doc-body-inner">
+          <h1>雷霆UNOplus 第二阶段 A 交付清单 2.0.0</h1>
+<h2>阶段目标</h2>
+<p>本阶段只实现 <code>packages/uno-core</code> 的规则引擎基础层，不实现以下内容：</p>
+<ul><li>Cocos UI</li><li>WebSocket</li><li>数据库</li><li>微信登录</li><li><code>apps/game-server</code> 房间容器</li><li>完整对局流程</li></ul>
+<p>---</p>
+<h2>本次完成内容</h2>
+<h3>1. 牌模型与牌型工厂</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/card.ts</code></li></ul>
+<p>当前可表达牌型：</p>
+<ul><li>普通数字牌</li><li>普通 +2</li><li>普通 +4</li><li>禁</li><li>反转</li><li>同色丢弃</li><li>交换手牌</li><li>变色</li><li>罚抽</li><li>反转变色 +4</li><li>变色 +6</li><li>变色 +10</li></ul>
+<p>已提供：</p>
+<ul><li><code>Card</code></li><li><code>NumberCard</code></li><li><code>ColoredActionCard</code></li><li><code>DiscardSameColorCard</code></li><li><code>BlackCard</code></li><li><code>createNumberCard()</code></li><li><code>createColoredActionCard()</code></li><li><code>createBlackCard()</code></li></ul>
+<p>---</p>
+<h3>2. 牌库配置与生成</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/cardConfig.ts</code></li><li><code>packages/uno-core/src/deck.ts</code></li></ul>
+<p>已实现：</p>
+<ul><li><code>createDeck()</code></li><li>每张牌 <code>id</code> 唯一</li><li>牌库分类统计</li><li>牌库按牌型统计</li></ul>
+<p>当前引擎实现采用：</p>
+<ul><li>数字牌：<code>120</code></li><li>带颜色技能牌：<code>64</code></li><li>黑色技能牌：<code>36</code></li><li>总牌数：<code>220</code></li></ul>
+<p>---</p>
+<h3>3. 洗牌能力</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/shuffle.ts</code></li></ul>
+<p>已实现：</p>
+<ul><li><code>shuffleDeck(deck)</code></li><li><code>shuffleDeck(deck, seed)</code></li><li>无 seed 随机洗牌</li><li>有 seed 确定性洗牌</li><li>不修改原数组</li></ul>
+<p>---</p>
+<h3>4. 开局初始化</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/gameState.ts</code></li><li><code>packages/uno-core/src/setup/createInitialGame.ts</code></li></ul>
+<p>已实现：</p>
+<ul><li>支持 <code>3</code> 到 <code>8</code> 人</li><li>每人发 <code>7</code> 张</li><li>翻开起始牌</li><li>起始牌如果是黑牌则继续翻</li><li>起始牌如果是带颜色技能牌，只取其颜色，不触发技能</li><li>初始化 <code>currentColor</code></li><li>初始化 <code>direction</code></li><li>初始化 <code>currentPlayerId</code></li><li>初始化 <code>discardPile</code></li><li>初始化 <code>drawPile</code></li><li>初始化玩家手牌</li></ul>
+<p>---</p>
+<h3>5. 基础规则判定</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/rules/cardGuards.ts</code></li><li><code>packages/uno-core/src/rules/canPlayCard.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.ts</code></li><li><code>packages/uno-core/src/rules/sequence.ts</code></li><li><code>packages/uno-core/src/rules/multiple.ts</code></li><li><code>packages/uno-core/src/rules/discardSameColor.ts</code></li></ul>
+<p>已实现：</p>
+<ul><li>普通接牌判定 <code>canPlayCard()</code></li><li>加牌链判定 <code>canStackDrawCard()</code></li><li>顺子校验 <code>validateSequencePlay()</code></li><li>连对校验 <code>validateMultipleNumberPlay()</code></li><li>同色丢弃校验 <code>validateDiscardSameColorPlay()</code></li></ul>
+<p>---</p>
+<h3>6. 导出与契约</h3>
+<p>已更新：</p>
+<ul><li><code>packages/uno-core/src/config.ts</code></li><li><code>packages/uno-core/src/contracts.ts</code></li><li><code>packages/uno-core/src/index.ts</code></li></ul>
+<p>当前 <code>uno-core</code> 已能作为一个独立规则基础库被后续服务端接入。</p>
+<p>---</p>
+<h3>7. 中文注释与可读性增强</h3>
+<p>已补充：</p>
+<ul><li>所有当前已实现的 <code>uno-core</code> 功能代码中文注释</li><li>所有当前已编写的 <code>uno-core</code> 测试文件中文注释</li></ul>
+<p>本次注释补充的目标不是简单解释“代码在做什么”，而是进一步说明：</p>
+<ul><li>规则为什么这样设计</li><li>关键分支在防什么问题</li><li>某条测试在保护哪一条行为</li><li>哪些结构是为后续 Phase 2B 和服务端接入预留的</li></ul>
+<p>已覆盖的主要文件包括：</p>
+<ul><li><code>packages/uno-core/src/card.ts</code></li><li><code>packages/uno-core/src/cardConfig.ts</code></li><li><code>packages/uno-core/src/deck.ts</code></li><li><code>packages/uno-core/src/shuffle.ts</code></li><li><code>packages/uno-core/src/gameState.ts</code></li><li><code>packages/uno-core/src/config.ts</code></li><li><code>packages/uno-core/src/contracts.ts</code></li><li><code>packages/uno-core/src/index.ts</code></li><li><code>packages/uno-core/src/rules/*.ts</code></li><li><code>packages/uno-core/src/*<em>/</em>.test.ts</code></li></ul>
+<p>---</p>
+<h2>测试覆盖</h2>
+<p>已新增测试：</p>
+<ul><li><code>packages/uno-core/src/deck.test.ts</code></li><li><code>packages/uno-core/src/shuffle.test.ts</code></li><li><code>packages/uno-core/src/setup/createInitialGame.test.ts</code></li><li><code>packages/uno-core/src/rules/canPlayCard.test.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.test.ts</code></li><li><code>packages/uno-core/src/rules/sequence.test.ts</code></li><li><code>packages/uno-core/src/rules/multiple.test.ts</code></li><li><code>packages/uno-core/src/rules/discardSameColor.test.ts</code></li></ul>
+<p>当前测试覆盖点包括：</p>
+<ol><li><code>createDeck</code> 生成 <code>220</code> 张牌</li><li>数字牌数量正确</li><li>带颜色技能牌数量正确</li><li>黑色技能牌数量正确</li><li>每张牌 <code>id</code> 唯一</li><li><code>3</code> 人开局每人 <code>7</code> 张</li><li><code>8</code> 人开局每人 <code>7</code> 张</li><li>初始牌不能是黑色技能牌</li><li>红 <code>3</code> 可以接红 <code>5</code></li><li>红 <code>3</code> 可以接绿 <code>3</code></li><li>红 <code>+2</code> 可以接红 <code>+4</code></li><li>红 <code>+4</code> 可以接蓝 <code>+4</code></li><li>红 <code>+2</code> 可以接蓝 <code>+2</code></li><li>红 <code>+2</code> 不能接蓝 <code>+4</code></li><li>黑色 <code>+6</code> 可继续接加牌链</li><li>黑色 <code>+6</code> 后，蓝 <code>+2</code> 只有在 <code>currentColor=蓝</code> 时可接</li><li>顺子 <code>0-4</code> 合法</li><li>顺子少于 <code>5</code> 张非法</li><li>顺子包含技能牌非法</li><li>连对 <code>绿6 + 绿6</code> 合法</li><li>连对 <code>绿6 + 蓝6</code> 非法</li><li>同色丢弃可以附带同色技能牌</li><li>同色丢弃不能附带黑牌</li></ol>
+<p>---</p>
+<h2>本次修改的关键文件</h2>
+<h3>新增</h3>
+<ul><li><code>packages/uno-core/src/card.ts</code></li><li><code>packages/uno-core/src/cardConfig.ts</code></li><li><code>packages/uno-core/src/deck.ts</code></li><li><code>packages/uno-core/src/shuffle.ts</code></li><li><code>packages/uno-core/src/gameState.ts</code></li><li><code>packages/uno-core/src/rules/cardGuards.ts</code></li><li><code>packages/uno-core/src/rules/canPlayCard.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.ts</code></li><li><code>packages/uno-core/src/rules/sequence.ts</code></li><li><code>packages/uno-core/src/rules/multiple.ts</code></li><li><code>packages/uno-core/src/rules/discardSameColor.ts</code></li><li><code>packages/uno-core/src/setup/createInitialGame.ts</code></li><li><code>packages/uno-core/src/deck.test.ts</code></li><li><code>packages/uno-core/src/shuffle.test.ts</code></li><li><code>packages/uno-core/src/setup/createInitialGame.test.ts</code></li><li><code>packages/uno-core/src/rules/canPlayCard.test.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.test.ts</code></li><li><code>packages/uno-core/src/rules/sequence.test.ts</code></li><li><code>packages/uno-core/src/rules/multiple.test.ts</code></li><li><code>packages/uno-core/src/rules/discardSameColor.test.ts</code></li></ul>
+<h3>更新</h3>
+<ul><li><code>packages/uno-core/src/config.ts</code></li><li><code>packages/uno-core/src/contracts.ts</code></li><li><code>packages/uno-core/src/index.ts</code></li><li><code>packages/uno-core/src/card.ts</code></li><li><code>packages/uno-core/src/cardConfig.ts</code></li><li><code>packages/uno-core/src/deck.ts</code></li><li><code>packages/uno-core/src/shuffle.ts</code></li><li><code>packages/uno-core/src/gameState.ts</code></li><li><code>packages/uno-core/src/rules/cardGuards.ts</code></li><li><code>packages/uno-core/src/rules/canPlayCard.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.ts</code></li><li><code>packages/uno-core/src/rules/sequence.ts</code></li><li><code>packages/uno-core/src/rules/multiple.ts</code></li><li><code>packages/uno-core/src/rules/discardSameColor.ts</code></li><li><code>packages/uno-core/src/setup/createInitialGame.ts</code></li><li><code>packages/uno-core/src/deck.test.ts</code></li><li><code>packages/uno-core/src/shuffle.test.ts</code></li><li><code>packages/uno-core/src/setup/createInitialGame.test.ts</code></li><li><code>packages/uno-core/src/rules/canPlayCard.test.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.test.ts</code></li><li><code>packages/uno-core/src/rules/sequence.test.ts</code></li><li><code>packages/uno-core/src/rules/multiple.test.ts</code></li><li><code>packages/uno-core/src/rules/discardSameColor.test.ts</code></li><li><code>packages/uno-core/package.json</code></li><li><code>packages/uno-core/tsconfig.json</code></li><li>根目录 <code>package.json</code></li></ul>
+<p>---</p>
+<h2>已知偏差与说明</h2>
+<h3>1. GameMode 命名冲突</h3>
+<p>当前 <code>shared-types</code> 使用：</p>
+<ul><li><code>with-challenge</code></li><li><code>no-challenge</code></li></ul>
+<p>当前 <code>uno-core</code> 使用：</p>
+<ul><li><code>withChallenge</code></li><li><code>withoutChallenge</code></li></ul>
+<p>这是为了先满足本阶段需求，但在接入服务端前必须统一。</p>
+<p>---</p>
+<h2>如何运行测试</h2>
+<p>安装依赖后运行：</p>
+<pre><code class="language-bash">pnpm install
+pnpm test</code></pre>
+<p>或只跑 <code>uno-core</code>：</p>
+<pre><code class="language-bash">pnpm --filter @thunder-uno/uno-core test</code></pre>
+<h2>本地验证结果</h2>
+<p>已完成以下验证：</p>
+<ul><li><code>pnpm --filter @thunder-uno/uno-core test</code></li><li><code>pnpm --filter @thunder-uno/uno-core typecheck</code></li><li>中文注释补充后再次执行上述验证</li></ul>
+<p>结果：</p>
+<ul><li><code>8</code> 个测试文件通过</li><li><code>26</code> 个测试通过</li><li><code>uno-core</code> TypeScript 类型检查通过</li></ul>
+<p>---</p>
+<h2>本阶段未实现内容</h2>
+<ul><li>完整出牌流程 reducer</li><li>摸牌堆不足时的弃牌堆回洗</li><li>加牌链的整局状态推进</li><li>质疑机制结算</li><li>UNO 罚抽与揭发结算</li><li>手牌超过 25 张淘汰结算</li><li>对局胜负结算</li><li>房间状态管理</li><li>服务端内存房间容器</li></ul>
+<p>---</p>
+<h2>下一阶段建议</h2>
+<ol><li>统一 <code>shared-types</code> 与 <code>uno-core</code> 的 <code>GameMode</code> 命名。</li><li>在 <code>uno-core</code> 实现 <code>play-cards</code> 的单步状态推进。</li><li>在 <code>uno-core</code> 实现 <code>draw-card</code>、<code>pending draw stack</code> 和 <code>nextPlayer</code> 结算。</li><li>再进入 <code>game-server</code> 的内存房间与命令分发阶段。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">03</div>
+            <h3>雷霆UNOplus 第二阶段 B 交付清单 2.1.0</h3>
+          </div>
+        </div>
+        <p>本阶段继续只实现 `packages/uno-core`，把上一阶段的“基础规则判定”推进成“可运行的完整对局 reducer”。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE2B</span><span class="doc-tag">134 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-3" aria-expanded="false">展开内容</button>
+          <a href="./PHASE2B-UNO-CORE-2.1.0.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-3" hidden>
+        <div class="doc-body-inner">
+          <h1>雷霆UNOplus 第二阶段 B 交付清单 2.1.0</h1>
+<h2>阶段目标</h2>
+<p>本阶段继续只实现 <code>packages/uno-core</code>，把上一阶段的“基础规则判定”推进成“可运行的完整对局 reducer”。</p>
+<p>本阶段仍然<strong>不实现</strong>：</p>
+<ul><li>Cocos UI</li><li>WebSocket</li><li>数据库</li><li>微信登录</li><li><code>apps/game-server</code></li><li>真实联网房间</li></ul>
+<p>---</p>
+<h2>本次完成内容</h2>
+<h3>1. 统一命令入口</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/reducer/applyCommand.ts</code></li><li><code>packages/uno-core/src/reducer/types.ts</code></li></ul>
+<p>已实现：</p>
+<ul><li><code>applyCommand(state, command): { state, events }</code></li><li>非法命令返回 <code>command-rejected</code> 事件</li><li>reducer 保持纯函数更新</li></ul>
+<p>当前支持命令：</p>
+<ul><li><code>play-card</code></li><li><code>play-sequence</code></li><li><code>play-multiple-number</code></li><li><code>play-discard-same-color</code></li><li><code>draw-card</code></li><li><code>resolve-draw-stack</code></li><li><code>resolve-draw-until-color</code></li><li><code>say-uno</code></li><li><code>report-uno</code></li><li><code>challenge-draw</code></li></ul>
+<p>---</p>
+<h3>2. 完整运行时状态</h3>
+<p>已更新：</p>
+<ul><li><code>packages/uno-core/src/gameState.ts</code></li><li><code>packages/uno-core/src/setup/createInitialGame.ts</code></li></ul>
+<p>已补齐：</p>
+<ul><li><code>status</code></li><li><code>now</code></li><li><code>drawStack</code></li><li><code>drawUntilColor</code></li><li><code>challengeWindow</code></li><li><code>winnerPlayerIds</code></li><li>玩家 <code>UNO</code> 待喊状态</li><li>玩家淘汰状态</li></ul>
+<p><code>GameMode</code> 现已统一为：</p>
+<pre><code class="language-ts">&quot;with-challenge&quot; | &quot;no-challenge&quot;</code></pre>
+<p>---</p>
+<h3>3. 回合推进与技能效果</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/reducer/applyPlayCard.ts</code></li><li><code>packages/uno-core/src/reducer/turn.ts</code></li><li><code>packages/uno-core/src/reducer/effects.ts</code></li></ul>
+<p>当前已实现：</p>
+<ul><li>普通单张出牌</li><li>顺子出牌</li><li>连对出牌</li><li>同色丢弃出牌</li><li>禁</li><li>反转</li><li>交换手牌</li><li>变色</li><li>普通 <code>+2</code></li><li>普通 <code>+4</code></li><li><code>反转变色+4</code></li><li><code>变色+6</code></li><li><code>变色+10</code></li><li><code>+10</code> 抵消已有加牌链</li><li><code>罚抽</code></li><li><code>罚抽</code> 叠加覆盖颜色</li></ul>
+<p>---</p>
+<h3>4. 摸牌、加牌链、罚抽与质疑</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/reducer/applyDrawCard.ts</code></li><li><code>packages/uno-core/src/reducer/applyDrawStack.ts</code></li><li><code>packages/uno-core/src/reducer/applyDrawUntilColor.ts</code></li><li><code>packages/uno-core/src/reducer/applyChallenge.ts</code></li></ul>
+<p>当前已实现：</p>
+<ul><li>普通摸 1 张</li><li>摸到可出牌时自动打出</li><li>摸到黑牌时不自动打出</li><li><code>with-challenge</code> 模式下创建质疑窗口</li><li><code>no-challenge</code> 模式下不创建质疑窗口</li><li>质疑成功时被质疑者罚摸 2 张，质疑失败时质疑者罚摸 6 张</li><li>下一家完成行动后关闭旧质疑窗口</li><li>加牌链结算</li><li>罚抽直到摸到指定颜色为止</li></ul>
+<p>---</p>
+<h3>5. UNO、淘汰与胜利</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/reducer/applyUno.ts</code></li></ul>
+<p>当前已实现：</p>
+<ul><li>手牌变成 1 张进入 UNO 待喊状态</li><li><code>say-uno</code></li><li><code>report-uno</code></li><li>5 秒保护期，基于 <code>timestampMs</code> / <code>state.now</code> 判断</li><li>手牌超过 25 张淘汰</li><li>只剩 1 名未淘汰玩家时结束</li><li>玩家打出最后一张牌时立即获胜</li><li>最后一张是技能牌时也立即获胜，效果不再改变胜负</li></ul>
+<p>---</p>
+<h3>6. 测试覆盖</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/reducer/testUtils.ts</code></li><li><code>packages/uno-core/src/reducer/applyCommand.turn.test.ts</code></li><li><code>packages/uno-core/src/reducer/applyCommand.draw.test.ts</code></li><li><code>packages/uno-core/src/reducer/applyCommand.uno.test.ts</code></li></ul>
+<p>本轮已验证通过：</p>
+<pre><code class="language-bash">pnpm --filter @thunder-uno/uno-core test
+pnpm --filter @thunder-uno/uno-core typecheck</code></pre>
+<p>当前测试结果：</p>
+<ul><li><code>11</code> 个测试文件</li><li><code>57</code> 个测试</li><li>全部通过</li></ul>
+<p>---</p>
+<h2>当前仍未完成的内容</h2>
+<p>对照 <code>next-step.md</code>，这一轮还留有这些缺口：</p>
+<ul><li>还没有把 <code>uno-core</code> 的命令 / 事件类型同步回 <code>packages/shared-types</code></li><li>还没有把这些 reducer 命令同步到 <code>packages/protocol</code></li><li>还没有补 <code>docs/STATE_MACHINE.md</code> 的完整 Phase 2B 状态流转图</li><li>还没有补“弃牌堆回洗成摸牌堆”的牌堆耗尽处理</li><li>还没有实现更细的事件摘要（例如动作摘要、牌面摘要、回放摘要）</li><li>还没有开始 <code>apps/game-server</code> 的房间容器和命令分发</li></ul>
+<p>---</p>
+<h2>下一阶段建议</h2>
+<ol><li>把 <code>uno-core</code> 的 <code>GameCommand</code> / <code>GameEvent</code> 同步到 <code>packages/shared-types</code></li><li>让 <code>packages/protocol</code> 对齐新的命令与事件 envelope</li><li>在 <code>apps/game-server</code> 中落内存房间容器、命令分发器和快照裁剪</li><li>给 <code>uno-core</code> 增加“摸牌堆耗尽时回洗弃牌堆”的规则</li><li>补一轮面向服务端集成的 reducer 回归测试</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">04</div>
+            <h3>雷霆UNOplus 第二阶段 C 交付清单 2.2.0</h3>
+          </div>
+        </div>
+        <p>本阶段完成“服务端接入前的协议收口和规则补强”：</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE2C</span><span class="doc-tag">116 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-4" aria-expanded="false">展开内容</button>
+          <a href="./PHASE2C-PROTOCOL-AND-VIEW-2.2.0.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-4" hidden>
+        <div class="doc-body-inner">
+          <h1>雷霆UNOplus 第二阶段 C 交付清单 2.2.0</h1>
+<h2>阶段目标</h2>
+<p>本阶段完成“服务端接入前的协议收口和规则补强”：</p>
+<ul><li>把 <code>uno-core</code> 的稳定命令 / 事件 / 状态同步到 <code>shared-types</code></li><li>把 <code>protocol</code> 的消息 envelope 定下来</li><li>实现玩家视角快照裁剪</li><li>实现摸牌堆耗尽时的统一回洗</li></ul>
+<p>本阶段仍然<strong>不实现</strong>：</p>
+<ul><li>Cocos UI</li><li>微信登录</li><li>数据库</li><li>真实 WebSocket</li><li>完整 <code>apps/game-server</code></li></ul>
+<p>---</p>
+<h2>本次完成内容</h2>
+<h3>1. shared-types 收口</h3>
+<p>已更新：</p>
+<ul><li><code>packages/shared-types/src/common.ts</code></li><li><code>packages/shared-types/src/card.ts</code></li><li><code>packages/shared-types/src/player.ts</code></li><li><code>packages/shared-types/src/game.ts</code></li><li><code>packages/shared-types/src/room.ts</code></li><li><code>packages/shared-types/src/command.ts</code></li><li><code>packages/shared-types/src/event.ts</code></li><li><code>packages/shared-types/src/errors.ts</code></li><li><code>packages/shared-types/src/snapshot.ts</code></li></ul>
+<p>当前统一提供：</p>
+<ul><li><code>GameMode</code></li><li><code>Card</code></li><li><code>Player</code></li><li><code>GameState</code></li><li><code>RoomState</code></li><li><code>GameCommand</code></li><li><code>GameEvent</code></li><li><code>ApplyCommandResult</code></li><li><code>CommandRejectedEvent</code></li><li><code>ErrorCode</code></li></ul>
+<p>---</p>
+<h3>2. protocol 收口</h3>
+<p>已更新：</p>
+<ul><li><code>packages/protocol/src/messages.ts</code></li><li><code>packages/protocol/src/snapshots.ts</code></li><li><code>packages/protocol/src/errors.ts</code></li><li><code>packages/protocol/src/index.ts</code></li></ul>
+<p>当前已稳定：</p>
+<ul><li><code>ClientMessage</code></li><li><code>ServerMessage</code></li><li><code>CommandEnvelope</code></li><li><code>EventEnvelope</code></li><li><code>SnapshotEnvelope</code></li><li><code>ErrorEnvelope</code></li></ul>
+<p>并且 <code>protocol</code> 只依赖 <code>shared-types</code>，不依赖 <code>uno-core</code>。</p>
+<p>---</p>
+<h3>3. 玩家视角快照裁剪</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/view/createPlayerGameSnapshot.ts</code></li></ul>
+<p>当前规则：</p>
+<ul><li>自己能看到完整手牌</li><li>其他玩家只能看到公开信息和手牌数量</li><li><code>drawPile</code> 只暴露剩余数量</li><li><code>challengeWindow</code> 只暴露公开信息</li><li><code>hadBlackCardBeforeDraw</code> 不会进入快照</li></ul>
+<p>---</p>
+<h3>4. 统一摸牌与回洗</h3>
+<p>已新增：</p>
+<ul><li><code>packages/uno-core/src/reducer/drawCardsFromState.ts</code></li></ul>
+<p>当前所有这些路径都改为走统一摸牌函数：</p>
+<ul><li>普通摸牌</li><li>加牌链罚摸</li><li>罚抽</li><li>质疑罚摸</li><li>UNO 揭发罚摸</li></ul>
+<p>新增事件：</p>
+<ul><li><code>deck-reshuffled</code></li><li><code>draw-pile-exhausted</code></li></ul>
+<p>---</p>
+<h3>5. 测试补强</h3>
+<p>已新增：</p>
+<ul><li><code>packages/shared-types/src/common.test.ts</code></li><li><code>packages/protocol/src/messages.test.ts</code></li><li><code>packages/uno-core/src/view/createPlayerGameSnapshot.test.ts</code></li><li><code>packages/uno-core/src/reducer/drawCardsFromState.test.ts</code></li></ul>
+<p>并补充了 reducer 集成测试，覆盖：</p>
+<ul><li>加牌链罚摸回洗</li><li>质疑罚摸回洗</li><li>UNO 揭发罚摸回洗</li><li>罚抽摸牌回洗</li></ul>
+<p>---</p>
+<h2>本地验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">pnpm --filter @thunder-uno/shared-types typecheck
+pnpm --filter @thunder-uno/protocol typecheck
+pnpm --filter @thunder-uno/uno-core test
+pnpm --filter @thunder-uno/uno-core typecheck</code></pre>
+<p>补充跑过：</p>
+<pre><code class="language-bash">pnpm exec vitest run packages/shared-types/src/common.test.ts packages/protocol/src/messages.test.ts</code></pre>
+<p>当前结果：</p>
+<ul><li><code>shared-types</code> typecheck 通过</li><li><code>protocol</code> typecheck 通过</li><li><code>uno-core</code> <code>13</code> 个测试文件、<code>70</code> 个测试全部通过</li><li>shared / protocol 额外 <code>4</code> 个测试通过</li></ul>
+<p>---</p>
+<h2>当前仍未完成的内容</h2>
+<ul><li>还没有进入 <code>apps/game-server</code> 的房间容器与命令分发</li><li>还没有实现本地命令行连续对局模拟器</li><li>还没有做完整断线重连时的房间快照生成器</li><li>还没有做事件持久化 / 回放流</li></ul>
+<p>---</p>
+<h2>下一阶段建议</h2>
+<ol><li>进入 Phase 2D：本地命令行模拟器</li><li>用 3 到 8 个假玩家持续跑对局，验证 reducer 连续稳定性</li><li>模拟器稳定后，再进入 <code>apps/game-server</code></li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">05</div>
+            <h3>雷霆UNOplus 第二阶段 D 交付清单 2.3.0</h3>
+          </div>
+        </div>
+        <p>本阶段完成“本地命令行连续对局模拟器”，用于在不接入 `apps/game-server`、WebSocket、数据库和 Cocos UI 的前提下，持续验证 `uno-core` reducer 在完整对局中的稳定性。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE2D</span><span class="doc-tag">168 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-5" aria-expanded="false">展开内容</button>
+          <a href="./PHASE2D-CLI-SIMULATOR-2.3.0.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-5" hidden>
+        <div class="doc-body-inner">
+          <h1>雷霆UNOplus 第二阶段 D 交付清单 2.3.0</h1>
+<h2>阶段目标</h2>
+<p>本阶段完成“本地命令行连续对局模拟器”，用于在不接入 <code>apps/game-server</code>、WebSocket、数据库和 Cocos UI 的前提下，持续验证 <code>uno-core</code> reducer 在完整对局中的稳定性。</p>
+<p>本阶段仍然不实现：</p>
+<ul><li><code>apps/game-server</code></li><li>真实 WebSocket</li><li>微信登录</li><li>数据库</li><li>事件持久化</li><li>回放系统</li></ul>
+<p>---</p>
+<h2>本次完成内容</h2>
+<h3>1. 新增 <code>tools/simulator</code> workspace 包</h3>
+<p>已新增：</p>
+<ul><li><code>tools/simulator/package.json</code></li><li><code>tools/simulator/tsconfig.json</code></li><li><code>tools/simulator/tsconfig.build.json</code></li><li><code>tools/simulator/src/index.ts</code></li><li><code>tools/simulator/src/cli.ts</code></li><li><code>tools/simulator/src/simulateGame.ts</code></li><li><code>tools/simulator/src/batchSimulate.ts</code></li></ul>
+<p>并将 <code>pnpm-workspace.yaml</code> 扩展为同时收纳：</p>
+<ul><li><code>apps/*</code></li><li><code>packages/*</code></li><li><code>tools/*</code></li></ul>
+<p>---</p>
+<h3>2. 实现 CLI 单局与批量模拟</h3>
+<p>当前已支持命令：</p>
+<pre><code class="language-bash">pnpm --filter @thunder-uno/simulator simulate --players 4 --mode no-challenge --seed 1001
+pnpm --filter @thunder-uno/simulator simulate --players 8 --mode with-challenge --seed 2002
+pnpm --filter @thunder-uno/simulator batch --games 100 --players 3 --mode no-challenge
+pnpm --filter @thunder-uno/simulator batch --games 100 --players 8 --mode with-challenge</code></pre>
+<p>支持参数：</p>
+<ul><li><code>--players</code></li><li><code>--mode</code></li><li><code>--seed</code></li><li><code>--max-steps</code></li><li><code>--verbose</code></li><li><code>--games</code></li><li><code>--auto-uno</code></li><li><code>--challenge-rate</code></li></ul>
+<p>CLI 已补充参数校验：</p>
+<ul><li><code>players</code> 必须是 <code>3-8</code></li><li><code>games</code> 必须大于等于 <code>1</code></li><li><code>maxSteps</code> 必须大于等于 <code>1</code></li></ul>
+<p>---</p>
+<h3>3. 实现假玩家决策层</h3>
+<p>已新增：</p>
+<ul><li><code>tools/simulator/src/bot/chooseColor.ts</code></li><li><code>tools/simulator/src/bot/findPlayableCard.ts</code></li><li><code>tools/simulator/src/bot/findPlayableSequence.ts</code></li><li><code>tools/simulator/src/bot/findPlayableMultiple.ts</code></li><li><code>tools/simulator/src/bot/findPlayableDiscardSameColor.ts</code></li><li><code>tools/simulator/src/bot/chooseCommand.ts</code></li></ul>
+<p>当前 bot 决策顺序：</p>
+<ol><li>如果当前玩家是 <code>drawUntilColor</code> 目标，执行 <code>resolve-draw-until-color</code></li><li>如果当前玩家是 <code>drawStack</code> 目标，优先尝试叠加，否则执行 <code>resolve-draw-stack</code></li><li>优先尝试 <code>play-discard-same-color</code></li><li>再尝试 <code>play-sequence</code></li><li>再尝试 <code>play-multiple-number</code></li><li>再尝试单张 <code>play-card</code></li><li>如果都不能出，执行 <code>draw-card</code></li></ol>
+<p>黑牌声明颜色策略：</p>
+<ul><li>选择当前玩家剩余手牌中数量最多的颜色</li><li>如果没有彩色牌，默认声明 <code>red</code></li></ul>
+<p>UNO / 质疑辅助策略：</p>
+<ul><li><code>autoUno=true</code> 时会自动发送 <code>say-uno</code></li><li>有可揭发目标时会自动挑选一个可行动玩家发送 <code>report-uno</code></li><li><code>with-challenge</code> 模式下会按 <code>challengeRate</code> 概率发起 <code>challenge-draw</code></li></ul>
+<p>---</p>
+<h3>4. 实现 invariant 检查</h3>
+<p>已新增：</p>
+<ul><li><code>tools/simulator/src/invariant/validateGameStateInvariant.ts</code></li><li><code>tools/simulator/src/invariant/formatInvariantFailure.ts</code></li></ul>
+<p>当前至少检查：</p>
+<ol><li><code>currentPlayerId</code> 必须存在且不能指向已淘汰玩家</li><li><code>discardPile</code> 必须至少保留一张牌</li><li><code>currentColor</code> 必须是 <code>red / yellow / blue / green</code></li><li>每个玩家 <code>handCount</code> 不能为负数</li><li>每个玩家 <code>handCount</code> 必须与 <code>hand.length</code> 一致</li><li>玩家手牌、<code>drawPile</code>、<code>discardPile</code> 之间的 <code>card id</code> 不能重复</li><li><code>drawStack.active=true</code> 时目标玩家必须存在且未淘汰</li><li><code>drawUntilColor.active=true</code> 时目标玩家必须存在且未淘汰</li><li><code>winnerPlayerIds</code> 非空时 <code>status</code> 必须为 <code>finished</code></li><li><code>status=finished</code> 时必须存在至少一个赢家</li><li>玩家视角快照不能泄漏 <code>challengeWindow</code> 隐藏字段</li><li>玩家视角快照不能泄漏完整 <code>drawPile</code></li></ol>
+<p>如果 invariant 失败，会输出：</p>
+<ul><li>seed</li><li>step</li><li>player count</li><li>mode</li><li>last command</li><li>recent events</li><li>state 摘要</li></ul>
+<p>---</p>
+<h3>5. 实现日志与统计输出</h3>
+<p>已新增：</p>
+<ul><li><code>tools/simulator/src/logger/simulationLogger.ts</code></li><li><code>tools/simulator/src/stats/simulationStats.ts</code></li><li><code>tools/simulator/src/random.ts</code></li></ul>
+<p>当前支持：</p>
+<ul><li>单步 verbose 日志</li><li>单局摘要</li><li>批量统计报告</li><li>失败 seed 收集</li></ul>
+<p>---</p>
+<h3>6. 测试补齐</h3>
+<p>已新增测试：</p>
+<ul><li><code>tools/simulator/tests/simulateGame.test.ts</code></li><li><code>tools/simulator/tests/invariant.test.ts</code></li><li><code>tools/simulator/tests/batchSimulate.test.ts</code></li></ul>
+<p>覆盖内容包括：</p>
+<ol><li>可以创建 <code>3</code> 人 <code>no-challenge</code> 对局</li><li>可以创建 <code>8</code> 人 <code>with-challenge</code> 对局</li><li>单局模拟能在 <code>maxSteps</code> 内结束或返回明确 <code>stuck</code></li><li>相同 seed 的模拟结果可复现</li><li>invariant 能发现重复 <code>card id</code></li><li>invariant 能发现 <code>currentPlayerId</code> 指向淘汰玩家</li><li>batch 模式可以运行多局并输出统计</li><li>黑牌 <code>declaredColor</code> 会被自动补全</li><li><code>drawStack</code> 目标玩家会优先尝试叠加，否则 <code>resolve-draw-stack</code></li><li><code>drawUntilColor</code> 目标玩家会执行 <code>resolve-draw-until-color</code></li></ol>
+<p>---</p>
+<h2>本地验证结果</h2>
+<p>已实际运行并通过：</p>
+<pre><code class="language-bash">pnpm typecheck
+pnpm test
+pnpm --filter @thunder-uno/simulator typecheck
+pnpm --filter @thunder-uno/simulator test
+pnpm --filter @thunder-uno/simulator simulate --players 4 --mode no-challenge --seed 1001
+pnpm --filter @thunder-uno/simulator simulate --players 8 --mode with-challenge --seed 2002
+pnpm --filter @thunder-uno/simulator batch --games 20 --players 4 --mode no-challenge</code></pre>
+<p>当前结果：</p>
+<ul><li>根目录 <code>typecheck</code> 通过</li><li>根目录 <code>test</code> 通过</li><li><code>simulator</code> typecheck 通过</li><li><code>simulator</code> <code>3</code> 个测试文件、<code>11</code> 个测试全部通过</li><li>单局示例：<code>4</code> 人 <code>no-challenge</code>，<code>seed=1001</code>，<code>53</code> 步结束，赢家 <code>p2</code></li><li>单局示例：<code>8</code> 人 <code>with-challenge</code>，<code>seed=2002</code>，<code>49</code> 步结束，赢家 <code>p3</code></li><li>批量示例：<code>20</code> 局 <code>4</code> 人 <code>no-challenge</code>，<code>20</code> 局全部结束，无 stuck，无 invariant 失败</li></ul>
+<p>单局示例输出：</p>
+<pre><code class="language-txt">game started | seed=1001 | players=4 | mode=no-challenge
+game finished
+status=finished | winner=p2 | steps=53 | eliminated=none | reshuffles=0 | rejected=0</code></pre>
+<p>批量示例输出：</p>
+<pre><code class="language-txt">totalGames=20 | finishedGames=20 | stuckGames=0 | failedInvariantGames=0 | averageSteps=56.45 | maxSteps=142 | minSteps=18 | averageReshuffles=0.00 | averageRejectedCommands=0.00 | eliminationCount=5 | winnerDistribution=p3:6, p2:7, p1:5, p4:2 | seedRange=1-20</code></pre>
+<p>---</p>
+<h2>当前仍未完成的内容</h2>
+<ul><li>还没有进入 <code>apps/game-server</code> 的内存房间容器</li><li>还没有接真实 WebSocket</li><li>还没有做事件持久化 / 回放系统</li><li>还没有做数据库与微信登录</li><li>还没有做客户端 Cocos UI</li></ul>
+<p>---</p>
+<h2>下一阶段建议</h2>
+<ol><li>进入 Phase 3A，实现 <code>apps/game-server</code> 内存房间容器</li><li>增加 <code>RoomManager</code>、<code>ConnectionRegistry</code>、<code>dispatchCommand</code></li><li>把 <code>packages/protocol</code> 的 envelope 接到服务端广播链路</li><li>基于 <code>createPlayerGameSnapshot</code> 向不同玩家发送裁剪后的权威快照</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">06</div>
+            <h3>雷霆UNOplus 第三阶段 A 交付清单 2.4.0</h3>
+          </div>
+        </div>
+        <p>本阶段完成 `apps/game-server` 的内存房间服务层，实现：</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE3A</span><span class="doc-tag">187 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-6" aria-expanded="false">展开内容</button>
+          <a href="./PHASE3A-GAME-SERVER-2.4.0.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-6" hidden>
+        <div class="doc-body-inner">
+          <h1>雷霆UNOplus 第三阶段 A 交付清单 2.4.0</h1>
+<h2>阶段目标</h2>
+<p>本阶段完成 <code>apps/game-server</code> 的内存房间服务层，实现：</p>
+<ul><li>房间创建</li><li>加入房间</li><li>离开房间</li><li>房主开局</li><li>内存连接注册表</li><li>命令分发</li><li>事件广播</li><li>玩家视角快照广播</li></ul>
+<p>本阶段仍然不实现：</p>
+<ul><li>真实 WebSocket</li><li>微信登录</li><li>数据库</li><li>事件持久化</li><li>回放系统</li><li>Cocos UI</li></ul>
+<p>---</p>
+<h2>本次完成内容</h2>
+<h3>1. game-server 包结构</h3>
+<p>已新增：</p>
+<ul><li><code>apps/game-server/tsconfig.build.json</code></li><li><code>apps/game-server/src/main.ts</code></li><li><code>apps/game-server/src/ids/createRoomId.ts</code></li><li><code>apps/game-server/src/ids/createPlayerId.ts</code></li><li><code>apps/game-server/src/ids/createConnectionId.ts</code></li><li><code>apps/game-server/src/ids/createRequestId.ts</code></li><li><code>apps/game-server/src/connection/connectionTypes.ts</code></li><li><code>apps/game-server/src/connection/connectionRegistry.ts</code></li><li><code>apps/game-server/src/connection/mockConnection.ts</code></li><li><code>apps/game-server/src/room/roomTypes.ts</code></li><li><code>apps/game-server/src/room/roomManager.ts</code></li><li><code>apps/game-server/src/broadcast/createRoomSnapshot.ts</code></li><li><code>apps/game-server/src/broadcast/broadcastRoomState.ts</code></li><li><code>apps/game-server/src/broadcast/broadcastEvents.ts</code></li><li><code>apps/game-server/src/broadcast/sendSnapshotsToRoom.ts</code></li><li><code>apps/game-server/src/dispatch/dispatchCommand.ts</code></li><li><code>apps/game-server/src/errors/serverErrors.ts</code></li></ul>
+<p>并更新：</p>
+<ul><li><code>apps/game-server/package.json</code></li><li><code>apps/game-server/src/index.ts</code></li></ul>
+<p>---</p>
+<h3>2. RoomRuntime 与 ServerRoomPlayer</h3>
+<p>当前服务端内部类型：</p>
+<ul><li><code>RoomRuntime.status</code> 使用 <code>waiting / playing / finished</code></li><li><code>ServerRoomPlayer</code> 记录 <code>userId / playerId / connectionId / seatIndex / connected</code></li></ul>
+<p>这里和协议层快照故意分层：</p>
+<ul><li><code>RoomRuntime</code> 只给服务端自己用</li><li>发给客户端时，统一转成 <code>packages/protocol</code> 的 <code>SnapshotEnvelope</code></li></ul>
+<p>房间状态映射策略：</p>
+<ul><li><code>waiting -&gt; lobby</code></li><li><code>playing -&gt; playing</code></li><li><code>finished -&gt; settled</code></li></ul>
+<p>---</p>
+<h3>3. ConnectionRegistry</h3>
+<p>当前已支持：</p>
+<ul><li><code>registerConnection</code></li><li><code>unregisterConnection</code></li><li><code>bindPlayer</code></li><li><code>unbindConnection</code></li><li><code>getConnection</code></li><li><code>getConnectionByPlayerId</code></li><li><code>getConnectionsByRoomId</code></li><li><code>sendToPlayer</code></li><li><code>sendToRoom</code></li></ul>
+<p>并实现了 <code>mockConnection</code>：</p>
+<ul><li>不接真实 socket</li><li><code>send(message)</code> 只把消息记入 <code>sentMessages</code></li><li>方便测试断言广播结果</li></ul>
+<p>---</p>
+<h3>4. RoomManager</h3>
+<p>当前已支持：</p>
+<ul><li><code>createRoom</code></li><li><code>joinRoom</code></li><li><code>leaveRoom</code></li><li><code>startGame</code></li><li><code>getRoom</code></li><li><code>deleteRoom</code></li><li><code>listRooms</code></li></ul>
+<p>关键策略：</p>
+<ul><li><code>roomId</code> 为 6 位数字字符串</li><li>同一个 <code>userId</code> 在同一房间重复 <code>joinRoom</code> 时视为重连，不新增玩家</li><li>waiting 状态下离开房间会真正移除玩家，并重新整理 <code>seatIndex</code></li><li>waiting 状态下房主离开时，房主转交给当前 <code>seatIndex</code> 最小的剩余玩家</li><li>playing 状态下离开房间只标记断开，不移除玩家，为后续断线重连预留恢复点</li><li><code>startGame</code> 只允许房主触发，并直接调用 <code>createInitialGame</code></li></ul>
+<p>---</p>
+<h3>5. dispatchCommand</h3>
+<p>当前命令链路：</p>
+<pre><code class="language-txt">ClientCommandMessage
+-&gt; 找到 room
+-&gt; 校验 room / gameState / playerId
+-&gt; 调用 uno-core.applyCommand
+-&gt; 更新 room.gameState 与 snapshotVersion
+-&gt; 广播 events
+-&gt; 给每位在线玩家发送裁剪后的 snapshot</code></pre>
+<p>规则边界保持严格：</p>
+<ul><li><code>game-server</code> 不重写规则</li><li>合法性只由 <code>uno-core.applyCommand</code> 判断</li><li>服务端只做身份校验、状态保存和广播</li></ul>
+<p>特殊处理：</p>
+<ul><li>如果 <code>applyCommand</code> 返回 <code>command-rejected</code></li><li>服务端不会崩溃</li><li>该事件只回给请求玩家</li><li>不会把错误出牌广播给整房间</li></ul>
+<p>---</p>
+<h3>6. 广播与快照</h3>
+<p>已实现：</p>
+<ul><li><code>broadcastEvents</code></li><li><code>sendSnapshotsToRoom</code></li><li><code>broadcastRoomState</code></li><li><code>createRoomSnapshot</code></li></ul>
+<p>保证：</p>
+<ul><li>lobby 使用房间快照</li><li>playing 使用玩家视角对局快照</li><li>每位玩家收到的对局 snapshot 都是独立裁剪版本</li><li>不泄漏其他玩家手牌</li><li>不泄漏 <code>challengeWindow.hadBlackCardBeforeDraw</code></li><li>不泄漏完整 <code>drawPile</code></li></ul>
+<p>---</p>
+<h3>7. 服务端错误码</h3>
+<p>本阶段扩展了协议错误码，新增：</p>
+<ul><li><code>room-not-waiting</code></li><li><code>room-not-playing</code></li><li><code>room-full</code></li><li><code>player-not-in-room</code></li><li><code>not-room-owner</code></li><li><code>game-not-started</code></li><li><code>game-already-started</code></li><li><code>invalid-player-count</code></li><li><code>player-id-mismatch</code></li><li><code>connection-not-found</code></li></ul>
+<p>并在 <code>apps/game-server/src/errors/serverErrors.ts</code> 中统一封装成：</p>
+<ul><li><code>GameServerError</code></li><li><code>createServerErrorMessage</code></li></ul>
+<p>---</p>
+<h3>8. 测试补齐</h3>
+<p>已新增测试：</p>
+<ul><li><code>apps/game-server/src/tests/roomManager.test.ts</code></li><li><code>apps/game-server/src/tests/connectionRegistry.test.ts</code></li><li><code>apps/game-server/src/tests/dispatchCommand.test.ts</code></li><li><code>apps/game-server/src/tests/broadcast.test.ts</code></li></ul>
+<p>覆盖内容包括：</p>
+<ul><li>RoomManager 12 条行为</li><li>ConnectionRegistry 5 条行为</li><li>dispatchCommand 10 条行为</li><li>broadcast / snapshot 6 条行为</li></ul>
+<p>重点覆盖了：</p>
+<ul><li>8 人满房限制</li><li>同 userId 重连</li><li>非房主不能开局</li><li>开局后 <code>room.status</code> 与 <code>gameState</code></li><li><code>snapshotVersion</code> 递增</li><li>合法 command 的 event / snapshot 广播</li><li><code>command-rejected</code> 不崩溃且只回请求玩家</li><li>玩家视角 snapshot 隐私裁剪</li></ul>
+<p>---</p>
+<h2>本地验证结果</h2>
+<p>已实际运行并通过：</p>
+<pre><code class="language-bash">pnpm --filter @thunder-uno/game-server test
+pnpm --filter @thunder-uno/game-server typecheck
+pnpm typecheck
+pnpm test</code></pre>
+<p>当前结果：</p>
+<ul><li><code>game-server</code> typecheck 通过</li><li><code>game-server</code> <code>4</code> 个测试文件、<code>33</code> 个测试全部通过</li><li>根目录 <code>typecheck</code> 通过</li><li>根目录 <code>test</code> 通过</li></ul>
+<p>---</p>
+<h2>当前仍未完成的内容</h2>
+<ul><li>还没有接真实 WebSocket</li><li>还没有实现 message handler</li><li>还没有做 heartbeat</li><li>还没有做 reconnect 协议</li><li>还没有做数据库和事件持久化</li><li>还没有做客户端 Cocos UI</li></ul>
+<p>---</p>
+<h2>下一阶段建议</h2>
+<ol><li>进入 Phase 3B，接入真实 WebSocket</li><li>增加 <code>connect / disconnect / reconnect</code> 生命周期</li><li>增加 <code>create-room / join-room / start-game / leave-room / command</code> 消息处理器</li><li>把 <code>mockConnection</code> 平滑替换成真实连接适配层</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">07</div>
+            <h3>雷霆UNOplus 第三阶段 B 交付清单 2.5.0</h3>
+          </div>
+        </div>
+        <p>本阶段把 Phase 3A 的内存房间服务层接到真实 WebSocket 上，完成本地开发闭环：</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE3B</span><span class="doc-tag">216 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-7" aria-expanded="false">展开内容</button>
+          <a href="./PHASE3B-WS-GATEWAY-2.5.0.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-7" hidden>
+        <div class="doc-body-inner">
+          <h1>雷霆UNOplus 第三阶段 B 交付清单 2.5.0</h1>
+<h2>阶段目标</h2>
+<p>本阶段把 Phase 3A 的内存房间服务层接到真实 WebSocket 上，完成本地开发闭环：</p>
+<ul><li>启动 WebSocket server</li><li>用真实连接替换 <code>mockConnection</code></li><li>处理 <code>create-room / join-room / start-game / leave-room / command / ping / reconnect</code></li><li>支持 disconnect / reconnect</li><li>提供本地 <code>dev</code> 服务和 <code>dev:client</code> 联调脚本</li><li>补齐 WebSocket 集成测试</li></ul>
+<p>本阶段仍然不实现：</p>
+<ul><li>Cocos UI</li><li>微信登录</li><li>数据库</li><li>事件持久化</li><li>回放系统</li><li>线上部署</li></ul>
+<p>---</p>
+<h2>本次新增和修改的核心文件</h2>
+<h3>协议层</h3>
+<ul><li><code>packages/protocol/src/messages.ts</code></li><li><code>packages/protocol/src/messages.test.ts</code></li><li><code>packages/protocol/package.json</code></li></ul>
+<h3>game-server 代码</h3>
+<ul><li><code>apps/game-server/package.json</code></li><li><code>apps/game-server/tsconfig.json</code></li><li><code>apps/game-server/src/gateway/wsServer.ts</code></li><li><code>apps/game-server/src/gateway/wsConnection.ts</code></li><li><code>apps/game-server/src/gateway/messageHandler.ts</code></li><li><code>apps/game-server/src/gateway/parseMessage.ts</code></li><li><code>apps/game-server/src/gateway/heartbeat.ts</code></li><li><code>apps/game-server/src/gateway/lifecycle.ts</code></li><li><code>apps/game-server/src/dev/runLocalServer.ts</code></li><li><code>apps/game-server/src/dev/devClient.ts</code></li><li><code>apps/game-server/src/broadcast/broadcastRoomState.ts</code></li><li><code>apps/game-server/src/broadcast/sendSnapshotsToRoom.ts</code></li><li><code>apps/game-server/src/errors/serverErrors.ts</code></li><li><code>apps/game-server/src/room/roomTypes.ts</code></li><li><code>apps/game-server/src/room/roomManager.ts</code></li><li><code>apps/game-server/src/index.ts</code></li></ul>
+<h3>测试</h3>
+<ul><li><code>apps/game-server/src/tests/broadcast.test.ts</code></li><li><code>apps/game-server/src/tests/messageHandler.test.ts</code></li><li><code>apps/game-server/src/tests/wsServer.test.ts</code></li><li><code>apps/game-server/src/tests/reconnect.test.ts</code></li><li><code>apps/game-server/src/tests/wsTestUtils.ts</code></li></ul>
+<h3>文档</h3>
+<ul><li><code>README.md</code></li><li><code>docs/PROTOCOL.md</code></li><li><code>docs/PHASE3B-WS-GATEWAY-2.5.0.md</code></li><li><code>package.json</code></li></ul>
+<p>---</p>
+<h2>关键实现</h2>
+<h3>1. WebSocket Server</h3>
+<p>入口：</p>
+<ul><li><code>apps/game-server/src/gateway/wsServer.ts</code></li></ul>
+<p>职责：</p>
+<ul><li>启动 <code>ws</code> 服务</li><li>为每个连接生成 <code>connectionId</code></li><li>包装成 <code>WsConnection</code></li><li>注册到 <code>ConnectionRegistry</code></li><li>监听 <code>message / close / error</code></li><li>转发给 <code>messageHandler</code></li></ul>
+<p>默认端口：</p>
+<ul><li><code>8787</code></li></ul>
+<p>也支持：</p>
+<ul><li><code>PORT=8791 corepack pnpm --filter @thunder-uno/game-server dev</code></li></ul>
+<p>---</p>
+<h3>2. WsConnection 适配层</h3>
+<p>入口：</p>
+<ul><li><code>apps/game-server/src/gateway/wsConnection.ts</code></li></ul>
+<p>设计目标：</p>
+<ul><li>保持和 <code>mockConnection</code> 相同的 <code>ServerConnection</code> 接口</li><li>内部把 <code>send(message)</code> 转成 <code>raw.send(JSON.stringify(message))</code></li><li>若连接已关闭或发送失败，不抛未捕获异常</li></ul>
+<p>这样 <code>ConnectionRegistry</code>、<code>broadcastEvents</code>、<code>sendSnapshotsToRoom</code> 可以不关心底层到底是 mock 还是真实 socket。</p>
+<p>---</p>
+<h3>3. messageHandler</h3>
+<p>入口：</p>
+<ul><li><code>apps/game-server/src/gateway/messageHandler.ts</code></li></ul>
+<p>当前支持的消息：</p>
+<ul><li><code>ping</code></li><li><code>create-room</code></li><li><code>join-room</code></li><li><code>start-game</code></li><li><code>leave-room</code></li><li><code>command</code></li><li><code>reconnect</code></li></ul>
+<p>处理流程：</p>
+<ol><li><code>parseMessage</code> 解析 JSON 和基础字段</li><li>根据 <code>type</code> 分发到具体处理逻辑</li><li>调用已有服务层</li><li>返回 <code>room-state / events / snapshot / pong / error</code></li></ol>
+<p>规则仍然只在 <code>uno-core</code>：</p>
+<ul><li><code>command</code> 继续复用 <code>dispatchCommand</code></li><li><code>WebSocket</code> 层不重写任何出牌合法性逻辑</li></ul>
+<p>---</p>
+<h3>4. reconnect 流程</h3>
+<p>服务端支持：</p>
+<ul><li>根据 <code>roomId + userId</code> 查找原玩家</li><li>复用原 <code>playerId</code></li><li>保持原 <code>seatIndex</code></li><li>更新 <code>connectionId</code></li><li>标记 <code>connected = true</code></li></ul>
+<p>返回策略：</p>
+<ul><li><code>waiting</code> 房间：发 <code>room-state</code></li><li><code>playing</code> 房间：发玩家自己的 <code>snapshot</code></li></ul>
+<p>---</p>
+<h3>5. disconnect 流程</h3>
+<p>当 WebSocket <code>close</code> 时：</p>
+<ul><li>找到绑定的 <code>roomId / playerId</code></li><li>调用 <code>RoomManager.leaveRoom</code></li><li><code>waiting</code> 房间下真正移除玩家</li><li><code>playing</code> 房间下只标记 <code>disconnected</code></li><li>若房间仍存在，则广播新的 <code>room-state</code></li><li>最后注销连接</li></ul>
+<p>---</p>
+<h3>6. heartbeat</h3>
+<p>本阶段只实现最小心跳：</p>
+<ul><li>客户端发 <code>ping</code></li><li>服务端回 <code>pong</code></li></ul>
+<p>入口：</p>
+<ul><li><code>apps/game-server/src/gateway/heartbeat.ts</code></li></ul>
+<p>这已经够支撑本地联调和基础连通性验证，后续再考虑服务端主动探活和超时踢线。</p>
+<p>---</p>
+<h3>7. dev server 与 dev client</h3>
+<p>本地服务端：</p>
+<ul><li><code>apps/game-server/src/dev/runLocalServer.ts</code></li></ul>
+<p>本地调试客户端：</p>
+<ul><li><code>apps/game-server/src/dev/devClient.ts</code></li></ul>
+<p>当前 <code>devClient</code> 会：</p>
+<ul><li>连接 <code>WS_URL</code>，默认 <code>ws://localhost:8787</code></li><li>发送 <code>ping</code></li><li>发送 <code>create-room</code></li><li>打印返回消息</li><li>收到 <code>pong</code> 和 <code>room-state</code> 后自动断开退出</li></ul>
+<p>---</p>
+<h2>协议变化</h2>
+<h3>ClientMessage 新增</h3>
+<ul><li><code>create-room</code></li><li><code>start-game</code></li><li><code>reconnect</code></li></ul>
+<h3>ClientMessage 调整</h3>
+<ul><li><code>ping</code> 现在带 <code>requestId</code></li><li><code>join-room</code> 现在带 <code>roomId / userId / nickname / avatarUrl</code></li></ul>
+<h3>ServerMessage 新增</h3>
+<ul><li><code>room-state</code></li><li><code>room-closed</code></li></ul>
+<h3>ServerMessage 调整</h3>
+<ul><li><code>pong</code> 现在带 <code>requestId</code></li><li><code>error</code> 继续兼容协议错误码和服务端错误码</li></ul>
+<p>---</p>
+<h2>测试覆盖</h2>
+<h3>messageHandler</h3>
+<p>已覆盖：</p>
+<ul><li>非 JSON 返回 <code>error</code></li><li>未知消息类型返回 <code>error</code></li><li><code>ping</code> 返回 <code>pong</code></li><li><code>create-room</code> 创建房间并绑定连接</li><li><code>join-room</code> 广播 <code>room-state</code></li><li><code>start-game</code> 给所有玩家发各自 <code>snapshot</code></li><li><code>command</code> 走 <code>dispatchCommand</code></li><li><code>leave-room</code> 更新房间状态</li><li><code>reconnect</code> 复用原 <code>playerId</code></li><li><code>command-rejected</code> 只回请求玩家</li><li>最后一名玩家离房时返回 <code>room-closed</code></li></ul>
+<h3>wsServer / integration</h3>
+<p>已覆盖：</p>
+<ul><li>可以启动 WebSocket server</li><li>客户端可连接</li><li><code>ping -&gt; pong</code></li><li>单客户端 <code>create-room</code></li><li>第二客户端 <code>join-room</code></li><li>三客户端 <code>start-game</code></li><li>每个客户端收到自己的 <code>snapshot</code></li><li><code>snapshot</code> 不泄露他人手牌</li><li><code>close</code> 后玩家被标记 <code>disconnected</code></li><li><code>reconnect</code> 后 <code>playerId</code> 不变</li></ul>
+<p>---</p>
+<h2>本地验证结果</h2>
+<p>已实际运行并通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/protocol test
+corepack pnpm --filter @thunder-uno/protocol typecheck
+corepack pnpm --filter @thunder-uno/game-server test
+corepack pnpm --filter @thunder-uno/game-server typecheck
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<p>还额外跑通了本地联调：</p>
+<pre><code class="language-bash">PORT=8791 corepack pnpm --filter @thunder-uno/game-server dev
+WS_URL=ws://localhost:8791 corepack pnpm --filter @thunder-uno/game-server dev:client</code></pre>
+<p>验证结果：</p>
+<ul><li><code>protocol</code>：<code>1</code> 个测试文件，<code>5</code> 个测试通过</li><li><code>uno-core</code>：<code>13</code> 个测试文件，<code>70</code> 个测试通过</li><li><code>simulator</code>：<code>3</code> 个测试文件，<code>11</code> 个测试通过</li><li><code>game-server</code>：<code>7</code> 个测试文件，<code>50</code> 个测试通过</li><li>根目录 <code>typecheck</code> 通过</li><li>根目录 <code>test</code> 通过</li></ul>
+<p>说明：</p>
+<ul><li>我的本地环境里默认 <code>8787</code> 端口当时已被占用，所以联调验证时改用了 <code>8791</code></li><li>代码本身仍然默认监听 <code>8787</code></li></ul>
+<p>---</p>
+<h2>当前仍未实现</h2>
+<ul><li>服务端主动定时心跳和超时断线清理</li><li>线上部署地址和 <code>wss://</code> 配置</li><li>数据库和事件持久化</li><li>多进程或多实例房间同步</li><li>微信登录和用户系统</li><li>Cocos 客户端 UI</li></ul>
+<p>---</p>
+<h2>下一阶段建议</h2>
+<ol><li>进入 Phase 3C，做本地多客户端联调脚本。</li><li>固定三人流程：<code>create-room -&gt; join-room -&gt; join-room -&gt; start-game -&gt; command</code>。</li><li>把 WebSocket 演示链路压稳后，再进入 Phase 4A 的 Cocos 客户端基础 UI。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">08</div>
+            <h3>雷霆UNOplus 第三阶段 C 交付清单 2.6.0</h3>
+          </div>
+        </div>
+        <p>本阶段在已经完成的真实 WebSocket 网关之上，补齐“多客户端真实联调”这一层，验证整条链路：</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE3C</span><span class="doc-tag">156 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-8" aria-expanded="false">展开内容</button>
+          <a href="./PHASE3C-MULTI-CLIENT-SCENARIO-2.6.0.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-8" hidden>
+        <div class="doc-body-inner">
+          <h1>雷霆UNOplus 第三阶段 C 交付清单 2.6.0</h1>
+<h2>阶段目标</h2>
+<p>本阶段在已经完成的真实 WebSocket 网关之上，补齐“多客户端真实联调”这一层，验证整条链路：</p>
+<ul><li>多个假客户端通过真实 WebSocket 接入</li><li><code>create-room / join-room / start-game / command / reconnect</code></li><li>房间广播、事件广播、玩家快照裁剪</li><li>对局可以持续推进</li><li>断线重连后仍能继续跑</li></ul>
+<p>本阶段仍然不实现：</p>
+<ul><li>Cocos UI</li><li>微信登录</li><li>数据库</li><li>事件持久化</li><li>正式线上部署</li></ul>
+<p>---</p>
+<h2>本次新增和修改的核心文件</h2>
+<h3>协议与脚本</h3>
+<ul><li><code>packages/protocol/src/messages.ts</code></li><li><code>packages/protocol/src/messages.test.ts</code></li><li><code>apps/game-server/package.json</code></li></ul>
+<h3>Phase 3C 核心代码</h3>
+<ul><li><code>apps/game-server/src/dev/devWsClient.ts</code></li><li><code>apps/game-server/src/dev/scenarioDecision.ts</code></li><li><code>apps/game-server/src/dev/scenarioRandom.ts</code></li><li><code>apps/game-server/src/dev/scenarioTypes.ts</code></li><li><code>apps/game-server/src/dev/multiClientScenario.ts</code></li></ul>
+<h3>WebSocket 层调整</h3>
+<ul><li><code>apps/game-server/src/gateway/parseMessage.ts</code></li><li><code>apps/game-server/src/gateway/messageHandler.ts</code></li><li><code>apps/game-server/src/index.ts</code></li></ul>
+<h3>新增测试</h3>
+<ul><li><code>apps/game-server/src/tests/devWsClient.test.ts</code></li><li><code>apps/game-server/src/tests/multiClientScenario.test.ts</code></li></ul>
+<h3>文档同步</h3>
+<ul><li><code>README.md</code></li><li><code>docs/PROTOCOL.md</code></li><li><code>docs/项目开发文档.md</code></li><li><code>docs/PHASE3C-MULTI-CLIENT-SCENARIO-2.6.0.md</code></li></ul>
+<p>---</p>
+<h2>关键实现</h2>
+<h3>1. <code>DevWsClient</code></h3>
+<p>入口：</p>
+<ul><li><code>apps/game-server/src/dev/devWsClient.ts</code></li></ul>
+<p>职责：</p>
+<ul><li>包装真实 <code>WebSocket</code> 客户端连接</li><li>维护 <code>roomId / playerId</code></li><li>维护 <code>latestRoomState / latestSnapshot</code></li><li>提供 <code>createRoom / joinRoom / startGame / sendCommand / reconnect</code></li><li>只保存客户端可见的快照，不碰完整 <code>GameState</code></li></ul>
+<p>这让测试和本地联调都能复用同一套客户端抽象。</p>
+<h3>2. <code>runMultiClientScenario</code></h3>
+<p>入口：</p>
+<ul><li><code>apps/game-server/src/dev/multiClientScenario.ts</code></li></ul>
+<p>能力：</p>
+<ul><li>按参数创建 3 到 8 个假客户端</li><li>真实连接 <code>ws://localhost:8787</code></li><li>自动建房、进房、开局</li><li>自动轮流发命令推进对局</li><li>支持可选断线重连测试</li><li>支持 <code>verbose</code> 日志</li><li>在 <code>finished / stuck / failed</code> 之间给出明确结果</li></ul>
+<h3>3. 客户端决策逻辑</h3>
+<p>入口：</p>
+<ul><li><code>apps/game-server/src/dev/scenarioDecision.ts</code></li></ul>
+<p>当前策略故意保持简单：</p>
+<ul><li>如果自己在 <code>drawUntilColor</code> 目标上，发 <code>resolve-draw-until-color</code></li><li>如果自己在 <code>drawStack</code> 目标上，优先找能叠的加牌，否则 <code>resolve-draw-stack</code></li><li>普通回合优先找第一张“看起来可打”的单牌</li><li>没牌可打就 <code>draw-card</code></li><li>黑牌根据手牌剩余颜色数量自动选色</li><li>当自己只剩 1 张且未喊 UNO，自动 <code>say-uno</code></li><li>根据 <code>uno-pending</code> 事件和公开快照，自动 <code>report-uno</code></li><li>在 <code>with-challenge</code> 模式下，按种子随机决定是否 <code>challenge-draw</code></li></ul>
+<p>注意：</p>
+<ul><li>这些只是非权威启发式</li><li>真正合法性仍然只由服务端 <code>dispatchCommand -&gt; uno-core.applyCommand</code> 裁定</li></ul>
+<h3>4. <code>start-game seed</code> 透传</h3>
+<p>本阶段把 <code>ClientStartGameMessage</code> 扩展为可选 <code>seed</code>。</p>
+<p>目的：</p>
+<ul><li>本地联调脚本传入 <code>--seed</code></li><li>服务端开局洗牌可复现</li><li>客户端本地随机决策也可复现</li></ul>
+<p>---</p>
+<h2>CLI 使用方式</h2>
+<p>服务端：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server dev</code></pre>
+<p>单客户端快速验证：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server dev:client</code></pre>
+<p>多客户端联调：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server dev:scenario --players 3 --mode no-challenge
+corepack pnpm --filter @thunder-uno/game-server dev:scenario --players 8 --mode with-challenge --test-reconnect
+corepack pnpm --filter @thunder-uno/game-server dev:scenario --players 4 --mode no-challenge --seed 1001 --verbose</code></pre>
+<p>支持参数：</p>
+<ul><li><code>--players</code></li><li><code>--mode</code></li><li><code>--ws-url</code></li><li><code>--seed</code></li><li><code>--max-steps</code></li><li><code>--verbose</code></li><li><code>--test-reconnect</code></li></ul>
+<p>---</p>
+<h2>测试覆盖</h2>
+<h3><code>devWsClient.test.ts</code></h3>
+<p>已覆盖：</p>
+<ul><li>多客户端 <code>create-room / join-room / start-game</code></li><li><code>snapshot</code> 不泄露其他玩家手牌</li><li>当前玩家命令可推进 <code>snapshotVersion</code></li><li>非当前玩家命令会被 <code>command-rejected</code></li><li><code>command-rejected</code> 只回请求者</li></ul>
+<h3><code>multiClientScenario.test.ts</code></h3>
+<p>已覆盖：</p>
+<ul><li><code>3</code> 人 <code>no-challenge</code> 场景可推进若干步不崩溃</li><li><code>8</code> 人 <code>with-challenge</code> + <code>reconnect</code> 场景可稳定推进</li></ul>
+<p>这里的“稳定推进”允许两种结果：</p>
+<ul><li><code>finished</code></li><li><code>stuck</code></li></ul>
+<p>只要不是 <code>failed</code>，就说明 WebSocket 链路、房间链路、快照链路和重连链路都没有崩。</p>
+<p>---</p>
+<h2>本地验证结果</h2>
+<p>已实际运行并通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/protocol test
+corepack pnpm --filter @thunder-uno/game-server typecheck
+corepack pnpm --filter @thunder-uno/game-server test
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<p>新增后的关键结果：</p>
+<ul><li><code>protocol</code>：<code>1</code> 个测试文件，<code>6</code> 个测试通过</li><li><code>game-server</code>：<code>9</code> 个测试文件，<code>55</code> 个测试通过</li></ul>
+<p>还额外验证了：</p>
+<pre><code class="language-bash">PORT=8792 corepack pnpm --filter @thunder-uno/game-server dev
+WS_URL=ws://localhost:8792 corepack pnpm --filter @thunder-uno/game-server dev:scenario --players 8 --mode with-challenge --seed 2002 --max-steps 80 --test-reconnect --verbose</code></pre>
+<p>说明：</p>
+<ul><li>某些长局在 <code>maxSteps</code> 内不一定结束</li><li>这类场景现在会返回 <code>stuck</code>，而不是误判成 <code>failed</code></li></ul>
+<p>---</p>
+<h2>当前仍未实现</h2>
+<ul><li>服务端主动 heartbeat 和超时踢线</li><li>更复杂的客户端组合牌策略</li><li>本地多客户端可视化面板</li><li>微信小游戏 Cocos UI</li><li>正式线上 <code>wss://</code> 部署</li></ul>
+<p>---</p>
+<h2>下一阶段建议</h2>
+<ol><li>进入 Phase 4A，开始 Cocos / 微信小游戏客户端基础 UI。</li><li>先做登录页、大厅页、房间页和最小对局页骨架。</li><li>客户端网络层直接复用当前 <code>packages/protocol</code>，不要在 UI 层重复定义消息结构。</li></ol>
+        </div>
+      </div>
+    </article>
+        </div>
+      </section>
+<section class="group">
+        <div class="group-head">
+          <div>
+            <h2>网页端转向与体验收口</h2>
+            <p>从 Web Pivot 到 UI、移动端、E2E 和可试玩体验。</p>
+          </div>
+          <span class="group-chip">10 份文档</span>
+        </div>
+        <div class="doc-grid">
+          <article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">09</div>
+            <h3>Phase 4A：HTML 网页端转向与首版客户端骨架</h3>
+          </div>
+        </div>
+        <p>根据 `IMPORTANT.md`，项目从本阶段开始废弃微信小游戏 / Cocos Creator 方向，改为 HTML 网页端实现。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4A</span><span class="doc-tag">109 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-9" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4A-WEB-PIVOT-3.0.0.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-9" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4A：HTML 网页端转向与首版客户端骨架</h1>
+<h2>阶段结论</h2>
+<p>根据 <code>IMPORTANT.md</code>，项目从本阶段开始废弃微信小游戏 / Cocos Creator 方向，改为 HTML 网页端实现。</p>
+<p>规则和牌库配置保持不变：</p>
+<ul><li><code>GAME-RULES.md</code></li><li><code>CARD-CONFIG.md</code></li><li><code>packages/uno-core/src/config.ts</code></li><li><code>packages/uno-core/src/cardConfig.ts</code></li></ul>
+<h2>仓库审计</h2>
+<p>逐阶段确认结果：</p>
+<table>
+    <thead>
+      <tr><th>阶段</th><th>结论</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Phase 1</td><td>保留，monorepo 地基可复用</td></tr><tr><td>Phase 2A</td><td>保留，规则基础层可复用</td></tr><tr><td>Phase 2B</td><td>保留，reducer 可复用</td></tr><tr><td>Phase 2C</td><td>保留，协议和玩家视角快照可复用</td></tr><tr><td>Phase 2D</td><td>保留，CLI 模拟器可复用</td></tr><tr><td>Phase 3A</td><td>保留，内存房间服务可复用</td></tr><tr><td>Phase 3B</td><td>保留，WebSocket 网关可复用</td></tr><tr><td>Phase 3C</td><td>保留，本地多客户端联调脚本可复用</td></tr><tr><td>Phase 4A 到 5B 旧方向</td><td>废弃，微信小游戏 / Cocos 专项内容不再继续</td></tr>
+    </tbody>
+  </table>
+<h2>已删除内容</h2>
+<p>删除的旧方向文档：</p>
+<ul><li><code>docs/Cococreater-Build.md</code></li><li><code>docs/COCOS-UI-PLACEMENT-GUIDE.md</code></li><li><code>docs/PHASE4A-CLIENT-WECHAT-2.7.0.md</code></li><li><code>docs/PHASE4B-CLIENT-COCOS-WIRING.md</code></li><li><code>docs/PHASE4C-LOCAL-PLAYTEST.md</code></li><li><code>docs/PHASE4D-COCOS-SCENE-PREFAB-WIRING.md</code></li><li><code>docs/PHASE5A-WECHAT-DEVTOOLS-DEBUG.md</code></li><li><code>docs/PHASE5B-ADD.md</code></li></ul>
+<p>删除理由：</p>
+<ul><li>依赖 <code>apps/client-wechat</code> 或 <code>apps/NewProject</code></li><li>面向 Cocos Creator 场景、prefab、微信小游戏构建</li><li>面向微信开发者工具和真机预览</li><li>不适用于 HTML 网页端</li></ul>
+<h2>已新增内容</h2>
+<p>新增 <code>apps/client-web</code>：</p>
+<ul><li><code>index.html</code></li><li><code>vite.config.ts</code></li><li><code>src/main.ts</code></li><li><code>src/styles.css</code></li><li><code>src/app/config.ts</code></li><li><code>src/network/wsClient.ts</code></li><li><code>src/protocol/clientMessages.ts</code></li><li><code>src/cards/cardAssets.ts</code></li><li><code>public/cards/*.png</code></li></ul>
+<p>新增文档：</p>
+<ul><li><code>docs/PHASE4A-WEB-PIVOT-3.0.0.md</code></li></ul>
+<p>重写文档：</p>
+<ul><li><code>README.md</code></li><li><code>next-step.md</code></li><li><code>docs/项目开发文档.md</code></li></ul>
+<h2>网页端首版能力</h2>
+<p><code>apps/client-web</code> 当前支持：</p>
+<ol><li>连接 <code>ws://localhost:8787</code></li><li>手动覆盖为 <code>ws://局域网IP:8787</code></li><li>创建房间</li><li>加入房间</li><li>离开房间</li><li>房主开始游戏</li><li>展示 lobby 玩家列表</li><li>展示对局快照</li><li>渲染顶牌、牌堆、对手、手牌</li><li>点击手牌发送 <code>play-card</code></li><li>发送摸牌、结算加牌、结算罚抽、UNO、抓 UNO、质疑命令</li></ol>
+<h2>只适用于微信 / Cocos 的内容</h2>
+<p>已识别为不适用于 HTML 网页端：</p>
+<ul><li><code>wx.connectSocket</code></li><li><code>game.json</code></li><li><code>project.config.json</code></li><li>微信开发者工具调试配置</li><li>Cocos Creator scene / prefab 序列化工程</li><li>Cocos 节点拖拽绑定说明</li><li>微信小游戏 AppID / 合法域名 / 真机预览流程</li></ul>
+<h2>继续保留的服务端能力</h2>
+<p><code>apps/game-server</code> 已经支持：</p>
+<ul><li><code>HOST=0.0.0.0</code></li><li><code>PORT=8787</code></li><li>本地 <code>ws://localhost:8787</code></li><li>局域网 <code>ws://电脑IP:8787</code></li></ul>
+<p>这对网页端开发仍然有效。</p>
+<h2>测试覆盖</h2>
+<p>新增测试：</p>
+<ul><li><code>apps/client-web/src/app/config.test.ts</code></li><li><code>apps/client-web/src/cards/cardAssets.test.ts</code></li></ul>
+<p>覆盖内容：</p>
+<ul><li>默认 WebSocket URL</li><li>局域网地址补全 <code>ws://</code></li><li>保持 <code>ws://</code> 和 <code>wss://</code> 不变</li><li>牌面资产路径映射</li></ul>
+<h2>尚未实现</h2>
+<ul><li>三浏览器窗口完整试玩验收</li><li>页面内黑牌颜色选择器</li><li>顺子、连对、同色丢弃的正式 UI</li><li>对局结束页</li><li>断线重连 UI</li><li>移动端细节适配</li><li>正式部署</li><li>登录、数据库、排行榜、商城、支付</li></ul>
+<h2>下一阶段建议</h2>
+<p>进入 Phase 4B：HTML 网页端本地三人真实试玩闭环。</p>
+<p>建议优先处理：</p>
+<ol><li>三窗口真实联调。</li><li>修复 <code>playerId</code> 识别边界。</li><li>改善错误提示和操作禁用状态。</li><li>把黑牌声明颜色改为页面内 UI。</li><li>补齐多牌操作。</li><li>增加浏览器冒烟测试。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">10</div>
+            <h3>Phase 4B：HTML 网页端本地三人试玩闭环</h3>
+          </div>
+        </div>
+        <p>把 `apps/client-web` 从“可连协议”推进到“能在浏览器里真实玩起来”。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4B</span><span class="doc-tag">81 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-10" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4B-WEB-LOCAL-PLAYTEST.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-10" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4B：HTML 网页端本地三人试玩闭环</h1>
+<h2>本阶段目标</h2>
+<p>把 <code>apps/client-web</code> 从“可连协议”推进到“能在浏览器里真实玩起来”。</p>
+<p>本阶段仍然不碰这些内容：</p>
+<ul><li>数据库</li><li>登录系统</li><li>排行榜</li><li>商城</li><li>支付</li><li>正式部署</li><li>新玩法规则</li></ul>
+<h2>本阶段完成内容</h2>
+<h3>1. 网页端身份稳定化</h3>
+<p><code>room-state</code> 现在会带上 <code>playerId</code>，网页端不再靠昵称猜自己是谁。</p>
+<p>相关改动：</p>
+<ul><li><code>packages/protocol/src/messages.ts</code></li><li><code>apps/game-server/src/broadcast/broadcastRoomState.ts</code></li><li><code>apps/client-web/src/main.ts</code></li></ul>
+<h3>2. 网页端选牌交互</h3>
+<p>新增网页端选牌闭环：</p>
+<ul><li>点击卡牌切换选中状态</li><li>支持单牌出牌</li><li>支持顺子出牌</li><li>支持连对出牌</li><li>支持同色丢弃</li><li>支持取消选牌</li></ul>
+<h3>3. 黑牌颜色选择</h3>
+<p>黑牌不再用 <code>prompt</code>，改成页面内颜色选择弹层。</p>
+<h3>4. 牌面资源接入</h3>
+<p>把 <code>pictures/卡牌UI/cards_out</code> 的 PNG 复制到网页端 <code>public/cards</code>，让浏览器直接渲染牌面。</p>
+<h3>5. WebSocket 与配置</h3>
+<p>网页端默认使用：</p>
+<ul><li><code>ws://localhost:8787</code></li></ul>
+<p>也支持通过 <code>?ws=局域网IP:8787</code> 覆盖。</p>
+<h2>新增与修改文件</h2>
+<h3>新增</h3>
+<ul><li><code>apps/client-web/package.json</code></li><li><code>apps/client-web/index.html</code></li><li><code>apps/client-web/tsconfig.json</code></li><li><code>apps/client-web/vite.config.ts</code></li><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/client-web/src/app/config.ts</code></li><li><code>apps/client-web/src/cards/cardAssets.ts</code></li><li><code>apps/client-web/src/battle/selection.ts</code></li><li><code>apps/client-web/src/network/wsClient.ts</code></li><li><code>apps/client-web/src/protocol/clientMessages.ts</code></li><li><code>apps/client-web/src/battle/selection.test.ts</code></li><li><code>apps/client-web/src/app/config.test.ts</code></li><li><code>apps/client-web/src/cards/cardAssets.test.ts</code></li><li><code>apps/client-web/src/protocol/clientMessages.test.ts</code></li><li><code>docs/PHASE4B-WEB-LOCAL-PLAYTEST.md</code></li></ul>
+<h3>修改</h3>
+<ul><li><code>README.md</code></li><li><code>next-step.md</code></li><li><code>package.json</code></li><li><code>tsconfig.json</code></li><li><code>pnpm-lock.yaml</code></li><li><code>packages/protocol/src/messages.ts</code></li><li><code>packages/protocol/src/messages.test.ts</code></li><li><code>apps/game-server/src/broadcast/broadcastRoomState.ts</code></li><li><code>docs/项目开发文档.md</code></li></ul>
+<h2>测试结果</h2>
+<p>已通过：</p>
+<ul><li><code>corepack pnpm --filter @thunder-uno/client-web typecheck</code></li><li><code>corepack pnpm --filter @thunder-uno/client-web test</code></li><li><code>corepack pnpm --filter @thunder-uno/protocol test</code></li><li><code>corepack pnpm --filter @thunder-uno/game-server test</code></li></ul>
+<h2>仍未实现</h2>
+<ul><li>三浏览器窗口完整人工试玩验收</li><li>断线重连 UI</li><li>对局结束页</li><li>移动端细节优化</li><li>浏览器冒烟测试</li></ul>
+<h2>下一阶段建议</h2>
+<p>进入 Phase 4C：HTML 网页端真实联调收口。</p>
+<p>优先级：</p>
+<ol><li>三浏览器窗口真实联调。</li><li>断线重连与错误提示收口。</li><li>补浏览器冒烟测试。</li><li>继续打磨移动端布局。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">11</div>
+            <h3>Phase 4C：HTML 网页端真实联调收口</h3>
+          </div>
+        </div>
+        <p>把 Phase 4B 的“网页端三人本地可玩”推进到更稳定的真实联调状态。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4C</span><span class="doc-tag">119 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-11" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4C-WEB-FINAL-POLISH.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-11" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4C：HTML 网页端真实联调收口</h1>
+<h2>阶段目标</h2>
+<p>把 Phase 4B 的“网页端三人本地可玩”推进到更稳定的真实联调状态。</p>
+<p>本阶段不做数据库、登录系统、排行榜、商城、支付、正式部署和新玩法规则，只收口网页端试玩链路。</p>
+<h2>本次完成内容</h2>
+<h3>1. 断线重连基础流程</h3>
+<p>网页端现在会保留稳定的 <code>userId</code> 和最近一次 <code>roomId</code>：</p>
+<ul><li><code>thunder-uno.userId</code></li><li><code>thunder-uno.lastRoomId</code></li></ul>
+<p>当 WebSocket 重新 open 后，如果本地仍有 roomId，会自动发送 <code>reconnect</code> 消息。重连成功后由服务端重新下发 <code>room-state</code> 或 <code>snapshot</code>，网页端恢复 lobby 或 battle 视图。</p>
+<h3>2. 错误提示收口</h3>
+<p>页面固定渲染 <code>#error-line</code>，用于展示：</p>
+<ul><li>WebSocket 未连接</li><li>连接断开</li><li>房间不存在</li><li>玩家不在房间</li><li>房间未在对局中</li><li>服务端 <code>error</code></li><li>服务端事件里的 <code>command-rejected</code></li></ul>
+<p>成功收到 <code>room-state</code> 或 <code>snapshot</code> 后会清理旧错误。</p>
+<h3>3. 对局结束状态</h3>
+<p>当玩家视角快照进入 <code>finished</code> 状态时，网页端会显示结束横幅：</p>
+<ul><li>展示“对局结束”</li><li>展示赢家昵称或 playerId</li><li>禁用出牌、摸牌、UNO、结算罚抽、结算加牌、抓 UNO、质疑等操作</li><li>明确提示当前版本暂不支持房内重开</li><li>提供“返回大厅”的最小入口</li></ul>
+<h3>4. 按钮禁用与空状态</h3>
+<p>本阶段补齐了更多客户端侧 UI 状态：</p>
+<ul><li>未连接时禁用创建、加入、离开</li><li>非房主禁用开始游戏</li><li>非当前玩家禁用手牌点击、出牌、摸牌和 UNO</li><li>只有 drawStack 目标玩家可以结算加牌</li><li>只有 drawUntilColor 目标玩家可以结算罚抽</li><li>断线、非当前回合、游戏结束时展示明确文案</li></ul>
+<p>这些禁用只用于交互体验，权威规则仍由服务端和 <code>packages/uno-core</code> 裁定。</p>
+<h3>5. 浏览器冒烟测试</h3>
+<p>为 <code>apps/client-web</code> 增加 jsdom 冒烟测试，覆盖：</p>
+<ul><li>页面 shell 能启动</li><li>WebSocket 地址输入框存在</li><li>创建房间按钮存在</li><li>加入房间输入框存在</li><li>错误提示区域存在</li><li>连接状态区域存在</li><li>本地 roomId 存在时，连接 open 后会发送 <code>reconnect</code></li></ul>
+<h3>6. 协议构造测试</h3>
+<p>补充 <code>buildReconnectMessage</code> 的测试，确保网页端 reconnect 消息包含稳定的 <code>roomId</code> 和 <code>userId</code>。</p>
+<h2>三窗口联调流程</h2>
+<p>人工验收建议流程：</p>
+<pre><code class="language-txt">1. 启动 game-server。
+2. 启动 client-web。
+3. 打开三个浏览器窗口。
+4. 窗口 A 创建房间。
+5. 窗口 B / C 输入房间号加入。
+6. 窗口 A 开始游戏。
+7. 当前玩家出牌或摸牌。
+8. 非当前玩家确认按钮被禁用，或服务端拒绝事件能展示到页面。
+9. 黑牌出牌时确认颜色选择弹层可用。
+10. 关闭一个窗口后重新打开，确认 reconnect 消息会发送。
+11. 尽量跑到对局结束，确认结束横幅出现。</code></pre>
+<h2>局域网联调说明</h2>
+<p>服务端建议监听所有网卡：</p>
+<pre><code class="language-bash">HOST=0.0.0.0 PORT=8787 corepack pnpm --filter @thunder-uno/game-server dev</code></pre>
+<p>网页端启动：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web dev</code></pre>
+<p>手机或其他电脑访问：</p>
+<pre><code class="language-txt">http://电脑局域网IP:5173?ws=电脑局域网IP:8787</code></pre>
+<p>常见问题：</p>
+<ul><li>手机和电脑必须在同一个局域网。</li><li>Windows 防火墙可能拦截 5173 或 8787。</li><li>如果端口占用，换端口后 <code>?ws=</code> 也要同步修改。</li><li>本地开发环境使用 <code>ws://</code>，正式 HTTPS 站点通常需要 <code>wss://</code>。</li></ul>
+<h2>新增与修改文件</h2>
+<h3>新增</h3>
+<ul><li><code>apps/client-web/src/smoke/appBoot.test.ts</code></li><li><code>docs/PHASE4C-WEB-FINAL-POLISH.md</code></li></ul>
+<h3>修改</h3>
+<ul><li><code>apps/client-web/package.json</code></li><li><code>apps/client-web/tsconfig.json</code></li><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/client-web/src/protocol/clientMessages.ts</code></li><li><code>apps/client-web/src/protocol/clientMessages.test.ts</code></li><li><code>pnpm-lock.yaml</code></li><li><code>README.md</code></li><li><code>next-step.md</code></li><li><code>docs/项目开发文档.md</code></li></ul>
+<h2>本地验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/game-server test
+corepack pnpm --filter @thunder-uno/protocol test
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<h2>仍未实现内容</h2>
+<ul><li>Playwright 级真实浏览器 E2E。</li><li>自动化三窗口完整对局。</li><li>房内重新开局。</li><li>正式部署、HTTPS、WSS 和公网房间服务。</li><li>数据库、账号、排行榜、商城和支付。</li></ul>
+<h2>下一阶段建议</h2>
+<p>进入 Phase 4D：网页端发布前构建与局域网验收。</p>
+<p>优先级：</p>
+<ol><li>生产构建与 preview 验证。</li><li>局域网手机/电脑实机验收。</li><li>静态牌面资源完整性检查。</li><li>发布前 README 操作说明收口。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">12</div>
+            <h3>Phase 4D：网页端发布前构建与局域网验收</h3>
+          </div>
+        </div>
+        <p>把 Phase 4C 的网页端试玩链路推进到可以打包、可以 preview、可以在局域网手机和其他电脑上验收的状态。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4D</span><span class="doc-tag">91 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-12" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4D-WEB-PREVIEW-LAN-CHECK.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-12" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4D：网页端发布前构建与局域网验收</h1>
+<h2>阶段目标</h2>
+<p>把 Phase 4C 的网页端试玩链路推进到可以打包、可以 preview、可以在局域网手机和其他电脑上验收的状态。</p>
+<p>本阶段不做数据库、登录、商城、支付、排行榜、新玩法规则或正式公网部署。</p>
+<h2>本次完成内容</h2>
+<h3>1. 生产构建验证</h3>
+<p><code>apps/client-web</code> 已可以稳定执行生产构建：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web build</code></pre>
+<p>构建产物会输出到 <code>apps/client-web/dist</code>，包含页面入口、样式和静态资源。</p>
+<h3>2. Preview 验证说明</h3>
+<p><code>apps/client-web</code> 保留了 preview 命令，并在 README 中说明了访问方式：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web preview</code></pre>
+<p>默认端口为 <code>4173</code>，与开发模式的 <code>5173</code> 区分开。</p>
+<h3>3. 牌面资源完整性检查</h3>
+<p>新增 <code>cardAssetsIntegrity.test.ts</code>，会遍历网页端使用到的所有卡牌资源路径，并确认 <code>public/cards</code> 中实际存在对应 PNG。</p>
+<p>同时也确认了牌背 <code>69_back.png</code> 存在。</p>
+<h3>4. WebSocket 地址解析收口</h3>
+<p><code>normalizeWsUrl()</code> 已支持：</p>
+<ul><li><code>localhost:8787</code> -&gt; <code>ws://localhost:8787</code></li><li><code>192.168.x.x:8787</code> -&gt; <code>ws://192.168.x.x:8787</code></li><li><code>ws://...</code> 保持不变</li><li><code>wss://...</code> 保持不变</li></ul>
+<p>页面上的 WebSocket 地址输入框会展示当前地址。</p>
+<h3>5. 局域网试玩说明</h3>
+<p>README 已补充局域网试玩步骤：</p>
+<ul><li>服务端监听 <code>0.0.0.0</code></li><li>网页端使用 <code>--host 0.0.0.0</code></li><li>手机或其他电脑使用 <code>http://电脑局域网IP:5173?ws=电脑局域网IP:8787</code></li><li>preview 场景则改用 <code>4173</code></li><li>补充了防火墙、端口占用和 <code>ws</code> / <code>wss</code> 区别</li></ul>
+<h2>生产构建验证</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web build</code></pre>
+<h2>Preview 验证</h2>
+<p><code>apps/client-web</code> 支持：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web preview</code></pre>
+<p>README 已写明默认端口是 <code>4173</code>。</p>
+<h2>局域网验收步骤</h2>
+<pre><code class="language-txt">1. 启动 game-server，并监听 0.0.0.0。
+2. 启动 client-web dev 或 preview。
+3. 在手机或另一台电脑上打开电脑局域网 IP。
+4. 使用 ?ws=电脑局域网IP:8787 指向本机服务端。
+5. 确认能连接、建房、进房和开始游戏。</code></pre>
+<h2>牌面资源完整性检查</h2>
+<p>新增测试：</p>
+<ul><li><code>apps/client-web/src/cards/cardAssetsIntegrity.test.ts</code></li></ul>
+<p>检查范围：</p>
+<ul><li>70 张卡牌资源</li><li>牌背资源</li><li><code>getCardAssetPath()</code> 的输出是否真的落在 <code>public/cards</code></li></ul>
+<h2>WebSocket 地址配置说明</h2>
+<p>已验证支持：</p>
+<ul><li><code>http://localhost:5173</code></li><li><code>http://localhost:5173?ws=localhost:8787</code></li><li><code>http://电脑局域网IP:5173?ws=电脑局域网IP:8787</code></li></ul>
+<h2>新增测试</h2>
+<ul><li><code>apps/client-web/src/cards/cardAssetsIntegrity.test.ts</code></li><li><code>apps/client-web/src/app/config.test.ts</code></li></ul>
+<h2>本地验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/game-server test
+corepack pnpm --filter @thunder-uno/protocol test
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<h2>仍未实现内容</h2>
+<ul><li>Playwright 级真实浏览器 E2E。</li><li>三窗口自动化联调回归。</li><li>更完整的移动端视觉重构。</li><li>正式公网部署和 HTTPS / WSS 上线配置。</li></ul>
+<h2>下一阶段建议</h2>
+<p>进入 Phase 4E：真实浏览器 E2E 与三窗口自动化验收。</p>
+<p>优先级：</p>
+<ol><li>多窗口真实浏览器自动化。</li><li>更稳的回归脚本。</li><li>继续保留局域网试玩说明。</li><li>准备更接近发布形态的联调清单。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">13</div>
+            <h3>Phase 4E：真实浏览器 E2E 与三窗口自动化验收</h3>
+          </div>
+        </div>
+        <p>把 Phase 4D 的构建与局域网验收，推进到真实浏览器级的自动化回归。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4E</span><span class="doc-tag">110 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-13" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4E-BROWSER-E2E.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-13" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4E：真实浏览器 E2E 与三窗口自动化验收</h1>
+<h2>阶段目标</h2>
+<p>把 Phase 4D 的构建与局域网验收，推进到真实浏览器级的自动化回归。</p>
+<p>本阶段不做数据库、登录、商城、支付、排行榜、新玩法规则或正式公网部署。</p>
+<h2>本次完成内容</h2>
+<h3>1. Playwright 真实浏览器测试</h3>
+<p><code>apps/client-web</code> 新增了 Playwright 配置，并通过真实浏览器执行测试：</p>
+<ul><li><code>apps/client-web/playwright.config.ts</code></li><li><code>apps/client-web/e2e/globalSetup.ts</code></li><li><code>apps/client-web/e2e/three-player-room-flow.spec.ts</code></li><li><code>apps/client-web/e2e/error-line.spec.ts</code></li><li><code>apps/client-web/e2e/reconnect.spec.ts</code></li></ul>
+<h3>2. 三窗口自动化主链路</h3>
+<p>自动化覆盖：</p>
+<ul><li>打开三个浏览器上下文</li><li>创建房间</li><li>加入房间</li><li>开局</li><li>进入 battle 视图</li><li>当前玩家执行摸牌</li><li>非当前玩家按钮禁用检查</li></ul>
+<h3>3. 错误提示回归</h3>
+<p>自动化覆盖了加入不存在房间时的页面错误提示，验证 <code>#error-line</code> 仍然可见。</p>
+<h3>4. reconnect 回归</h3>
+<p>自动化覆盖了开局后的刷新重连：</p>
+<ul><li>本地 <code>userId</code> 和 <code>roomId</code> 保持</li><li>页面刷新后重新连接</li><li>重新回到 battle 视图</li></ul>
+<h3>5. 选择器稳定化</h3>
+<p>为真实浏览器测试补充了关键 <code>data-testid</code>：</p>
+<ul><li><code>connection-status</code></li><li><code>error-line</code></li><li><code>ws-url-input</code></li><li><code>connect-button</code></li><li><code>nickname-input</code></li><li><code>create-room-button</code></li><li><code>join-room-input</code></li><li><code>join-room-button</code></li><li><code>start-game-button</code></li><li><code>battle-view</code></li><li><code>lobby-view</code></li><li><code>hand-area</code></li><li><code>opponents-area</code></li><li><code>top-card</code></li><li><code>draw-card-button</code></li><li><code>say-uno-button</code></li><li><code>reconnect-button</code></li><li><code>game-finished-banner</code></li></ul>
+<h2>E2E 技术方案</h2>
+<p>使用 Playwright + 真实 Chromium。</p>
+<p>启动方式：</p>
+<ul><li><code>apps/client-web</code> 由 Playwright <code>webServer</code> 启动</li><li><code>apps/game-server</code> 由 <code>globalSetup</code> 启动，若 8787 已存在则复用</li></ul>
+<p>默认测试地址：</p>
+<pre><code class="language-txt">http://127.0.0.1:5173?ws=localhost:8787</code></pre>
+<h2>三窗口自动化流程</h2>
+<pre><code class="language-txt">1. 页面 A 连接 WebSocket。
+2. 页面 A 创建房间。
+3. 页面 B、C 连接后加入房间。
+4. 页面 A 开始游戏。
+5. 三个页面都进入 battle 视图。
+6. 当前玩家点击摸牌。
+7. 非当前玩家按钮保持禁用。</code></pre>
+<h2>基础命令回归</h2>
+<p>当前至少覆盖：</p>
+<ul><li>当前玩家摸牌</li><li>选牌和桌面区域可见</li></ul>
+<h2>错误提示回归</h2>
+<p>当前覆盖：</p>
+<ul><li>加入不存在房间</li><li>错误区域 <code>#error-line</code> 可见并更新</li></ul>
+<h2>断线重连覆盖情况</h2>
+<p>当前覆盖：</p>
+<ul><li>对局中刷新后重连</li><li>恢复到同一房间</li><li>重新看到 battle 视图</li></ul>
+<h2>新增测试文件</h2>
+<ul><li><code>apps/client-web/e2e/three-player-room-flow.spec.ts</code></li><li><code>apps/client-web/e2e/error-line.spec.ts</code></li><li><code>apps/client-web/e2e/reconnect.spec.ts</code></li><li><code>apps/client-web/e2e/globalSetup.ts</code></li><li><code>apps/client-web/playwright.config.ts</code></li></ul>
+<h2>本地验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/client-web test:e2e
+corepack pnpm --filter @thunder-uno/game-server test
+corepack pnpm --filter @thunder-uno/protocol test
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<h2>仍未实现内容</h2>
+<ul><li>更大范围的真实浏览器回归。</li><li>更多断线与异常场景自动化。</li><li>更细的移动端视觉打磨。</li><li>正式公网部署和 HTTPS / WSS 上线配置。</li></ul>
+<h2>下一阶段建议</h2>
+<p>进入 Phase 4F：网页端移动端 UI 细节打磨与试玩体验优化。</p>
+<p>优先级：</p>
+<ol><li>小屏布局和按钮层级。</li><li>手持设备试玩可用性。</li><li>桌面与手牌区可读性。</li><li>保持 E2E 和局域网试玩不倒退。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">14</div>
+            <h3>Phase 4F：网页端移动端 UI 细节打磨与试玩体验优化</h3>
+          </div>
+        </div>
+        <p>把 Phase 4E 已经建立的真实浏览器 E2E 保护利用起来，集中打磨网页端在手机和窄屏窗口下的可读性、可点性和试玩稳定感。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4F</span><span class="doc-tag">60 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-14" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4F-WEB-MOBILE-POLISH.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-14" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4F：网页端移动端 UI 细节打磨与试玩体验优化</h1>
+<h2>阶段目标</h2>
+<p>把 Phase 4E 已经建立的真实浏览器 E2E 保护利用起来，集中打磨网页端在手机和窄屏窗口下的可读性、可点性和试玩稳定感。</p>
+<p>本阶段不新增数据库、登录、排行榜、商城、支付、新玩法规则、正式公网部署，也不重写 UI 架构。</p>
+<h2>本次完成内容</h2>
+<h3>1. 窄屏布局收敛</h3>
+<p><code>apps/client-web/src/styles.css</code> 已补充移动端适配：</p>
+<ul><li>顶部栏支持换行，避免状态标签和标题在窄屏互相挤压。</li><li>主容器在小屏下缩小外边距，减少横向浪费。</li><li>连接区、房间区、表单区在窄屏下稳定切为单列。</li><li>桌面区在平板和手机宽度下改为更紧凑的两列牌堆/顶牌布局，桌面状态信息单独换行。</li><li>560px 以下降低桌面区 padding 和图片上限，避免桌面区撑爆首屏。</li></ul>
+<h3>2. 手牌区可读性优化</h3>
+<ul><li>手牌按钮增加稳定 <code>aspect-ratio</code>，减少图片加载和选中态造成的布局抖动。</li><li>手牌横向滚动启用触控惯性滚动与 scroll snap。</li><li>手机宽度下手牌列宽、间距和手牌区 padding 收紧，保证更多内容留在主视口内。</li><li>选中态和 focus 态保持明确轮廓，不依赖脆弱文本。</li></ul>
+<h3>3. 交互可点性优化</h3>
+<ul><li>全局按钮最小高度提升到更适合触控的尺寸。</li><li>按钮、输入框和选择框增加统一 focus-visible 轮廓。</li><li>连接 / 创建 / 加入 / 离开等按钮在窄屏下自动换行排布。</li><li>手机宽度下主对局操作按钮改为纵向铺满，避免多个按钮挤成一团。</li><li>对手操作按钮在超窄屏下切为单列，减少误触。</li></ul>
+<h3>4. 错误提示与状态区优化</h3>
+<ul><li><code>error-line</code> 保留独立行高和最小高度，避免错误出现时挤压到按钮。</li><li>房间号允许安全换行，避免长 room id 或异常输入撑开布局。</li><li>日志区在手机下限制高度，确保不会把主操作区挤出过远。</li></ul>
+<h2>自动化回归保持情况</h2>
+<p>未删除或削弱现有 Playwright E2E。现有选择器和 <code>data-testid</code> 保持不变，Phase 4E 的三条真实浏览器用例继续通过：</p>
+<ul><li>三窗口创建 / 加入 / 开局 / 摸牌主链路</li><li>加入不存在房间时的错误提示</li><li>对局中刷新后的 reconnect</li></ul>
+<h2>本地验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/client-web test:e2e
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<h2>修改文件</h2>
+<ul><li><code>apps/client-web/src/styles.css</code></li><li><code>docs/PHASE4F-WEB-MOBILE-POLISH.md</code></li><li><code>README.md</code></li><li><code>next-step.md</code></li><li><code>docs/项目开发文档.md</code></li></ul>
+<h2>仍未实现内容</h2>
+<ul><li>真实手机设备上的人工长局试玩记录。</li><li>更多移动端视觉细节收口，例如横屏模式、极长昵称和极端手牌数量。</li><li>房内重新开局。</li><li>正式公网部署、HTTPS / WSS、账号系统、数据库、排行榜、商城和支付。</li></ul>
+<h2>下一阶段建议</h2>
+<p>进入 Phase 4G：移动端真实设备试玩验收与视觉细节收口。</p>
+<p>优先级：</p>
+<ol><li>用真实手机和同局域网设备跑完整三人试玩。</li><li>记录并修复横屏、极窄屏、极长昵称、极多手牌等边界体验。</li><li>继续保持 Playwright E2E、构建和全仓测试稳定通过。</li><li>收口 README 中的试玩验收清单。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">15</div>
+            <h3>Phase 4G：移动端真实设备试玩验收与视觉细节收口</h3>
+          </div>
+        </div>
+        <p>把 Phase 4F 的移动端布局优化继续收口到更接近真实手机试玩的状态，重点处理横屏、竖屏、极长昵称、极多手牌、错误提示和日志区的可读性问题。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4G</span><span class="doc-tag">54 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-15" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4G-MOBILE-DEVICE-PLAYTEST.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-15" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4G：移动端真实设备试玩验收与视觉细节收口</h1>
+<h2>阶段目标</h2>
+<p>把 Phase 4F 的移动端布局优化继续收口到更接近真实手机试玩的状态，重点处理横屏、竖屏、极长昵称、极多手牌、错误提示和日志区的可读性问题。</p>
+<p>本阶段不新增数据库、登录、排行榜、商城、支付、新玩法规则或正式公网部署。</p>
+<h2>本次完成内容</h2>
+<h3>1. 移动端布局收口</h3>
+<p><code>apps/client-web/src/styles.css</code> 继续补强了移动端表现：</p>
+<ul><li>长昵称、房间号、玩家名、对手名、结果横幅和日志内容都支持换行收口。</li><li>对局面板在横屏下改为更紧凑的双列布局，方便同时看到桌面区和手牌区。</li><li>手牌区、对手区、房间信息区补了 <code>min-width: 0</code> 和断词控制，避免文字撑爆布局。</li><li>日志区维持可滚动，不再无限拉高页面。</li><li>错误提示保留独立占位，不会和按钮挤在一起。</li></ul>
+<h3>2. 窄屏回归测试</h3>
+<p>新增 <code>apps/client-web/e2e/mobile-layout.spec.ts</code>，覆盖：</p>
+<ul><li>390x844 竖屏下的大厅与对局可见性</li><li>横屏切换后的 battle 布局可读性</li><li>页面无明显横向滚动</li><li>长昵称在房间列表中的显示稳定性</li></ul>
+<h3>3. 真实手机试玩清单</h3>
+<p>README 已补充真实手机试玩步骤：</p>
+<ul><li>同一局域网访问</li><li>服务端监听 <code>0.0.0.0</code></li><li>网页端监听 <code>0.0.0.0</code></li><li>手机用局域网 IP 打开网页</li><li>三端同房间试玩</li><li>黑牌颜色选择、错误提示、刷新重连、竖横屏切换都要检查</li></ul>
+<h3>4. 文档同步</h3>
+<p>同步更新了：</p>
+<ul><li><code>README.md</code></li><li><code>next-step.md</code></li><li><code>docs/项目开发文档.md</code></li></ul>
+<h2>新增测试</h2>
+<ul><li><code>apps/client-web/e2e/mobile-layout.spec.ts</code></li></ul>
+<h2>本地验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/client-web test:e2e
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<h2>仍未实现内容</h2>
+<ul><li>真实手机长局试玩的人工记录仍建议继续补。</li><li>更进一步的牌桌动效和头像座位重构还没做。</li><li>正式公网部署、HTTPS / WSS 和公开试玩环境还没进入。</li></ul>
+<h2>下一阶段建议</h2>
+<p>进入 Phase 4H：首版公开试玩部署准备。</p>
+<p>优先级：</p>
+<ol><li>梳理本地、局域网和公开试玩的访问方式。</li><li>收口 HTTPS / WSS 和环境变量说明。</li><li>继续保持 Playwright E2E、构建和全仓测试稳定通过。</li><li>为后续公开试玩留出明确的部署边界。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">16</div>
+            <h3>Phase 4H：UI-DESIGN 对战界面落地</h3>
+          </div>
+        </div>
+        <p>根据 `UI-DESIGN.md` 把网页端大厅、房间和对战界面的视觉与交互继续收口，重点补齐信息层级、操作反馈和规则提示，让当前版本更接近可持续试玩的桌面卡牌对战界面。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4H</span><span class="doc-tag">69 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-16" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4H-UI-DESIGN-IMPLEMENTATION.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-16" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4H：UI-DESIGN 对战界面落地</h1>
+<h2>阶段目标</h2>
+<p>根据 <code>UI-DESIGN.md</code> 把网页端大厅、房间和对战界面的视觉与交互继续收口，重点补齐信息层级、操作反馈和规则提示，让当前版本更接近可持续试玩的桌面卡牌对战界面。</p>
+<h2>本次完成内容</h2>
+<h3>1. 对战舞台与背景</h3>
+<p>对战页接入了新的舞台背景图 <code>apps/client-web/public/battle-stage.png</code>，让桌面从纯色面板切换成更完整的对战场景。</p>
+<p>同时，界面增加了回合聚焦效果：</p>
+<ul><li>当前玩家回合时舞台更明亮</li><li>非当前回合时整体压暗</li><li>让轮到谁操作一眼可见</li></ul>
+<h3>2. 大厅与房间信息层</h3>
+<p>大厅和房间里的玩家展示继续强化，增加了头像、昵称、房主标记和座位状态的表达。</p>
+<p>这部分的目标是让玩家在加入房间后能直接看清：</p>
+<ul><li>房主是谁</li><li>房间里已经有几个人</li><li>自己处于什么状态</li></ul>
+<h3>3. 出牌与摸牌交互统一</h3>
+<p>把对局中的多个出牌入口收拢成更统一的操作区，主要包括：</p>
+<ul><li>将顺子、同数字、同色弃牌等操作归并到统一的 <code>出牌</code> 按钮</li><li>摸牌按钮改成上下文感知状态</li><li>需要结算罚抽时直接显示对应动作</li><li>让玩家更容易判断当前到底该出牌还是摸牌</li></ul>
+<h3>4. 颜色与规则反馈</h3>
+<p>颜色选择和规则提示做了更直接的表达：</p>
+<ul><li>颜色选择器使用真实色块</li><li>当前颜色用色块而不是英文文本</li><li>没有可用规则时，对应操作会被禁用</li><li>错误提示统一转成中文</li><li>关键操作增加了提示和 toast 反馈</li></ul>
+<h3>5. 规则快照桥接</h3>
+<p>为了让前端能正确判断罚抽类状态，补充了快照字段 <code>drawStack.previousDrawValue</code> 的传递链路。</p>
+<p>对应修改落在：</p>
+<ul><li><code>packages/shared-types/src/snapshot.ts</code></li><li><code>packages/uno-core/src/view/createPlayerGameSnapshot.ts</code></li><li><code>packages/protocol/src/messages.test.ts</code></li></ul>
+<p>这一步的作用是把规则层需要的状态稳定带到客户端，不让前端只能靠猜。</p>
+<h3>6. 视觉细化</h3>
+<p>这轮还顺手做了几处 UI 细化：</p>
+<ul><li>选择区和主按钮层级重新整理</li><li>卡牌可操作状态更清楚</li><li>日志和提示区的可读性更高</li><li>对战区整体更像一个桌面式卡牌战场</li></ul>
+<h2>修改文件</h2>
+<h3>客户端</h3>
+<ul><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/client-web/public/battle-stage.png</code></li></ul>
+<h3>规则与快照</h3>
+<ul><li><code>packages/shared-types/src/snapshot.ts</code></li><li><code>packages/uno-core/src/view/createPlayerGameSnapshot.ts</code></li><li><code>packages/protocol/src/messages.test.ts</code></li></ul>
+<h2>验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/client-web test:e2e
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<h2>还未做的内容</h2>
+<ul><li>更复杂的牌堆动画</li><li>公开试玩部署与 HTTPS / WSS 收口</li><li>头像选择 UI</li><li>房间内重新开局</li><li>更后续的正式发布准备</li></ul>
+<h2>下一阶段建议</h2>
+<p>进入 <code>Phase 4I</code>：首版公开试玩部署准备。</p>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">17</div>
+            <h3>Phase 4I：UI 逻辑与算法补完</h3>
+          </div>
+        </div>
+        <p>把 `UI-DESIGN.md` 里还没完全落地的逻辑和算法部分补齐，重点不是再做一轮视觉，而是把选牌判断、同色丢弃、错误提示优先级和洗牌策略收紧到更稳定的状态。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE4I</span><span class="doc-tag">55 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-17" aria-expanded="false">展开内容</button>
+          <a href="./PHASE4I-UI-LOGIC-ALGORITHM-COMPLETION.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-17" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 4I：UI 逻辑与算法补完</h1>
+<h2>阶段目标</h2>
+<p>把 <code>UI-DESIGN.md</code> 里还没完全落地的逻辑和算法部分补齐，重点不是再做一轮视觉，而是把选牌判断、同色丢弃、错误提示优先级和洗牌策略收紧到更稳定的状态。</p>
+<h2>本次完成内容</h2>
+<h3>1. 同色丢弃改成顺序无关</h3>
+<p><code>same-color discard</code> 现在不再依赖“先点主牌再点附加牌”的顺序。</p>
+<p>前端会先从已选牌里定位主牌，再把其余牌当作附加牌处理，所以：</p>
+<ul><li>先选附加牌，再选主牌，也能正常出牌</li><li>预览和实际发包都按同一套规则走</li><li>这类牌不再因为点击顺序不同而误判不可用</li></ul>
+<h3>2. 出牌提示改成优先级筛选</h3>
+<p>把前端的非法出牌提示收拢成了更稳定的优先级判断，优先显示最能帮助玩家纠正下一步操作的原因。</p>
+<p>现在会更倾向于先提示：</p>
+<ul><li>当前是否轮到你</li><li>是否被加牌链或罚抽状态锁住</li><li>选牌结构是否不成立</li><li>牌面是否真的不匹配</li></ul>
+<p>这样不会再让低层的“牌色不对”之类信息，盖掉真正更关键的状态错误。</p>
+<h3>3. 洗牌改成软随机策略</h3>
+<p><code>packages/uno-core/src/shuffle.ts</code> 从单纯的均匀洗牌，改成了带记忆的软随机洗牌：</p>
+<ul><li>同一 <code>seed</code> 仍然可复现</li><li>不会修改原始数组</li><li>卡牌路径会按卡面、颜色、类别和近期出现情况做轻微修正</li><li>目标是减少极端连发和长时间缺色，但不把结果洗成机械平均</li></ul>
+<p>这轮调整让牌序更像“有波动的真实洗牌”，而不是纯均匀随机。</p>
+<h3>4. 测试补齐</h3>
+<p>补了对应的客户端和核心层测试，覆盖：</p>
+<ul><li>同色丢弃选牌顺序无关</li><li>卡牌软随机洗牌路径的确定性</li><li>原数组不变性</li></ul>
+<h2>修改文件</h2>
+<h3>客户端</h3>
+<ul><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/battle/selection.ts</code></li><li><code>apps/client-web/src/battle/selection.test.ts</code></li></ul>
+<h3>核心层</h3>
+<ul><li><code>packages/uno-core/src/shuffle.ts</code></li><li><code>packages/uno-core/src/shuffle.test.ts</code></li></ul>
+<h2>还未做的内容</h2>
+<ul><li>首版公开试玩部署准备</li><li>HTTPS / WSS 收口</li><li>生产环境访问说明</li><li>更复杂的牌堆动画和音效</li></ul>
+<h2>验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test
+corepack pnpm --filter @thunder-uno/client-web build
+corepack pnpm --filter @thunder-uno/client-web test:e2e
+corepack pnpm typecheck
+corepack pnpm test</code></pre>
+<h2>下一阶段建议</h2>
+<p>进入 <code>Phase 4J</code>：首版公开试玩部署准备。</p>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">18</div>
+            <h3>Phase 5A：网页端体验与规则入口重修</h3>
+          </div>
+        </div>
+        <p>本阶段重点不是修改核心规则，而是把网页端试玩体验继续向“可公开试玩”的方向收口。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE5A</span><span class="doc-tag">144 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-18" aria-expanded="false">展开内容</button>
+          <a href="./PHASE5A-WEB-UX-POLISH.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-18" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 5A：网页端体验与规则入口重修</h1>
+<h2>阶段目标</h2>
+<p>本阶段重点不是修改核心规则，而是把网页端试玩体验继续向“可公开试玩”的方向收口。</p>
+<p>主要目标包括：</p>
+<ol><li>重修规则讲解入口，让玩家在大厅和对战页都能方便查看规则。</li><li>优化连接体验，打开网页后自动连接服务端。</li><li>优化大厅视觉，把用户提供的大厅背景图接入页面。</li><li>优化对局结束后的普通玩家选择，让房主和非房主在结束弹窗里有不同操作。</li><li>继续保持服务端权威、客户端只展示和发送命令的边界。</li></ol>
+<h2>本次完成内容</h2>
+<h3>1. 大厅规则讲解框架重修</h3>
+<p>原大厅规则讲解是文字卡片网格，本阶段改成了新的四入口框架。</p>
+<p>大厅现在显示：</p>
+<ol><li>标题：<code>规则讲解</code></li><li>四个入口按钮：</li></ol>
+<ul><li>基础玩法</li><li>特色玩法</li><li>质疑规则</li><li>卡牌介绍</li></ul>
+<p>四个按钮使用 UNO 标准四色：</p>
+<table>
+    <thead>
+      <tr><th>入口</th><th>颜色</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>基础玩法</td><td>红色</td></tr><tr><td>特色玩法</td><td>黄色</td></tr><tr><td>质疑规则</td><td>绿色</td></tr><tr><td>卡牌介绍</td><td>蓝色</td></tr>
+    </tbody>
+  </table>
+<p>大厅中的 <code>质疑规则</code> 入口在没有进入质疑模式房间前默认不可用。</p>
+<h3>2. 对战页规则按钮重修</h3>
+<p>对战页面右上角新增了 <code>规则</code> 按钮。</p>
+<p>后续根据实际观感，又把它从顶部长条按钮改成了更小的黄色按钮，并放在顶部状态栏下面，避免遮挡状态栏，也让界面更干净。</p>
+<p>点击对战页 <code>规则</code> 按钮后，会打开规则弹窗。弹窗首页和大厅一致，也是四个 UNO 色入口按钮。</p>
+<h3>3. 规则图片弹窗与翻页</h3>
+<p>规则说明改为优先使用图片展示。</p>
+<p>规则图片被复制到：</p>
+<pre><code class="language-txt">apps/client-web/public/rules</code></pre>
+<p>当前接入的图片包括：</p>
+<ul><li><code>基础规则1.png</code></li><li><code>基础规则2.png</code></li><li><code>特色玩法（顺子）.png</code></li><li><code>质疑玩法.png</code></li><li><code>卡牌规则1.png</code></li><li><code>卡牌规则23.png</code></li><li><code>卡牌规则4.png</code></li><li><code>卡牌规则5.png</code></li><li><code>卡牌规则6.png</code></li><li><code>卡牌规则7.png</code></li><li><code>卡牌规则8.png</code></li><li><code>卡牌规则9.png</code></li><li><code>卡牌规则10.png</code></li><li><code>卡牌规则11.png</code></li><li><code>卡牌规则12.png</code></li></ul>
+<p>基础玩法、特色玩法、质疑规则使用同一套图片翻页组件。</p>
+<h3>4. 卡牌介绍页</h3>
+<p><code>卡牌介绍</code> 不直接显示规则图片，而是先进入 12 张卡牌按钮组成的选择页。</p>
+<p>玩家点击对应卡牌后，再显示该卡牌的规则图片。</p>
+<p>当前映射：</p>
+<table>
+    <thead>
+      <tr><th>类型</th><th>按钮卡牌</th><th>规则图</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>普通牌</td><td>蓝色普通数字牌</td><td><code>卡牌规则1.png</code></td></tr><tr><td>普通 +2</td><td>蓝色 +2</td><td><code>卡牌规则23.png</code></td></tr><tr><td>普通 +4</td><td>蓝色 +4</td><td><code>卡牌规则23.png</code></td></tr><tr><td>禁</td><td>蓝色禁</td><td><code>卡牌规则4.png</code></td></tr><tr><td>反转</td><td>蓝色反转</td><td><code>卡牌规则5.png</code></td></tr><tr><td>同色丢弃</td><td>蓝色同色丢弃</td><td><code>卡牌规则6.png</code></td></tr><tr><td>交换手牌</td><td>蓝色交换手牌</td><td><code>卡牌规则7.png</code></td></tr><tr><td>变色</td><td>黑色变色</td><td><code>卡牌规则8.png</code></td></tr><tr><td>罚抽</td><td>黑色罚抽</td><td><code>卡牌规则9.png</code></td></tr><tr><td>反转变色 +4</td><td>黑色反转变色 +4</td><td><code>卡牌规则10.png</code></td></tr><tr><td>变色 +6</td><td>黑色 +6</td><td><code>卡牌规则11.png</code></td></tr><tr><td>变色 +10</td><td>黑色 +10</td><td><code>卡牌规则12.png</code></td></tr>
+    </tbody>
+  </table>
+<p>其中普通 <code>+2</code> 和普通 <code>+4</code> 共用同一张规则图 <code>卡牌规则23.png</code>。</p>
+<h3>5. 打开网页自动连接</h3>
+<p>之前需要玩家手动点击连接按钮。</p>
+<p>现在页面初始化渲染后，会自动调用一次连接逻辑：</p>
+<pre><code class="language-ts">render();
+connectUsingCurrentInputs();</code></pre>
+<p>连接状态仍然由 WebSocket 事件驱动，不做轮询，不反复刷新状态。</p>
+<p>按钮状态改为：</p>
+<ul><li>连接成功：绿色 <code>已连接</code></li><li>未连接、断开、错误：红色 <code>重新连接</code></li></ul>
+<p>点击红色 <code>重新连接</code> 会重新发起连接；如果已经处于 <code>open</code> 或 <code>connecting</code> 状态，不会重复创建连接。</p>
+<h3>6. 大厅背景图接入</h3>
+<p>用户在 <code>pictures/横版背景</code> 中提供了 <code>大厅.png</code>。</p>
+<p>本阶段将它复制为：</p>
+<pre><code class="language-txt">apps/client-web/public/lobby-background.png</code></pre>
+<p>大厅页面通过 <code>.shell::before</code> 作为背景层展示，透明度为 <code>20%</code>。</p>
+<p>对战页使用 <code>.shell-battle::before</code> 关闭该背景层，避免影响对战界面的沉浸式牌桌背景。</p>
+<h3>7. 对局结束后的普通玩家选择</h3>
+<p>此前对局结束后，房主可以选择继续游戏或重开一把；普通玩家只能等待房主操作。</p>
+<p>本阶段新增普通玩家结束弹窗按钮：</p>
+<ol><li><code>留在房间</code></li><li><code>离开房间</code></li></ol>
+<p>行为：</p>
+<ul><li>普通玩家点击 <code>留在房间</code>：关闭结束弹窗，继续停留在当前房间和对战页。</li><li>普通玩家点击 <code>离开房间</code>：发送 <code>leave-room</code>，然后回到大厅。</li><li>房主仍然显示 <code>重开一把</code> 和 <code>继续游戏</code>。</li></ul>
+<p>为避免重复逻辑，对战页 HUD 的退出按钮和结束弹窗的离开按钮共用同一个离房函数。</p>
+<h2>修改文件</h2>
+<h3>网页端代码</h3>
+<ul><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/client-web/src/smoke/appBoot.test.ts</code></li></ul>
+<h3>网页端静态资源</h3>
+<ul><li><code>apps/client-web/public/rules/*</code></li><li><code>apps/client-web/public/lobby-background.png</code></li></ul>
+<h3>服务端测试补充</h3>
+<p>这轮工作区中还包含前面房间号修复时补充的服务端测试：</p>
+<ul><li><code>apps/game-server/src/tests/messageHandler.test.ts</code></li></ul>
+<h3>设计文档</h3>
+<ul><li><code>next-step.md</code></li></ul>
+<h2>验证结果</h2>
+<p>已通过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web test -- src/smoke/appBoot.test.ts
+corepack pnpm --filter @thunder-uno/client-web build</code></pre>
+<p>其中 smoke 测试覆盖了：</p>
+<ol><li>大厅显示新的规则讲解入口。</li><li>卡牌介绍显示 12 张卡牌按钮。</li><li>普通 <code>+2</code> 和普通 <code>+4</code> 映射到同一张规则图片。</li><li>对战页右上角规则按钮可打开规则弹窗。</li><li>非质疑模式下质疑规则按钮不可点击。</li><li>打开页面后自动创建 WebSocket 连接。</li><li>连接成功后按钮变为绿色 <code>已连接</code>。</li><li>普通玩家在结束弹窗中可以选择留在房间或离开房间。</li></ol>
+<h2>尚未处理</h2>
+<ol><li>规则弹窗还没有做真实浏览器截图验收。</li><li>移动端上 12 张卡牌按钮的实际触控舒适度还需要真机确认。</li><li><code>GAME-RULES.md</code> 中部分加牌链描述可能仍和当前 Problem8 后的代码实现不完全一致，后续可以单独同步规则文档。</li><li>当前工作区中 <code>pictures/横版背景</code> 还有图片增删状态，需要在提交前确认是否都要纳入 Git。</li></ol>
+<h2>下一阶段建议</h2>
+<p>进入 Phase 5B：公开试玩前的部署与真实设备验收。</p>
+<p>建议重点：</p>
+<ol><li>梳理局域网访问和公网访问说明。</li><li>准备 HTTPS / WSS 部署方案。</li><li>用三台真实设备跑一遍大厅、创建房间、加入房间、规则弹窗、对战、结束弹窗。</li><li>整理当前所有未提交文件，拆分成清晰的 Git 提交。</li></ol>
+        </div>
+      </div>
+    </article>
+        </div>
+      </section>
+<section class="group">
+        <div class="group-head">
+          <div>
+            <h2>机器人与对战打磨</h2>
+            <p>围绕 Greedy Bot、权重调优、音效和对战沉浸感的阶段记录。</p>
+          </div>
+          <span class="group-chip">3 份文档</span>
+        </div>
+        <div class="doc-grid">
+          <article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">19</div>
+            <h3>Phase 6：无质疑模式贪心机器人设计</h3>
+          </div>
+        </div>
+        <p>Phase 6 的目标是在《雷霆 UNOplus》中加入服务端控制的自动出牌机器人。机器人用于补足人数、方便本地试玩和演示，也为后续公开试玩降低组局门槛。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE6A</span><span class="doc-tag">417 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-19" aria-expanded="false">展开内容</button>
+          <a href="./PHASE6A-GREEDY-BOT-DESIGN.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-19" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 6：无质疑模式贪心机器人设计</h1>
+<h2>阶段目标</h2>
+<p>Phase 6 的目标是在《雷霆 UNOplus》中加入服务端控制的自动出牌机器人。机器人用于补足人数、方便本地试玩和演示，也为后续公开试玩降低组局门槛。</p>
+<p>本阶段先完成机器人系统设计，后续实现时必须保持现有架构边界：</p>
+<ol><li>服务端仍然是唯一权威状态。</li><li><code>uno-core</code> 仍然是唯一规则归属地。</li><li>前端只负责大厅按钮、机器人标签和对战展示，不负责替机器人判断合法出牌。</li><li>机器人只能读取自己的手牌、公开牌桌状态、其他玩家手牌数量和公开事件，不能读取真人玩家手牌。</li></ol>
+<h2>功能范围</h2>
+<p>第一版机器人只支持无质疑模式：</p>
+<pre><code class="language-txt">mode === &quot;no-challenge&quot;</code></pre>
+<p>支持内容：</p>
+<ol><li>房主在大厅添加机器人。</li><li>机器人自动加入等待房间并占用座位。</li><li>机器人自动准备。</li><li>满足 3 人开局要求后，房主可以开始游戏。</li><li>轮到机器人时，机器人等待 3 秒后自动行动。</li><li>机器人能自动出单牌、对子、顺子、同色丢弃、黑牌、加牌牌。</li><li>机器人能处理摸牌、刚摸牌是否打出、加牌链结算、罚抽结算。</li><li>机器人剩 1 张牌时有 80% 概率喊 UNO，20% 概率忘记喊 UNO。</li></ol>
+<p>暂不支持：</p>
+<ol><li>有质疑模式机器人。</li><li>机器人主动质疑。</li><li>机器人难度等级。</li><li>机器人聊天、表情或个性化头像。</li><li>开局后继续添加机器人。</li></ol>
+<h2>总体架构</h2>
+<p>机器人应作为 <code>apps/game-server</code> 内部能力实现，而不是模拟一个浏览器客户端。</p>
+<p>建议新增目录：</p>
+<pre><code class="language-txt">apps/game-server/src/bot/
+├── botScheduler.ts
+├── greedyBot.ts
+├── botCandidates.ts
+└── botScoring.ts</code></pre>
+<p>模块职责：</p>
+<ol><li><code>botScheduler.ts</code>：管理机器人 3 秒思考定时器，避免重复调度。</li><li><code>greedyBot.ts</code>：机器人决策入口，读取当前局面并输出最终动作。</li><li><code>botCandidates.ts</code>：根据 <code>uno-core</code> 合法性规则生成候选动作。</li><li><code>botScoring.ts</code>：对候选动作做贪心评分和排序。</li></ol>
+<p>服务端流程：</p>
+<pre><code class="language-txt">房主点击添加机器人
+客户端发送 add-bot
+服务端校验房间和房主权限
+RoomManager 创建机器人玩家
+广播 room-state
+房主开始游戏
+任意命令成功后检查当前玩家
+如果当前玩家是机器人，设置 3 秒定时器
+3 秒后重新读取最新局面
+生成候选动作
+计算最高分动作
+服务端内部执行 GameCommand
+广播 events 和 snapshot
+继续检查是否轮到机器人</code></pre>
+<h2>数据模型设计</h2>
+<h3>服务端玩家</h3>
+<p><code>ServerRoomPlayer</code> 增加机器人字段：</p>
+<pre><code class="language-ts">interface ServerRoomPlayer {
+  isBot: boolean;
+  botProfile?: {
+    strategy: &quot;greedy-v1&quot;;
+    forgetUnoRate: 0.2;
+  };
+}</code></pre>
+<p>真人玩家：</p>
+<pre><code class="language-ts">isBot: false</code></pre>
+<p>机器人玩家：</p>
+<pre><code class="language-ts">isBot: true
+connectionId: null
+connected: true
+hasLeftRoom: false
+isReady: true
+botProfile: {
+  strategy: &quot;greedy-v1&quot;,
+  forgetUnoRate: 0.2
+}</code></pre>
+<h3>共享快照</h3>
+<p><code>RoomSnapshotPlayer</code> 建议增加：</p>
+<pre><code class="language-ts">isBot: boolean;</code></pre>
+<p>前端用它展示机器人标签。对战快照中的 <code>self/opponents</code> 也可增加 <code>isBot</code>，用于显示“思考中...”和机器人身份。</p>
+<h2>协议设计</h2>
+<p>新增客户端消息：</p>
+<pre><code class="language-ts">interface ClientAddBotMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: &quot;add-bot&quot;;
+  requestId: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  timestampMs: UnixMs;
+}</code></pre>
+<p>服务端校验：</p>
+<ol><li>房间存在。</li><li>发起玩家是房主。</li><li>房间处于 waiting。</li><li>房间模式是 <code>no-challenge</code>。</li><li>房间人数小于 8。</li></ol>
+<p>失败提示建议：</p>
+<pre><code class="language-txt">只有房主可以添加机器人
+只有无质疑模式可以添加机器人
+房间已满
+对局开始后不能添加机器人</code></pre>
+<h2>大厅 UI 设计</h2>
+<p>在大厅房间面板的操作区增加按钮：</p>
+<pre><code class="language-txt">添加机器人</code></pre>
+<p>启用条件：</p>
+<ol><li>当前玩家是房主。</li><li>当前玩家已经在房间内。</li><li>房间状态是等待中。</li><li>房间模式是无质疑。</li><li>玩家总数小于 8。</li></ol>
+<p>禁用时使用 <code>title</code> 提示原因。</p>
+<p>玩家列表中机器人显示：</p>
+<pre><code class="language-txt">雷霆bot1
+机器人
+已准备</code></pre>
+<p>UI 建议：</p>
+<ol><li>机器人玩家卡片加蓝色 <code>BOT</code> 或 <code>机器人</code> 标签。</li><li>机器人永远显示已准备。</li><li>机器人不显示断线状态。</li><li>机器人使用现有头像池，后续再替换专用头像。</li></ol>
+<h2>对战 UI 设计</h2>
+<p>对战页中机器人和真人一样出现在座位上，但需要额外显示身份。</p>
+<p>建议：</p>
+<ol><li>头像框显示机器人昵称。</li><li>小标签显示 <code>机器人</code>。</li><li>轮到机器人时状态显示 <code>思考中...</code>。</li><li>日志可以追加：</li></ol>
+<pre><code class="language-txt">雷霆bot1 正在思考...
+雷霆bot1 打出了 蓝5
+雷霆bot1 忘记喊 UNO</code></pre>
+<p>日志只作为体验增强，不参与规则。</p>
+<h2>机器人行动节奏</h2>
+<p>机器人必须模拟思考 3 秒：</p>
+<pre><code class="language-ts">const BOT_THINK_MS = 3000;</code></pre>
+<p>触发时机：</p>
+<ol><li>开局后当前玩家是机器人。</li><li>真人操作后轮到机器人。</li><li>机器人摸牌后进入刚摸牌决策窗口。</li><li>机器人被加牌链或罚抽压力指向。</li><li>房主继续游戏后轮到机器人。</li></ol>
+<p>安全要求：</p>
+<ol><li>定时器结束后必须重新检查 <code>room.gameState.currentPlayerId</code>。</li><li>如果当前玩家已经不是该机器人，取消动作。</li><li>如果房间已结束、机器人已淘汰、机器人已胜利或玩家离房，取消动作。</li><li>每个房间同一时间只允许一个机器人思考定时器。</li><li>机器人动作失败最多重算一次，避免死循环。</li></ol>
+<h2>候选动作生成</h2>
+<p>机器人不直接挑一张牌，而是生成所有候选动作，再评分。</p>
+<p>候选动作结构：</p>
+<pre><code class="language-ts">interface BotCandidateAction {
+  type:
+    | &quot;play-single&quot;
+    | &quot;play-sequence&quot;
+    | &quot;play-multiple&quot;
+    | &quot;play-discard-same-color&quot;
+    | &quot;draw-card&quot;
+    | &quot;resolve-draw-stack&quot;
+    | &quot;resolve-draw-until-color&quot;
+    | &quot;keep-drawn-card&quot;;
+  cardId?: string;
+  cardIds?: string[];
+  declaredColor?: CardColor;
+  targetPlayerId?: PlayerId;
+  score: number;
+  reasons: string[];
+}</code></pre>
+<p>候选来源：</p>
+<ol><li>所有合法单张出牌。</li><li>所有合法对子或多张同色同数字组合。</li><li>所有合法顺子，至少 5 张数字牌。</li><li>所有合法同色丢弃组合。</li><li>所有合法黑牌及其声明颜色。</li><li>加牌链中的合法叠加牌。</li><li>无法叠加时的 <code>resolve-draw-stack</code>。</li><li>罚抽压力中的罚抽牌或 <code>resolve-draw-until-color</code>。</li><li>无牌可出时的 <code>draw-card</code>。</li><li>刚摸牌窗口中的 <code>play-card</code> 或 <code>keep-drawn-card</code>。</li></ol>
+<p>合法性必须复用 <code>uno-core</code>：</p>
+<ol><li>单张出牌用 <code>canPlayCard</code>。</li><li>加牌链用 <code>canStackDrawCard</code>。</li><li>顺子、对子、同色丢弃用 <code>uno-core</code> 现有组合规则或抽出的共享判断。</li><li>最终执行仍由 <code>applyCommand</code> 校验一次。</li></ol>
+<h2>贪心评分模型</h2>
+<p>机器人使用贪心算法：只评估当前局面，不做多层搜索。</p>
+<p>总分可以理解为：</p>
+<pre><code class="language-txt">总分 =
+  减牌分
++ 威胁压制分
++ 颜色控制分
++ 特殊收益分
+- 关键牌保留成本
+- 风险成本</code></pre>
+<h3>减牌分</h3>
+<pre><code class="language-txt">出牌数量 * 100</code></pre>
+<p>示例：</p>
+<ol><li>单张：+100。</li><li>对子两张：+200。</li><li>顺子五张：+500。</li><li>同色丢弃带出四张：+400。</li></ol>
+<h3>手牌压力</h3>
+<p>手牌越多越要积极减牌。</p>
+<pre><code class="language-txt">handCount &gt;= 15：组合出牌额外 +120
+handCount &gt;= 10：组合出牌额外 +70
+handCount &lt;= 4：关键牌保留成本提高</code></pre>
+<h3>胜利和 UNO</h3>
+<pre><code class="language-txt">出完所有手牌：+10000
+出牌后剩 1 张：+1200
+出牌后剩 2 张：+350</code></pre>
+<p>出牌后剩 1 张时：</p>
+<pre><code class="language-txt">80% 发送 say-uno
+20% 不发送 say-uno</code></pre>
+<p>随机数需要可注入，方便测试稳定复现。</p>
+<h3>下家威胁</h3>
+<p>当前方向上的下家越接近胜利，压制牌越值钱。</p>
+<pre><code class="language-txt">下家 handCount == 1：禁 / 加牌 / 罚抽 / 有利反转 +500
+下家 handCount == 2：禁 / 加牌 / 罚抽 / 有利反转 +300
+下家 handCount &lt;= 4：压制牌 +150</code></pre>
+<p>反转需要额外判断方向收益：</p>
+<pre><code class="language-txt">反转能避开低手牌下家：+250
+反转会让低手牌上家更快行动：-250</code></pre>
+<h3>加牌压力</h3>
+<p>基础压制分：</p>
+<pre><code class="language-txt">普通 +2：+120
+普通 +4：+180
+黑色反转 +4：+260
+变色 +6：+420
+变色 +10：+700</code></pre>
+<p>保留策略：</p>
+<pre><code class="language-txt">有当前颜色可出且下家不危险：+6 额外 -220
+有当前颜色可出且下家不危险：+10 额外 -360
+没有当前颜色可出：取消 +6 / +10 保留扣分
+下家 handCount &lt;= 2：取消 +6 / +10 保留扣分并加威胁压制分
+正在加牌链中且不打会摸很多：取消高价值黑牌保留扣分</code></pre>
+<h3>颜色控制</h3>
+<p>机器人应该尽量把颜色切到自己的优势色。</p>
+<p>颜色评分：</p>
+<pre><code class="language-txt">该颜色手牌数量 * 40
+该颜色对子潜力 * 30
+该颜色顺子潜力 * 40
+该颜色技能牌数量 * 20
+当前颜色额外 +20</code></pre>
+<p>黑牌声明颜色时，选择颜色评分最高的颜色。</p>
+<h3>同色丢弃</h3>
+<p>同色丢弃要看手牌数量决定是否保留。</p>
+<pre><code class="language-txt">handCount &gt;= 10：同色丢弃组合 +160
+handCount &gt;= 7 且能丢 &gt;= 3 张：+220
+handCount &lt;= 4 且不能直接赢：-180
+handCount &lt;= 3 且只能丢 2 张：-260
+能直接获胜或进入 UNO：取消保留扣分</code></pre>
+<p>附带牌选择顺序：</p>
+<ol><li>普通数字牌。</li><li>低价值有色技能牌。</li><li>尽量保留禁、罚抽、<code>+6</code>、<code>+10</code>。</li><li>如果能直接获胜，可以牺牲高价值牌。</li></ol>
+<h3>对子和顺子</h3>
+<p>对子：</p>
+<ol><li>同色同数字，2 张或更多。</li><li>优先张数更多的组合。</li><li>多个候选张数相同时，选择打完后颜色优势更高的组合。</li></ol>
+<p>顺子：</p>
+<ol><li>至少 5 张数字牌。</li><li>优先最长顺子。</li><li>手牌很多时倾向最长顺子。</li><li>手牌少时避免拆掉后续关键组合，除非能获胜或进入 UNO。</li></ol>
+<h3>黑牌保留成本</h3>
+<p>默认保留成本：</p>
+<pre><code class="language-txt">变色：80
+罚抽：150
+黑色反转 +4：280
++6：460
++10：560</code></pre>
+<p>取消或降低保留成本的情况：</p>
+<ol><li>没有当前颜色可出。</li><li>打出后直接获胜。</li><li>打出后进入 UNO。</li><li>下家手牌 &lt;= 2。</li><li>正在加牌链中。</li><li>自己手牌 &gt;= 15。</li></ol>
+<h2>特殊状态处理</h2>
+<h3>无合法出牌</h3>
+<p>没有合法候选出牌时发送：</p>
+<pre><code class="language-txt">draw-card</code></pre>
+<h3>刚摸牌决策</h3>
+<p>如果摸牌后出现 <code>normalDrawOffer</code>：</p>
+<ol><li>能获胜，立即打出。</li><li>能进入 UNO，优先打出。</li><li>是 <code>+6</code> 或 <code>+10</code> 且局势不危险，倾向保留。</li><li>评分高于保留成本，打出。</li><li>否则 <code>keep-drawn-card</code>。</li></ol>
+<h3>加牌链</h3>
+<p>如果 <code>drawStack.active === true</code>：</p>
+<ol><li>只生成合法叠加加牌牌。</li><li>叠加收益按当前累计摸牌数计算：</li></ol>
+<pre><code class="language-txt">少摸牌收益 = drawStack.amount * 55</code></pre>
+<ol><li>没有合法叠加牌时发送 <code>resolve-draw-stack</code>。</li><li><code>+10</code> 可以被保留，但当累计惩罚很高时应打出防守。</li></ol>
+<h3>罚抽压力</h3>
+<p>如果 <code>drawUntilColor.active === true</code>：</p>
+<ol><li>有罚抽牌则评估打出。</li><li>无罚抽牌则发送 <code>resolve-draw-until-color</code>。</li><li>如果不打就会持续罚抽，罚抽牌保留成本应降低。</li></ol>
+<h2>服务端实现计划</h2>
+<p>推荐顺序：</p>
+<ol><li>扩展共享类型，玩家增加 <code>isBot</code>。</li><li>扩展协议，新增 <code>add-bot</code>。</li><li>扩展 <code>RoomManager.addBot</code>。</li><li>房间快照广播机器人字段。</li><li>前端大厅添加“添加机器人”按钮。</li><li>前端玩家列表和对战座位显示机器人标签。</li><li>实现 <code>botScheduler</code>，先做到 3 秒后执行一个最小合法动作。</li><li>实现候选动作生成。</li><li>实现贪心评分。</li><li>实现 UNO 80% 概率喊牌。</li><li>补服务端测试、算法测试、前端 smoke。</li></ol>
+<h2>测试计划</h2>
+<h3>算法单元测试</h3>
+<ol><li>机器人优先打能直接获胜的牌。</li><li>机器人能选择对子。</li><li>机器人能选择顺子。</li><li>手牌多时优先使用同色丢弃快速减牌。</li><li>手牌少时保留同色丢弃。</li><li>有颜色牌可出时不轻易打 <code>+6</code> 或 <code>+10</code>。</li><li>无颜色牌可出时允许用黑牌变色。</li><li>下家只剩 1 张时压制牌评分升高。</li><li>加牌链中不允许 <code>+2</code> 接黑色加牌链。</li><li>刚摸到关键牌时能选择保留。</li></ol>
+<h3>服务端测试</h3>
+<ol><li>房主可以在无质疑等待房间添加机器人。</li><li>非房主不能添加机器人。</li><li>有质疑模式不能添加机器人。</li><li>房间满员不能添加机器人。</li><li>对局开始后不能添加机器人。</li><li>机器人自动准备。</li><li>机器人轮到自己后约 3 秒行动。</li><li>局面变化后旧机器人定时器不会重复行动。</li><li>机器人剩 1 张时按可注入随机数决定是否喊 UNO。</li></ol>
+<h3>前端测试</h3>
+<ol><li>无质疑大厅显示“添加机器人”按钮。</li><li>有质疑大厅按钮禁用或隐藏。</li><li>点击后玩家列表出现机器人。</li><li>机器人显示已准备。</li><li>对战页机器人座位显示机器人标签。</li><li>轮到机器人时显示“思考中...”。</li></ol>
+<h2>验收标准</h2>
+<ol><li>房主能在无质疑大厅添加机器人。</li><li>机器人能补足人数并参与开局。</li><li>机器人所有动作由服务端执行。</li><li>机器人回合有 3 秒思考延迟。</li><li>机器人能合法打出单牌、对子、顺子和同色丢弃。</li><li>机器人能处理加牌链、罚抽和刚摸牌窗口。</li><li>机器人会根据手牌多少调整减牌和留牌策略。</li><li>机器人会保留 <code>+6</code>、<code>+10</code>，不会一有机会就乱打。</li><li>机器人会在下家危险时使用压制牌。</li><li>机器人有 20% 概率忘记喊 UNO。</li></ol>
+<h2>风险与注意事项</h2>
+<ol><li>机器人调度必须防止重复定时器，否则可能连续出多次牌。</li><li>机器人算法不能绕过 <code>applyCommand</code>，否则会破坏服务端权威。</li><li>组合牌候选数量可能较多，需要限制生成规模，避免极端手牌导致计算过慢。</li><li><code>+6</code>、<code>+10</code> 的保留策略不能过强，否则机器人会一直不用黑牌。</li><li>机器人加入后，房间最小人数和准备逻辑要兼容真人 + 机器人混合场景。</li><li>暂不支持质疑模式，前端和服务端都要做限制，不能只靠按钮隐藏。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">20</div>
+            <h3>Phase 7A：对战 UI、音效与房间体验打磨</h3>
+          </div>
+        </div>
+        <p>Phase 7A 主要整理近期围绕对战界面的集中打磨：让玩家卡片、牌堆、手牌区、方向提示、音效和设置入口更适合实际多人游玩，同时补齐玩家离线重连、机器人体验、资源压缩和 UI 调试文档。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE7A</span><span class="doc-tag">93 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-20" aria-expanded="false">展开内容</button>
+          <a href="./PHASE7A-BATTLE-UI-AUDIO-POLISH.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-20" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 7A：对战 UI、音效与房间体验打磨</h1>
+<h2>阶段目标</h2>
+<p>Phase 7A 主要整理近期围绕对战界面的集中打磨：让玩家卡片、牌堆、手牌区、方向提示、音效和设置入口更适合实际多人游玩，同时补齐玩家离线重连、机器人体验、资源压缩和 UI 调试文档。</p>
+<p>本阶段不是新增一套规则，而是在 Phase 6A 机器人和房间能力的基础上，把“能玩”继续推进到“多人游玩时更清楚、更稳定、更容易调整”。</p>
+<h2>核心改动</h2>
+<h3>1. 对战界面布局</h3>
+<ul><li>对战页拆分并命名了主要 UI 区域，形成 <code>docs/UI-PART-NAMES.md</code>，后续可以直接按区域名沟通修改。</li><li>玩家卡片改为左右两侧排布，并按当前玩家视角计算相对位置，尽量让上下家和顺/逆时针方向在视觉上对应。</li><li>玩家卡片尺寸会根据人数动态调整，人数较少时更大，人数较多时避免重叠。</li><li>玩家卡片头像改为背景图，当前行动玩家更亮，非当前行动玩家降低亮度。</li><li>玩家姓名、手牌数量、抓 UNO 按钮等组件改为在玩家卡片父容器内定位，随父容器缩放。</li><li>摸牌区、牌堆区、状态提示区、手牌区改为更偏向页面相对位置控制，减少互相挤压导致的位移。</li><li>顶部状态栏、普通摸牌弹窗、玩家出局弹窗等关键层级提升，避免被牌堆或特效遮挡。</li></ul>
+<h3>2. 牌堆和加牌链 UI</h3>
+<ul><li>牌堆底部保留多张历史牌，形成散乱叠放效果。</li><li>底牌堆的偏移、旋转和透明度改为稳定布局，避免每次刷新都重新随机导致画面跳动。</li><li>一次性打出多张牌时，底牌堆按打出数量推进，保留同一组牌的相似位移趋势。</li><li>顺子出牌时，牌堆 UI 按数字大小排序，确保最小号在底部、最大号在顶部。</li><li>加牌链进行中使用平铺叠加展示；加牌链被摸牌结算后，旧加牌链转为底牌堆，新加牌重新开启新的链条展示。</li></ul>
+<h3>3. 方向提示和开局方向</h3>
+<ul><li>游戏开局随机选定一号位后，由一号位选择顺时针或逆时针。</li><li>对战区加入顺/逆时针旋转方向底图。</li><li>顺时针和逆时针使用两张图片资源，其中逆时针图由顺时针图镜像生成。</li><li>打出反转牌或反转变色 +4 后，方向提示会随游戏方向更新。</li></ul>
+<h3>4. 音效和背景音乐</h3>
+<ul><li>新增音效目录 <code>apps/client-web/public/sounds/</code>。</li><li>大厅背景音乐支持多首随机播放，对战页使用独立对战音乐。</li><li>设置面板支持背景音乐和音效音量调节。</li><li>音量滑轨支持 <code>0% - 120%</code>，并带有禁音按钮。</li><li>禁音按钮在静音时显示红色，再次点击恢复静音前音量并显示绿色。</li><li>罚抽音效按摸牌次数递减播放速度，摸到目标颜色时播放结束音效。</li><li>加牌相关音效按行为拆分：</li><li>打出或叠加 <code>+2</code>、普通 <code>+4</code>、黑色反转 <code>+4</code> 时播放 <code>进行加牌1</code>。</li><li>打出或叠加 <code>+6</code>、<code>+10</code>，以及打出交换手牌时播放 <code>进行加牌2</code>。</li><li>加牌链结算摸牌数大于等于 10 时播放 <code>被加牌1</code>。</li><li>加牌链结算摸牌数小于 10 时播放 <code>被加牌2</code>。</li><li>被加牌本人听到的音效更大，其他玩家听到的音效更小。</li></ul>
+<h3>5. 对战特效</h3>
+<ul><li>玩家被加牌链结算时，在对应玩家卡片位置播放爆炸特效。</li><li>加牌数量越多，爆炸范围越大，并按指数趋势增长。</li><li>罚抽摸牌时，在对应玩家卡片位置喷出问号特效。</li><li>第 n 次罚抽摸牌会喷出 n 个问号，颜色从红、黄、蓝、绿中随机。</li><li>特效位置跟随每个玩家视角下的玩家卡片位置，而不是固定使用全局坐标。</li></ul>
+<h3>6. 设置面板</h3>
+<ul><li>对战页顶部加入设置按钮。</li><li>UI 缩放支持四档：<code>60%</code>、<code>80%</code>、<code>100%</code>、<code>120%</code>。</li><li>背景音乐和音效改为滑轨调节。</li><li>设置面板加入显示/关闭调试网格按钮，方便继续做尺度调整。</li><li>UI 缩放、背景音乐、音效和网格开关都会写入本地存储。</li></ul>
+<h3>7. 大厅和房间体验</h3>
+<ul><li>大厅支持改名按钮，玩家在昵称输入框修改后点击改名，其他玩家画面同步更新。</li><li>玩家身份使用隐藏唯一标识，不依赖昵称匹配；改名不会改变玩家身份。</li><li>玩家退出后，房间仍存在时保留等待席位。</li><li>退出期间玩家卡片保留，行动回合会跳过离线/退出玩家。</li><li>玩家重新通过房间号加入后，继续使用原来的手牌和状态。</li><li>胜利玩家离开后再回来，仍保留胜利状态；胜利玩家离线时使用绿色框提示。</li><li>游戏结束后，房主点击重新开始时会清理仍未回到房间的旧玩家。</li><li>大厅机器人条目精简显示，但保留头像。</li><li>可选种子输入框在玩家界面隐藏。</li></ul>
+<h3>8. 机器人体验</h3>
+<ul><li>机器人名称调整为 <code>雷霆bot</code> 系列。</li><li>机器人摸牌动作延迟调整，普通摸牌和罚摸更像真人操作。</li><li>机器人贪心策略补充交换手牌权重：当手牌质量较差或手牌过多时，动态提高交换手牌分数。</li><li>机器人普通数字牌策略补充：优先打出不参与顺子/对子、且距离手牌数字平均值更远的数字牌。</li><li>增加兜底出牌保护，避免候选牌同分或评分异常时机器人不行动。</li></ul>
+<h3>9. 资源和文档</h3>
+<ul><li>压缩大厅背景、对战背景和头像资源，降低加载体积。</li><li>新增 <code>docs/UI-PART-NAMES.md</code>，给大厅和对战页主要区域命名。</li><li>更新 README 为面向玩家的说明文档，包含规则、图片和启动方式。</li></ul>
+<h2>涉及模块</h2>
+<ul><li>前端主逻辑：<code>apps/client-web/src/main.ts</code></li><li>前端样式：<code>apps/client-web/src/styles.css</code></li><li>前端资源：<code>apps/client-web/public/</code></li><li>音效资源：<code>apps/client-web/public/sounds/</code></li><li>协议和消息：<code>packages/protocol/src/</code>、<code>apps/client-web/src/protocol/</code></li><li>共享类型：<code>packages/shared-types/src/</code></li><li>核心规则：<code>packages/uno-core/src/</code></li><li>服务端房间和机器人：<code>apps/game-server/src/</code></li><li>文档：<code>README.md</code>、<code>next-step.md</code>、<code>docs/UI-PART-NAMES.md</code></li></ul>
+<h2>验证记录</h2>
+<p>近期修改过程中主要执行过：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/shared-types build
+corepack pnpm --filter @thunder-uno/uno-core test -- applyCommand.turn.test.ts applyCommand.draw.test.ts
+corepack pnpm typecheck</code></pre>
+<p>最后一次同步 GitHub 前，<code>corepack pnpm typecheck</code> 已通过。</p>
+<h2>后续可继续优化</h2>
+<ul><li>用真实多人视角继续校准顺/逆时针座位关系。</li><li>对移动端小屏继续微调玩家卡片和手牌缩放。</li><li>给设置面板增加更细粒度的 UI 组件开关。</li><li>给机器人策略增加不同难度等级。</li><li>为新增音效和特效补充更完整的前端自动化测试。</li></ul>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">21</div>
+            <h3>Phase 7B：贪心机器人权重可测化与固定手牌调参</h3>
+          </div>
+        </div>
+        <p>Phase 7B 主要围绕服务端贪心机器人 `greedy-v1` 做算法调参基础设施建设。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE7B</span><span class="doc-tag">208 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-21" aria-expanded="false">展开内容</button>
+          <a href="./PHASE7B-GREEDY-BOT-WEIGHT-TUNING.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-21" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 7B：贪心机器人权重可测化与固定手牌调参</h1>
+<h2>阶段目标</h2>
+<p>Phase 7B 主要围绕服务端贪心机器人 <code>greedy-v1</code> 做算法调参基础设施建设。</p>
+<p>本阶段不是新增游戏规则，也不是让机器人绕过 <code>uno-core</code>。目标是把“机器人为什么这样出牌”变得可测、可解释、可重复验证，避免后续靠直觉随意调整分值。</p>
+<p>核心目标：</p>
+<ol><li>把机器人评分里的散落数字收敛成命名权重。</li><li>增加三机器人自走测试，用于验证稳定性。</li><li>增加候选权重 A/B 对照，用于判断新权重是否真的更强。</li><li>增加固定手牌场景实验室，用于校准单张牌或某类牌的局部价值。</li><li>根据固定场景结果，优化 <code>+6</code>、<code>+10</code> 的保留策略。</li></ol>
+<h2>背景问题</h2>
+<p>Phase 6A 已经设计并实现了服务端贪心机器人。机器人可以生成候选动作，并通过评分选择最高分动作。</p>
+<p>但原评分逻辑存在两个调试问题：</p>
+<ol><li>分值直接散落在 <code>botScoring.ts</code> 中，例如 <code>100</code>、<code>1200</code>、<code>-260</code>，很难知道每个数字对应哪个策略意图。</li><li>单纯让三个相同机器人互打，只能测试是否稳定，不能证明某个权重更好。</li></ol>
+<p>实际调参需要两类测试：</p>
+<ol><li>整局级测试：多局自走和 A/B 对战，看整体稳定性和胜率。</li><li>局面级测试：固定手牌、固定顶牌、固定下家手牌数，看某张牌是否排在合理位置。</li></ol>
+<h2>核心改动</h2>
+<h3>1. 评分权重集中化</h3>
+<p>文件：</p>
+<pre><code class="language-txt">apps/game-server/src/bot/botScoring.ts</code></pre>
+<p>新增：</p>
+<pre><code class="language-ts">BotScoringWeights
+DEFAULT_BOT_SCORING_WEIGHTS</code></pre>
+<p>将原本散落在评分函数中的数字抽成命名权重，例如：</p>
+<ul><li><code>cardReduction</code></li><li><code>winBonus</code></li><li><code>unoBonus</code></li><li><code>drawCommandPenalty</code></li><li><code>nextPlayerOneCardDangerBonus</code></li><li><code>drawTwoPressure</code></li><li><code>wildDrawSixPressure</code></li><li><code>reserveWildDrawSixCost</code></li><li><code>reserveWildDrawTenCost</code></li><li><code>discardLargeHandBonus</code></li><li><code>isolatedNumberBaseBonus</code></li></ul>
+<p>这样后续调参时可以明确知道每个数字在控制哪一类行为。</p>
+<h3>2. 机器人决策支持实验权重</h3>
+<p>文件：</p>
+<pre><code class="language-txt">apps/game-server/src/bot/greedyBot.ts</code></pre>
+<p><code>decideGreedyBotAction()</code> 新增可选参数：</p>
+<pre><code class="language-ts">weights?: BotScoringWeights</code></pre>
+<p>默认仍使用 <code>DEFAULT_BOT_SCORING_WEIGHTS</code>，生产行为不需要额外传参。</p>
+<p>测试或实验脚本可以给某个机器人传入候选权重，从而和默认机器人对战。</p>
+<h3>3. 三机器人自走与 A/B 对照</h3>
+<p>文件：</p>
+<pre><code class="language-txt">apps/game-server/src/dev/botSelfPlay.ts</code></pre>
+<p>新增能力：</p>
+<ol><li><code>simulateGreedyBotSelfPlay()</code>：三个机器人自走一局。</li><li><code>runGreedyBotBatch()</code>：批量运行多局，统计完成数、卡死数、非法命令数、平均步数、命令分布。</li><li><code>evaluateGreedyBotWeights()</code>：候选权重机器人轮流坐 1/2/3 号位，对战两个默认权重机器人。</li><li><code>createPressureTunedWeights()</code>：保留一组“压制倾向增强”的实验权重。</li></ol>
+<p>新增脚本：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server bot:self-play</code></pre>
+<p>常用命令：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server bot:self-play -- --games 100 --seed 33000 --players 3 --max-steps 1500</code></pre>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server bot:self-play -- --evaluate pressure --games 100 --seed 22000 --players 3 --max-steps 1500</code></pre>
+<p>判断口径：</p>
+<ul><li>三人局候选策略公平基线约为 <code>33.3%</code>。</li><li>候选权重必须在座位轮换后稳定高于 <code>33.3%</code>，才值得考虑采纳。</li><li>如果只是小样本领先，大样本回落到 <code>33.3%</code> 附近，则不采纳。</li></ul>
+<h3>4. 固定手牌场景实验室</h3>
+<p>文件：</p>
+<pre><code class="language-txt">apps/game-server/src/dev/botScenarioLab.ts</code></pre>
+<p>新增固定局面评分工具。它可以手动设定：</p>
+<ul><li>顶牌</li><li>当前颜色</li><li>当前行动玩家</li><li>顺/逆时针方向</li><li>每个玩家的手牌</li><li>摸牌堆</li></ul>
+<p>然后输出机器人候选动作的评分排名。</p>
+<p>新增脚本：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server bot:scenario</code></pre>
+<p>示例：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server bot:scenario -- --scenario pressure --limit 6</code></pre>
+<p>输出示例：</p>
+<pre><code class="language-txt">Scenario pressure | current=bot-1
+01. score=720 play-card:...red-draw-two...
+02. score=685 play-card:...wild-draw-six...
+03. score=600 play-card:...red-skip...
+04. score=-125 play-card:...red-9...</code></pre>
+<p>这个场景表示：</p>
+<ul><li>当前顶牌是红 5。</li><li>当前玩家有红 9、红禁、红 <code>+2</code>、黑色 <code>+6</code>。</li><li>下家只剩 1 张牌。</li></ul>
+<p>理想策略是先用红 <code>+2</code> 压制下家，同时尽量保留更稀缺的黑色 <code>+6</code>。固定场景评分可以直接验证这个排序。</p>
+<h3>5. <code>+6</code>、<code>+10</code> 保留策略优化</h3>
+<p>固定手牌场景暴露出一个问题：</p>
+<p>当机器人已经有红 <code>+2</code> 可以压制下家时，旧权重仍然可能优先打黑色 <code>+6</code>。这会过早消耗高价值黑牌。</p>
+<p>本阶段调整：</p>
+<ol><li>提高默认 <code>reserveWildDrawSixCost</code>。</li><li>提高默认 <code>reserveWildDrawTenCost</code>。</li><li>新增 <code>hasPlayablePressureAlternative()</code>。</li><li>如果手里存在可出的有色压制牌，例如禁、反转、<code>+2</code>、普通 <code>+4</code>，就不要因为下家危险而完全免除 <code>+6</code> / <code>+10</code> 的保留成本。</li></ol>
+<p>结果：</p>
+<pre><code class="language-txt">红 +2：720 分，排第 1
+黑 +6：685 分，排第 2
+红禁：600 分，排第 3
+红 9：-125 分，排第 4</code></pre>
+<p>机器人仍然知道 <code>+6</code> 是强牌，但在已有足够压制手段时，会更倾向于保留它。</p>
+<h2>测试与验证</h2>
+<h3>单元与回归测试</h3>
+<p>新增：</p>
+<pre><code class="language-txt">apps/game-server/src/tests/botSelfPlay.test.ts</code></pre>
+<p>覆盖：</p>
+<ol><li>三机器人重复自走不会卡死。</li><li>三机器人重复自走不会产生非法命令。</li><li>A/B 权重对照可以按座位轮换运行。</li><li>固定手牌场景中，下家 1 张时压制牌高于普通数字牌。</li></ol>
+<p>验证命令：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server test -- botSelfPlay.test.ts greedyBot.test.ts</code></pre>
+<p>结果：</p>
+<pre><code class="language-txt">91 passed</code></pre>
+<h3>类型检查</h3>
+<p>命令：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server typecheck</code></pre>
+<p>结果：</p>
+<pre><code class="language-txt">passed</code></pre>
+<h3>批量自走</h3>
+<p>命令：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server bot:self-play -- --games 100 --seed 33000 --players 3 --max-steps 1500</code></pre>
+<p>结果：</p>
+<pre><code class="language-txt">games=100 finished=100 stuck=0 rejected=0
+avgSteps=113.4 avgMaxHandCount=22.3
+tuningHints:
+- no obvious red flags in this batch.</code></pre>
+<h3>候选权重对照</h3>
+<p>命令：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/game-server bot:self-play -- --evaluate pressure --games 60 --seed 34000 --players 3 --max-steps 1500</code></pre>
+<p>结果：</p>
+<pre><code class="language-txt">baseGames=60 seatRotatedGames=180
+contenderWins=62 contenderWinRate=34.4%
+finished=180 stuck=0 rejected=0</code></pre>
+<p>这组 <code>pressure</code> 实验权重有小幅领先，但样本仍不足以证明它稳定优于默认权重。因此本阶段只采纳固定场景暴露出的 <code>+6/+10</code> 保留策略修正，不采纳整套 <code>pressure</code> 实验权重为默认策略。</p>
+<h2>新增文档</h2>
+<p>新增：</p>
+<pre><code class="language-txt">docs/GREEDY-BOT-WEIGHT-TUNING.md</code></pre>
+<p>该文档记录后续机器人调参方法：</p>
+<ol><li>先用固定手牌场景判断局部排序是否合理。</li><li>再用三机器人自走验证稳定性。</li><li>最后用 A/B 座位轮换判断候选权重是否整体更强。</li><li>每次只调整一组相关权重，避免结果难以解释。</li></ol>
+<h2>验收标准</h2>
+<p>本阶段完成后应满足：</p>
+<ol><li>机器人评分权重有统一命名配置。</li><li>默认机器人行为不依赖实验参数。</li><li>可以批量运行三机器人自走，并输出稳定性报告。</li><li>可以运行候选权重和默认权重的座位轮换对照。</li><li>可以固定手牌场景查看候选动作分数排名。</li><li>固定压制场景中，红 <code>+2</code> 优先于黑色 <code>+6</code>。</li><li>100 局三机器人自走全部结束，无卡死，无非法命令。</li><li>game-server 相关测试和类型检查通过。</li></ol>
+<h2>后续方向</h2>
+<p>后续调参建议继续围绕固定场景库扩展：</p>
+<ol><li>黑牌保留场景：有普通颜色牌可出时，不轻易打 <code>+6</code>、<code>+10</code>。</li><li>冲刺场景：剩 2 张或 1 张时，验证机器人是否合理冒险。</li><li>同色丢弃场景：手牌多时积极丢弃，手牌少时保留。</li><li>顺子 / 连对场景：验证机器人不会轻易拆掉高价值组合。</li><li>加牌链场景：验证不同累计惩罚下是否合理叠加或结算。</li></ol>
+<p>等固定场景库足够丰富后，可以进一步把候选权重搜索做成自动 sweep，但仍需要人工定义“局面排序预期”，否则容易只优化胜率而牺牲玩家观感。</p>
+        </div>
+      </div>
+    </article>
+        </div>
+      </section>
+      <section class="footer">
+        页面由 <code>tools/build-doc-overviews.mjs</code> 生成。每个卡片都保留原始 Markdown 文件入口，便于在总览和原文之间来回切换。
+      </section>
+    </main>
+    <script>
+      const detailPanels = Array.from(document.querySelectorAll("[data-detail]"));
+      const toggleButtons = Array.from(document.querySelectorAll("[data-toggle]"));
+
+      function setExpanded(id, expanded) {
+        const panel = document.querySelector('[data-detail="' + id + '"]');
+        const button = document.querySelector('[data-toggle="' + id + '"]');
+        if (!panel || !button) return;
+        panel.hidden = !expanded;
+        button.setAttribute("aria-expanded", String(expanded));
+        button.textContent = expanded ? "收起内容" : "展开内容";
+      }
+
+      toggleButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const id = button.getAttribute("data-toggle");
+          const expanded = button.getAttribute("aria-expanded") === "true";
+          setExpanded(id, !expanded);
+        });
+      });
+
+      document.querySelector('[data-action="expand-all"]')?.addEventListener("click", () => {
+        detailPanels.forEach((panel) => setExpanded(panel.getAttribute("data-detail"), true));
+      });
+
+      document.querySelector('[data-action="collapse-all"]')?.addEventListener("click", () => {
+        detailPanels.forEach((panel) => setExpanded(panel.getAttribute("data-detail"), false));
+      });
+    </script>
+  </body>
+</html>
