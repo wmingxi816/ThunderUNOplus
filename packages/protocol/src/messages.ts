@@ -142,6 +142,26 @@ export interface ClientReconnectMessage {
   timestampMs: UnixMs;
 }
 
+export interface ClientBattleChatMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "battle-chat";
+  requestId: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  text: string;
+  timestampMs: UnixMs;
+}
+
+export interface ClientLobbyChatMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "lobby-chat";
+  requestId: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  text: string;
+  timestampMs: UnixMs;
+}
+
 export type ClientMessage =
   | ClientCreateRoomMessage
   | ClientCommandMessage
@@ -155,7 +175,9 @@ export type ClientMessage =
   | ClientRestartGameMessage
   | ClientContinueGameMessage
   | ClientLeaveRoomMessage
-  | ClientReconnectMessage;
+  | ClientReconnectMessage
+  | ClientBattleChatMessage
+  | ClientLobbyChatMessage;
 
 export interface ServerRoomStateMessage {
   protocolVersion: typeof PROTOCOL_VERSION;
@@ -208,13 +230,35 @@ export interface ServerRoomClosedMessage {
   roomId: RoomId;
 }
 
+export interface ServerBattleChatMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "battle-chat";
+  requestId?: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  text: string;
+  timestampMs: UnixMs;
+}
+
+export interface ServerLobbyChatMessage {
+  protocolVersion: typeof PROTOCOL_VERSION;
+  type: "lobby-chat";
+  requestId?: RequestId;
+  roomId: RoomId;
+  playerId: PlayerId;
+  text: string;
+  timestampMs: UnixMs;
+}
+
 export type ServerMessage =
   | ServerRoomStateMessage
   | ServerEventsMessage
   | ServerSnapshotMessage
   | ServerErrorMessage
   | ServerPongMessage
-  | ServerRoomClosedMessage;
+  | ServerRoomClosedMessage
+  | ServerBattleChatMessage
+  | ServerLobbyChatMessage;
 
 export type CommandEnvelope = ClientCommandMessage;
 export type RoomStateEnvelope = ServerRoomStateMessage;

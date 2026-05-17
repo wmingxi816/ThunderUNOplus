@@ -65,38 +65,29 @@ describe("client-web smoke", () => {
 
     await import("../main");
 
-    expect(document.querySelector("h1")?.textContent).toBe("雷霆UNOplus");
-    expect(document.querySelector<HTMLInputElement>("#ws-url")?.value).toBe("ws://localhost:8787");
-    const nickname = document.querySelector<HTMLInputElement>("#nickname")?.value;
-    expect(nickname?.startsWith("\u73A9\u5BB6")).toBe(true);
-    expect(nickname?.slice(2)).toMatch(/^\d{4}$/);
+    expect(document.querySelector("h1")?.ariaLabel).toBe("雷霆UNOplus");
+    expect(document.querySelector<HTMLInputElement>("#nickname")?.value?.startsWith("\u73A9\u5BB6")).toBe(true);
+    expect(document.querySelector<HTMLInputElement>("#nickname")?.value?.slice(2)).toMatch(/^\d{4}$/);
     expect(document.querySelector("#create-room-button")).not.toBeNull();
     expect(document.querySelector("#create-custom-room-button")).toBeNull();
     expect(document.querySelector("#join-room-button")).not.toBeNull();
+    expect(document.querySelector("#rename-player-button")).not.toBeNull();
+    expect(document.querySelector("#lobby-music-toggle-button")).not.toBeNull();
     expect(document.querySelector("#room-id-input")).not.toBeNull();
     expect(document.querySelectorAll(".room-code-digit")).toHaveLength(6);
-    expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("规则讲解");
-    expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("基础玩法");
-    expect(document.querySelector("[data-testid='rules-guide']")?.textContent).toContain("卡牌介绍");
-    expect(document.querySelectorAll(".rule-entry-button")).toHaveLength(4);
+    expect(document.querySelector("#lobby-chat-input")).not.toBeNull();
+    expect(document.querySelector("#lobby-chat-send-button")).not.toBeNull();
+    expect(document.querySelector("[data-testid='lobby-rule-button']")?.textContent).toContain("规则");
+    expect(document.querySelectorAll(".rule-entry-button")).toHaveLength(0);
     expect(document.querySelector("#error-line")).not.toBeNull();
     expect(document.querySelector(".status")).not.toBeNull();
 
-    const connectButton = document.querySelector<HTMLButtonElement>("#connect-button");
-    expect(connectButton).not.toBeNull();
-    expect(FakeWebSocket.instances).toHaveLength(1);
-    expect(connectButton?.textContent).toBe("\u91cd\u65b0\u8fde\u63a5");
-    expect(connectButton?.classList.contains("connection-action-retry")).toBe(true);
-    connectButton?.click();
     expect(FakeWebSocket.instances).toHaveLength(1);
 
     const socket = FakeWebSocket.instances[0];
     expect(socket).toBeDefined();
     socket?.triggerOpen();
-    expect(document.querySelector<HTMLButtonElement>("#connect-button")?.textContent).toBe("\u5df2\u8fde\u63a5");
-    expect(
-      document.querySelector<HTMLButtonElement>("#connect-button")?.classList.contains("connection-action-open")
-    ).toBe(true);
+    expect(document.querySelector("[data-testid='connection-status']")?.textContent).toContain("open");
 
     const reconnectMessage = socket?.sentMessages
       .map((message) => JSON.parse(message))
@@ -112,7 +103,10 @@ describe("client-web smoke", () => {
   it("opens the lobby rules guide and maps card intro buttons to rule images", async () => {
     await import("../main");
 
+    document.querySelector<HTMLButtonElement>("#lobby-rule-button")?.click();
+    expect(document.querySelectorAll(".rule-entry-button")).toHaveLength(4);
     expect(document.querySelector<HTMLButtonElement>("[data-rule-entry='challenge']")?.disabled).toBe(false);
+
     document.querySelector<HTMLButtonElement>("[data-rule-entry='challenge']")?.click();
     expect(document.querySelector<HTMLImageElement>(".rule-image-viewer img")?.getAttribute("src")).toBe(
       "/rules/\u8d28\u7591\u73a9\u6cd5.png"
@@ -121,7 +115,7 @@ describe("client-web smoke", () => {
     document.querySelector<HTMLButtonElement>("#rule-back-button")?.click();
     document.querySelector<HTMLButtonElement>("[data-rule-entry='cards']")?.click();
 
-    expect(document.querySelector("[data-testid='rule-modal']")?.textContent).toContain("卡牌介绍");
+    expect(document.querySelector("[data-testid='rule-card-grid']")).not.toBeNull();
     expect(document.querySelectorAll("[data-rule-card]")).toHaveLength(12);
     expect(document.querySelectorAll(".rule-card-index")).toHaveLength(12);
 
@@ -312,8 +306,6 @@ describe("client-web smoke", () => {
   it("generates room ids on the server and joins from the six digit room code inputs", async () => {
     await import("../main");
 
-    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
-
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
 
@@ -340,8 +332,6 @@ describe("client-web smoke", () => {
 
   it("fills the room code inputs with the server confirmed generated room id", async () => {
     await import("../main");
-
-    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
 
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
@@ -402,9 +392,6 @@ describe("client-web smoke", () => {
 
     await import("../main");
 
-    const connectButton = document.querySelector<HTMLButtonElement>("#connect-button");
-    connectButton?.click();
-
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
 
@@ -426,9 +413,6 @@ describe("client-web smoke", () => {
 
   it("switches the host from lobby to battle when a start-game snapshot arrives", async () => {
     await import("../main");
-
-    const connectButton = document.querySelector<HTMLButtonElement>("#connect-button");
-    connectButton?.click();
 
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
@@ -680,7 +664,7 @@ describe("client-web smoke", () => {
     document.querySelector<HTMLButtonElement>("#close-rule-modal-button")?.click();
     expect(document.querySelector(".direction-indicator")?.textContent).toContain("顺");
     expect(document.querySelector("[data-testid='battle-view']")?.textContent).not.toContain("clockwise");
-    expect(document.querySelector(".seat.current .seat-badge")?.textContent).toContain("轮到你");
+    expect(document.querySelector(".hud-primary")?.textContent).toContain("轮到你");
     expect(document.querySelector<HTMLButtonElement>("#play-button")?.disabled).toBe(true);
     expect(document.querySelector<HTMLButtonElement>("#play-button")?.title).toContain("出牌");
 
@@ -697,16 +681,14 @@ describe("client-web smoke", () => {
     });
     expect(document.querySelector("[data-testid='battle-view']")).toBeNull();
     expect(document.querySelector("[data-testid='lobby-view']")).not.toBeNull();
-    expect(document.querySelectorAll("[data-testid='room-player']")).toHaveLength(3);
-    expect(document.querySelector("[data-testid='room-player']")?.classList.contains("left")).toBe(true);
+    expect(document.querySelectorAll(".lobby-identity-card [data-testid='room-player']")).toHaveLength(3);
+    expect(document.querySelector(".lobby-identity-card [data-testid='room-player']")?.classList.contains("left")).toBe(true);
     expect(document.querySelector<HTMLInputElement>("#room-id-input")?.value).toBe("123456");
     expect(document.querySelector<HTMLButtonElement>("#join-room-button")?.disabled).toBe(false);
   });
 
   it("sends set-ready when a non-host clicks the ready button", async () => {
     await import("../main");
-
-    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
 
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
@@ -767,8 +749,6 @@ describe("client-web smoke", () => {
 
   it("marks newly drawn self cards and renders a draw animation", async () => {
     await import("../main");
-
-    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
 
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
@@ -906,8 +886,6 @@ describe("client-web smoke", () => {
 
   it("shows UNO, elimination and victory feedback in battle UI", async () => {
     await import("../main");
-
-    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
 
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
@@ -1053,8 +1031,6 @@ describe("client-web smoke", () => {
 
   it("renders latest multi-card plays and active draw chains on the discard pile", async () => {
     await import("../main");
-
-    document.querySelector<HTMLButtonElement>("#connect-button")?.click();
 
     const socket = FakeWebSocket.instances[0];
     socket?.triggerOpen();
@@ -1493,11 +1469,12 @@ describe("client-web smoke", () => {
       }
     });
 
-    const botPill = document.querySelector<HTMLElement>("[data-room-bot='true']");
-    expect(botPill?.querySelector(".avatar")).not.toBeNull();
-    expect(botPill?.textContent).toContain("雷霆bot1");
+    const botPill = document.querySelector<HTMLElement>(".lobby-identity-card [data-room-bot='true']");
+
+    expect(botPill).not.toBeNull();
+    expect(botPill?.querySelector(".lobby-seat-name")?.textContent).toContain("雷霆bot1");
     expect(botPill?.textContent).not.toContain("BOT");
-    expect(botPill?.textContent).not.toContain("已准备");
+    expect(botPill?.querySelector(".lobby-seat-status")?.textContent).toContain("机器人");
   });
 
   it("counts penalty draw toast messages and resets when resolved", async () => {

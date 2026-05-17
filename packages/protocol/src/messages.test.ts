@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type {
+  ClientBattleChatMessage,
   ClientCreateRoomMessage,
   ClientCommandMessage,
+  ClientLobbyChatMessage,
   ClientRenamePlayerMessage,
   ClientStartGameMessage,
   ServerEventsMessage,
+  ServerLobbyChatMessage,
   ServerRoomStateMessage,
   ServerSnapshotMessage
 } from "./messages";
@@ -189,6 +192,50 @@ describe("protocol - messages", () => {
     };
 
     expect(message.type).toBe("snapshot");
+  });
+
+  it("可以构造 ClientBattleChatMessage", () => {
+    const message: ClientBattleChatMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "battle-chat",
+      requestId: "req-chat-1",
+      roomId: "room-1",
+      playerId: "player-1",
+      text: "先别急着出黑牌",
+      timestampMs: 1000
+    };
+
+    expect(message.type).toBe("battle-chat");
+    expect(message.text).toBe("先别急着出黑牌");
+  });
+
+  it("可以构造 ClientLobbyChatMessage", () => {
+    const message: ClientLobbyChatMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "lobby-chat",
+      requestId: "req-lobby-chat-1",
+      roomId: "room-1",
+      playerId: "player-1",
+      text: "都准备一下，马上开",
+      timestampMs: 1000
+    };
+
+    expect(message.type).toBe("lobby-chat");
+    expect(message.text).toBe("都准备一下，马上开");
+  });
+
+  it("可以构造 ServerLobbyChatMessage", () => {
+    const message: ServerLobbyChatMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "lobby-chat",
+      roomId: "room-1",
+      playerId: "player-1",
+      text: "房主已创建房间",
+      timestampMs: 1000
+    };
+
+    expect(message.type).toBe("lobby-chat");
+    expect(message.roomId).toBe("room-1");
   });
   it("can construct ClientRenamePlayerMessage", () => {
     const message: ClientRenamePlayerMessage = {

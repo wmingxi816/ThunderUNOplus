@@ -24,6 +24,7 @@ import { WsClient, type ConnectionStatus } from "./network/wsClient";
 import {
   buildCommandMessage,
   buildAddBotMessage,
+  buildLobbyChatMessage,
   buildContinueGameMessage,
   buildCreateRoomMessage,
   buildJoinRoomMessage,
@@ -69,8 +70,6 @@ interface AppState {
   challengePrompt: ChallengePromptState | null;
   eventModal: EventModalState | null;
   ruleModal: RuleModalView | null;
-  battleLoadingOverlayStartedAtMs: number | null;
-  battleLoadingOverlayDone: boolean;
   settingsModalOpen: boolean;
   settingsAdjustPanelOpen: boolean;
   uiScalePercent: UiSettingPercent;
@@ -89,6 +88,18 @@ interface AppState {
   dismissedFinishedNoticeKey: string | null;
   snapshotRecoveryRoomId: RoomId | null;
   roomCodeDigits: string[];
+  lobbyMode: GameMode;
+  lobbyChatDraft: string;
+  lobbyChatFeed: LobbyChatEntry[];
+}
+
+interface LobbyChatEntry {
+  id: string;
+  kind: "player" | "system";
+  playerId: PlayerId | null;
+  speakerName: string;
+  text: string;
+  timestampMs: number;
 }
 
 interface CardsPlayedAnimationEvent {
@@ -240,7 +251,6 @@ const SEAT_Y_OFFSET_STORAGE_KEY = "thunder-uno.seat-y-offset-percent";
 const BATTLE_TABLE_Y_OFFSET_STORAGE_KEY = "thunder-uno.battle-table-y-offset-percent";
 const HAND_CARD_SCALE_STORAGE_KEY = "thunder-uno.hand-card-scale-percent";
 const DEFAULT_UI_SETTING_PERCENT = 80;
-const BATTLE_LOADING_OVERLAY_MS = 5_000;
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
@@ -253,17 +263,17 @@ const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
     open: true,
     items: [
       "3 到 8 人进入同一房间后，非房主需要先准备，房主才能开始。",
-      "每位玩家开局 7 张手牌，第一张桌面牌不会是黑色牌。",
-      "当前颜色、当前方向和当前玩家都由服务端快照决定。"
+      "每位玩家开局 7 张手牌，第一张桌面牌不会是黑牌。",
+      "当前颜色、当前方向和当前玩家都由服务端确定。"
     ]
   },
   {
     kicker: "接牌",
     title: "单牌接牌",
     items: [
-      "数字牌可按同色或同数字接牌。",
-      "带颜色技能牌可按同色或同技能类型接牌。",
-      "黑色牌需要选择后续颜色，下一家按指定颜色继续。"
+      "数字牌可按同颜色或同数字接牌。",
+      "带颜色技能牌可按同颜色或同技能类型接牌。",
+      "黑牌需要选择后续颜色，下一家按指定颜色继续。"
     ]
   },
   {
@@ -272,8 +282,8 @@ const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
     items: [
       "只有普通 +2、普通 +4、反转变色 +4、变色 +6、变色 +10 能响应加牌链。",
       "普通 +2 只能接普通 +2，普通 +4 只能接普通 +4。",
-      "黑色加牌可以升级叠加；+6 后不能再接普通 +2、普通 +4 或黑色反转 +4。",
-      "选择结算加牌链后，目标玩家摸累计张数并结束本轮。"
+      "黑牌加牌可以升级叠加，+6 后不能再接普通 +2、普通 +4 或黑色反转 +4。",
+      "选择结束加牌链后，目标玩家摸累计张数并结束本轮。"
     ]
   },
   {
@@ -287,11 +297,11 @@ const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
   },
   {
     kicker: "UNO",
-    title: "UNO 与抓 UNO",
+    title: "UNO 与抢 UNO",
     items: [
       "手牌变成 1 张时会进入待喊 UNO 状态。",
-      "即使回合已经推进，只要仍处于待喊状态，也可以立即点击 UNO。",
-      "未喊 UNO 且保护期结束后，其他玩家可以抓 UNO，目标罚摸 6 张。"
+      "即使回合已推进，只要仍处于待喊状态，也可以立刻点击 UNO。",
+      "未喊 UNO 且保护期结束后，其他玩家可以抢 UNO，目标罚摸 6 张。"
     ]
   },
   {
@@ -299,8 +309,8 @@ const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
     title: "淘汰、胜利与续局",
     items: [
       "手牌超过 25 张会被淘汰，淘汰玩家不再参与回合。",
-      "玩家打出最后一张牌会成为本局胜利玩家。",
-      "出现淘汰或胜利后，房主可以选择继续游戏或重开一把。"
+      "打出最后一张牌的玩家成为本局胜利者。",
+      "出现淘汰或胜利后，房主可以选择继续游戏或重开一局。"
     ]
   }
 ];
@@ -320,7 +330,7 @@ const RULE_IMAGE_GROUPS: RuleImageGroup[] = [
   {
     id: "special",
     title: "特色玩法",
-    images: ["/rules/特色玩法（顺子）.png"]
+    images: ["/rules/特色规则（顺子）.png"]
   },
   {
     id: "challenge",
@@ -354,7 +364,7 @@ const RULE_CARD_INTROS: RuleCardIntro[] = [
   {
     id: "skip",
     index: 4,
-    title: "禁",
+    title: "跳过",
     cardImage: "/cards/54_blue_skip.png",
     ruleImages: ["/rules/卡牌规则4.png"]
   },
@@ -415,7 +425,6 @@ const RULE_CARD_INTROS: RuleCardIntro[] = [
     ruleImages: ["/rules/卡牌规则12.png"]
   }
 ];
-
 const root = document.querySelector<HTMLDivElement>("#app");
 let unoProtectionRenderTimer: number | null = null;
 const PENALTY_DRAW_START_SOUND_PATH = "/sounds/%E7%BD%9A%E6%8A%BD%E5%BC%80%E5%A7%8B.mp3";
@@ -488,8 +497,6 @@ const state: AppState = {
   challengePrompt: null,
   eventModal: null,
   ruleModal: null,
-  battleLoadingOverlayStartedAtMs: null,
-  battleLoadingOverlayDone: false,
   settingsModalOpen: false,
   settingsAdjustPanelOpen: false,
   uiScalePercent: readStoredUiScalePercent(UI_SCALE_STORAGE_KEY),
@@ -507,7 +514,10 @@ const state: AppState = {
   uiToast: null,
   dismissedFinishedNoticeKey: null,
   snapshotRecoveryRoomId: null,
-  roomCodeDigits: ["", "", "", "", "", ""]
+  roomCodeDigits: ["", "", "", "", "", ""],
+  lobbyMode: "no-challenge",
+  lobbyChatDraft: "",
+  lobbyChatFeed: [],
 };
 
 const wsClient = new WsClient({
@@ -553,9 +563,11 @@ window.addEventListener("resize", () => {
 function handleServerMessage(message: ServerMessage): void {
   switch (message.type) {
     case "room-state":
+      syncLobbyRoomFeed(state.room, message.room);
       state.roomId = message.roomId;
       state.playerId = message.playerId;
       state.room = message.room;
+      state.lobbyMode = message.room.mode;
       state.lastError = null;
       setRoomCodeFromText(message.roomId);
       clearSelectedCards();
@@ -567,9 +579,6 @@ function handleServerMessage(message: ServerMessage): void {
     case "snapshot":
       const previousSnapshot = state.snapshot;
       const snapshot = normalizePlayerGameSnapshot(message.snapshot);
-      if (previousSnapshot === null) {
-        startBattleLoadingOverlay();
-      }
       if (snapshot.status !== "finished") {
         state.dismissedFinishedNoticeKey = null;
       }
@@ -609,6 +618,11 @@ function handleServerMessage(message: ServerMessage): void {
     case "room-closed":
       resetRoomContext();
       pushLog("房间已关闭");
+    case "battle-chat":
+      return;
+    case "lobby-chat":
+      receiveLobbyChatMessage(message);
+      return;
       return;
     default: {
       const exhaustiveCheck: never = message;
@@ -618,6 +632,10 @@ function handleServerMessage(message: ServerMessage): void {
 }
 
 function render(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
   const snapshot = state.snapshot;
   const isBattleView = snapshot !== null;
   document.body.classList.toggle("battle-active", isBattleView);
@@ -629,26 +647,34 @@ function render(): void {
         isBattleView
           ? renderBattlePanel(snapshot)
           : `
+            ${renderLobbyStormBackdrop()}
             <section class="topbar">
-              <button
-                id="lobby-music-toggle-button"
-                class="secondary lobby-sound-button ${state.backgroundMusicPercent <= 0 ? "is-muted" : ""}"
-                aria-label="${state.backgroundMusicPercent <= 0 ? "恢复大厅音乐" : "关闭大厅音乐"}"
-                title="${state.backgroundMusicPercent <= 0 ? "恢复大厅音乐" : "关闭大厅音乐"}"
-              >${state.backgroundMusicPercent <= 0 ? "🔇" : "🔊"}</button>
-              <div class="lobby-title-wrap">
-                <h1 class="lobby-title" data-title="雷霆UNOplus">雷霆UNOplus</h1>
+              <div class="lobby-topbar-actions">
+                <button
+                  id="lobby-music-toggle-button"
+                  class="secondary lobby-sound-button ${state.backgroundMusicPercent <= 0 ? "is-muted" : ""}"
+                  aria-label="${state.backgroundMusicPercent <= 0 ? "开启大厅音乐" : "关闭大厅音乐"}"
+                  title="${state.backgroundMusicPercent <= 0 ? "开启大厅音乐" : "关闭大厅音乐"}"
+                >${state.backgroundMusicPercent <= 0 ? "♪" : "♫"}</button>
               </div>
-              <span
-                class="status status-${state.connectionStatus}"
-                data-testid="connection-status"
-              >${state.connectionStatus}</span>
+              <div class="lobby-title-wrap">
+                ${renderLobbyTitle()}
+              </div>
+              <div class="lobby-topbar-status-group">
+                <span
+                  class="status status-${state.connectionStatus}"
+                  data-testid="connection-status"
+                >${state.connectionStatus}</span>
+                <button
+                  id="lobby-rule-button"
+                  data-testid="lobby-rule-button"
+                  class="secondary lobby-rule-button"
+                >规则</button>
+              </div>
             </section>
 
-            ${renderConnectionPanel()}
             ${renderToastPanel()}
             ${renderLobbyPanel()}
-            ${renderLogPanel()}
           `
       }
       ${renderRuleModal()}
@@ -659,29 +685,73 @@ function render(): void {
   bindLobbyPanel();
   bindBattlePanel();
   bindRuleControls();
+  syncLobbyChatScroll();
 
   if (isBattleView) {
     window.requestAnimationFrame(syncHandOverlapLayout);
   }
 }
 
-function startBattleLoadingOverlay(): void {
-  const startedAt = Date.now();
-  state.battleLoadingOverlayStartedAtMs = startedAt;
-  state.battleLoadingOverlayDone = false;
+function renderLobbyStormBackdrop(): string {
+  const beams = [
+    { left: "8%", width: "18rem", height: "26rem", delay: "-1.2s", duration: "13.5s", opacity: "0.22" },
+    { left: "24%", width: "14rem", height: "22rem", delay: "-4.1s", duration: "11.8s", opacity: "0.18" },
+    { left: "50%", width: "20rem", height: "30rem", delay: "-2.7s", duration: "14.8s", opacity: "0.24" },
+    { left: "72%", width: "16rem", height: "24rem", delay: "-6.3s", duration: "12.9s", opacity: "0.2" },
+    { left: "90%", width: "13rem", height: "20rem", delay: "-3.5s", duration: "10.7s", opacity: "0.17" }
+  ];
+  const particles = Array.from({ length: 36 }, (_, index) => {
+    const progress = index / 36;
+    const left = `${Math.round(progress * 100)}%`;
+    const size = `${(progress % 0.5) * 0.7 + 0.18}rem`;
+    const duration = `${7.2 + (index % 6) * 1.1}s`;
+    const delay = `${-((index * 0.63) % 8.5).toFixed(2)}s`;
+    const drift = `${((index % 2 === 0 ? 1 : -1) * (0.35 + (index % 5) * 0.08)).toFixed(2)}rem`;
+    const opacity = `${0.35 + (index % 4) * 0.1}`;
+    return { left, size, duration, delay, drift, opacity };
+  });
 
-  window.setTimeout(() => {
-    if (state.battleLoadingOverlayStartedAtMs !== startedAt) {
-      return;
-    }
-
-    state.battleLoadingOverlayDone = true;
-    if (state.snapshot !== null) {
-      render();
-    }
-  }, BATTLE_LOADING_OVERLAY_MS);
+  return `
+    <div class="lobby-storm-backdrop" aria-hidden="true">
+      <div class="lobby-storm-vignette"></div>
+      <div class="lobby-storm-grid"></div>
+      <div class="lobby-storm-glow glow-left"></div>
+      <div class="lobby-storm-glow glow-right"></div>
+      <div class="lobby-storm-beams">
+        ${beams
+          .map(
+            (beam) => `
+              <span
+                class="lobby-storm-beam"
+                style="--storm-left: ${beam.left}; --storm-width: ${beam.width}; --storm-height: ${beam.height}; --storm-delay: ${beam.delay}; --storm-duration: ${beam.duration}; --storm-opacity: ${beam.opacity};"
+              ></span>
+            `
+          )
+          .join("")}
+      </div>
+      <div class="lobby-storm-particles">
+        ${particles
+          .map(
+            (particle) => `
+              <span
+                class="lobby-storm-particle"
+                style="--storm-particle-left: ${particle.left}; --storm-particle-size: ${particle.size}; --storm-particle-duration: ${particle.duration}; --storm-particle-delay: ${particle.delay}; --storm-particle-drift: ${particle.drift}; --storm-particle-opacity: ${particle.opacity};"
+              ></span>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
 }
 
+function renderLobbyTitle(): string {
+  const title = "雷霆UNOplus";
+
+  return `
+    <h1 class="lobby-title" aria-label="${escapeHtml(title)}">${escapeHtml(title)}</h1>
+  `;
+}
 // UI name: lobby-connection-panel. 服务端地址、昵称、改名、连接按钮区域。
 function renderConnectionPanel(): string {
   const connectLabel = state.connectionStatus === "open" ? "已连接" : "重新连接";
@@ -743,67 +813,292 @@ function renderToastPanel(): string {
   `;
 }
 
-// UI name: lobby-root. 大厅主布局，包含组局、等待席和规则讲解。
+function appendLobbySystemMessage(text: string, timestampMs = Date.now()): void {
+  const entry: LobbyChatEntry = {
+    id: `lobby-system-${String(timestampMs)}-${Math.random().toString(36).slice(2, 7)}`,
+    kind: "system",
+    playerId: null,
+    speakerName: "系统",
+    text,
+    timestampMs
+  };
+
+  state.lobbyChatFeed = [
+    ...state.lobbyChatFeed,
+    entry
+  ].slice(-80);
+}
+
+function appendLobbyPlayerMessage(
+  playerId: PlayerId,
+  speakerName: string,
+  text: string,
+  timestampMs: number
+): void {
+  const entry: LobbyChatEntry = {
+    id: `lobby-player-${playerId}-${String(timestampMs)}-${Math.random().toString(36).slice(2, 7)}`,
+    kind: "player",
+    playerId,
+    speakerName,
+    text,
+    timestampMs
+  };
+
+  state.lobbyChatFeed = [
+    ...state.lobbyChatFeed,
+    entry
+  ].slice(-80);
+}
+
+function syncLobbyRoomFeed(
+  previousRoom: PlayerRoomSnapshot | null,
+  nextRoom: PlayerRoomSnapshot
+): void {
+  if (previousRoom === null || previousRoom.roomId !== nextRoom.roomId) {
+    appendLobbySystemMessage(`已进入房间 ${nextRoom.roomCode}，等待成员集结。`);
+    return;
+  }
+
+  const previousPlayers = new Map(previousRoom.players.map((player) => [player.playerId, player] as const));
+  const nextPlayers = new Map(nextRoom.players.map((player) => [player.playerId, player] as const));
+
+  for (const player of nextRoom.players) {
+    const previousPlayer = previousPlayers.get(player.playerId);
+    const name = player.displayName ?? player.playerId;
+
+    if (previousPlayer === undefined) {
+      appendLobbySystemMessage(`${name} 加入了房间。`);
+      continue;
+    }
+
+    if (previousPlayer.isReady !== player.isReady && !player.isHost && player.connectionStatus !== "left") {
+      appendLobbySystemMessage(player.isReady ? `${name} 已准备。` : `${name} 取消了准备。`);
+    }
+
+    if (previousPlayer.connectionStatus !== player.connectionStatus) {
+      if (player.connectionStatus === "disconnected" || player.connectionStatus === "reconnecting") {
+        appendLobbySystemMessage(`${name} 暂时离线。`);
+      } else if (
+        (previousPlayer.connectionStatus === "disconnected" || previousPlayer.connectionStatus === "reconnecting") &&
+        player.connectionStatus === "connected"
+      ) {
+        appendLobbySystemMessage(`${name} 已重新连接。`);
+      } else if (player.connectionStatus === "left") {
+        appendLobbySystemMessage(`${name} 离开了房间。`);
+      }
+    }
+  }
+
+  for (const player of previousRoom.players) {
+    if (!nextPlayers.has(player.playerId)) {
+      appendLobbySystemMessage(`${player.displayName ?? player.playerId} 离开了房间。`);
+    }
+  }
+
+  if (previousRoom.status !== nextRoom.status) {
+    appendLobbySystemMessage(
+      nextRoom.status === "playing" ? "房主已开始游戏。" : `房间状态更新为 ${getRoomStatusLabel(nextRoom.status)}。`
+    );
+  }
+}
+
+function receiveLobbyChatMessage(message: Extract<ServerMessage, { type: "lobby-chat" }>): void {
+  const name = getLobbyPlayerName(message.playerId);
+  appendLobbyPlayerMessage(message.playerId, name, message.text, message.timestampMs);
+}
+
+function getLobbyPlayerName(playerId: PlayerId): string {
+  const roomPlayer = state.room?.players.find((player) => player.playerId === playerId);
+  return roomPlayer?.displayName ?? roomPlayer?.playerId ?? playerId;
+}
+
+function getLobbyMode(): GameMode {
+  return state.room?.mode ?? state.lobbyMode;
+}
+
+// UI name: lobby-root. 大厅主布局，包含组局、房间中枢和玩家聊天窗口。
 function renderLobbyPanel(): string {
   const room = state.room;
   const isConnected = state.connectionStatus === "open";
-  const canCreateRoom = isConnected && state.roomId === null;
-  const canJoinRoom = isConnected && state.roomId === null;
-  const canCopyRoomId = state.roomId !== null || getRoomCodeValue().length === 6;
+  const isHost = room !== null && room.hostPlayerId === state.playerId;
+  const selfPlayer = room?.players.find((player) => player.playerId === state.playerId) ?? null;
   const lobbySummary =
     room === null
-      ? "等待连接"
+      ? isConnected
+        ? "等待组局"
+        : "等待连接"
       : `${String(room.players.length)}/${String(LOBBY_MAX_PLAYER_SLOTS)} 人`;
+  const roomCode = (room?.roomCode ?? getRoomCodeValue()) || "-";
+  const createDisabled = !isConnected || state.roomId !== null;
+  const joinDisabled = !isConnected || state.roomId !== null;
+  const renameDisabled = state.roomId === null || state.playerId === null;
+  const copyDisabled = roomCode.length !== 6;
+  const leaveDisabled = state.roomId === null || state.playerId === null;
+  const canAddBot =
+    room !== null &&
+    isHost === true &&
+    state.connectionStatus === "open" &&
+    room.status === "lobby" &&
+    room.mode === "no-challenge" &&
+    room.players.length < LOBBY_MAX_PLAYER_SLOTS;
+  const canStart = room !== null && state.connectionStatus === "open" && isHost === true && getLobbyReadyStatus(room).canStart;
+  const canToggleReady =
+    room !== null &&
+    state.connectionStatus === "open" &&
+    isHost !== true &&
+    state.playerId !== null &&
+    selfPlayer !== null;
 
   return `
-    <section class="layout lobby-layout" data-testid="lobby-view">
-      <div class="panel lobby-control" data-testid="lobby-control-panel">
-        <div class="lobby-panel-heading">
+    <section class="layout lobby-layout lobby-layout-v3" data-testid="lobby-view">
+      <div class="panel lobby-control lobby-control-panel-v2" data-testid="lobby-control-panel">
+        <div class="lobby-panel-heading lobby-panel-heading-strong">
           <p class="eyebrow">Matchmaking</p>
           <h2>组局大厅</h2>
           <span>${escapeHtml(lobbySummary)}</span>
         </div>
-        <div class="form-grid">
-          <label>
-            <span>模式</span>
-            <select id="mode">
-              <option value="no-challenge">无质疑</option>
-              <option value="with-challenge">有质疑</option>
-            </select>
-          </label>
-          <label>
-            <span>房间号</span>
-            ${renderRoomCodeInputs()}
-          </label>
-        </div>
-        <div class="button-row lobby-actions">
-          <button id="create-room-button" data-testid="create-room-button" ${canCreateRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>生成房间号</button>
-          <button id="copy-room-button" data-testid="copy-room-button" class="copy-room-button" ${canCopyRoomId ? "" : `disabled title="暂无可复制的房间号"`}>复制房间号</button>
-          <button id="join-room-button" data-testid="join-room-button" class="secondary" ${canJoinRoom ? "" : `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"`}>加入房间</button>
-          <button id="leave-room-button" data-testid="leave-room-button" class="secondary" ${isConnected && state.roomId !== null ? "" : `disabled title="${escapeHtml(isConnected ? "当前不在房间中。" : "未连接服务端。")}"`}>离开</button>
-        </div>
-        <div class="lobby-hints" aria-hidden="true">
-          <span>3 人开局</span>
-          <span>8 人上限</span>
-          <span>服务端裁定</span>
+        <div class="lobby-control-grid">
+          <section class="lobby-form-card lobby-identity-card">
+            <div class="lobby-card-heading">
+              <strong>身份信息</strong>
+            </div>
+            <div class="lobby-identity-card-body">
+              <div class="lobby-identity-row">
+                <label class="lobby-field">
+                  <span>昵称</span>
+                  <input id="nickname" value="${escapeHtml(state.nickname)}" maxlength="${String(MAX_PLAYER_NICKNAME_LENGTH)}" autocomplete="off" />
+                </label>
+                <button
+                  id="rename-player-button"
+                  data-testid="rename-player-button"
+                  class="secondary"
+                  ${renameDisabled ? 'disabled title="进入房间后才能改名。"' : ""}
+                >修改</button>
+              </div>
+              <div class="lobby-hub-members lobby-scrollable">
+                ${room === null ? renderEmptyLobbyState() : renderLobbyMembersPanel(room)}
+              </div>
+              <div class="lobby-identity-meta-row">
+                <label class="lobby-identity-meta-label">
+                  <span>房间号</span>
+                  <strong>${escapeHtml(room === null ? getRoomCodeValue() || "-" : room.roomCode)}</strong>
+                </label>
+                <label class="lobby-identity-meta-label">
+                  <span>准备情况</span>
+                  <div class="lobby-ready-tags">${renderLobbyReadyStatusTags(room)}</div>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="lobby-form-card lobby-matchmaking-card">
+            <div class="lobby-card-heading">
+              <strong>创建 / 加入房间</strong>
+            </div>
+            <div class="lobby-matchmaking-card-body lobby-scrollable">
+              <div class="lobby-actions lobby-actions-v2 lobby-actions-single-column lobby-primary-action-row">
+                <button
+                  id="create-room-button"
+                  class="lobby-primary-button"
+                  ${createDisabled ? `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"` : ""}
+                >创建房间</button>
+              </div>
+              <div class="lobby-field">
+                <span>房间号</span>
+                ${renderRoomCodeInputs()}
+              </div>
+              <p id="error-line" data-testid="error-line" class="error-line" aria-live="polite">${state.lastError === null ? "" : escapeHtml(state.lastError)}</p>
+              <div class="lobby-actions lobby-room-actions-grid">
+                <button
+                  id="join-room-button"
+                  ${joinDisabled ? `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"` : ""}
+                >加入房间</button>
+                <button
+                  id="copy-room-button"
+                  class="secondary copy-room-button ${room !== null && isHost ? "is-active" : "is-paste"}"
+                  ${room !== null && isHost
+                    ? copyDisabled
+                      ? 'disabled title="暂无可复制的房间号"'
+                      : ""
+                    : 'title="从剪贴板粘贴房间号"'}
+                >${room !== null && isHost ? "复制房间号" : "粘贴房间号"}</button>
+                <button
+                  id="leave-room-button"
+                  class="secondary lobby-leave-room-button ${leaveDisabled ? "" : "is-active"}"
+                  ${leaveDisabled ? 'disabled title="当前不在房间中。"' : ""}
+                >离开房间</button>
+                ${room !== null && isHost
+                  ? `
+                    <button
+                      id="add-bot-button"
+                      data-testid="add-bot-button"
+                      class="secondary room-add-bot-button ${canAddBot ? "is-active" : "is-inactive"}"
+                      ${canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`}
+                    >添加机器人</button>
+                  `
+                  : room !== null
+                    ? `
+                      <button
+                        id="ready-button"
+                        data-testid="ready-button"
+                        ${canToggleReady ? "" : `disabled title="${escapeHtml(getReadyDisabledReason(room))}"`}
+                      >${escapeHtml(selfPlayer?.isReady === true ? "取消准备" : "准备")}</button>
+                    `
+                    : `<button id="ready-button" data-testid="ready-button" disabled title="进入房间后可准备。">准备</button>`}
+              </div>
+              <div class="host-room-actions host-room-actions-single lobby-start-game-row">
+                <button
+                  id="start-game-button"
+                  data-testid="start-game-button"
+                  class="lobby-start-game-button"
+                  ${room !== null && isHost && canStart ? "" : `disabled title="${escapeHtml(room !== null && isHost ? getStartGameDisabledReason(room) : "只有房主可以开始游戏。")}"`}
+                >开始游戏</button>
+              </div>
+              <div class="lobby-field lobby-mode-field">
+                <span>质疑模式</span>
+                <select id="mode">
+                  <option value="no-challenge" ${getLobbyMode() === "no-challenge" ? "selected" : ""}>无质疑</option>
+                  <option value="with-challenge" ${getLobbyMode() === "with-challenge" ? "selected" : ""}>有质疑</option>
+                </select>
+              </div>
+              <div class="lobby-room-status-pill ${room === null ? "is-alert" : readyStatusTone(room)}">
+                ${escapeHtml(room === null ? "等待成员" : getLobbyReadyStatus(room).label)}
+              </div>
+            </div>
+          </section>
         </div>
       </div>
-      <div class="panel lobby-status" data-testid="lobby-status-panel">
-        <div class="lobby-panel-heading">
-          <p class="eyebrow">Room</p>
-          <h2>等待席</h2>
-          <span>${escapeHtml(state.connectionStatus)}</span>
+      <div class="panel lobby-chat-panel" data-testid="lobby-chat-panel">
+        <section class="lobby-chat-shell lobby-chat-shell-full">
+          <div class="lobby-hub-panel-header lobby-chat-shell-header">
+            <div>
+              <p class="eyebrow">Chat</p>
+              <h3>玩家聊天</h3>
+            </div>
+            <span>${escapeHtml(room === null ? "未启用" : `${String(state.lobbyChatFeed.length)} 条消息`)}</span>
+          </div>
+          ${renderLobbyChatFeed(room)}
+        </section>
+        <div class="lobby-chat-composer">
+          <input
+            id="lobby-chat-input"
+            class="lobby-chat-input"
+            maxlength="30"
+            value="${escapeHtml(state.lobbyChatDraft)}"
+            placeholder="输入聊天消息"
+            ${room === null ? "disabled" : ""}
+          />
+          <button
+            id="lobby-chat-send-button"
+            class="secondary lobby-chat-send-button"
+            ${room === null || state.lobbyChatDraft.trim().length === 0 ? 'disabled title="进入房间并输入消息后可发送。"' : ""}
+          >发送</button>
         </div>
-        ${
-          room === null
-            ? renderEmptyLobbyState()
-            : renderRoomState(room)
-        }
       </div>
-      ${renderRulesGuidePanel()}
     </section>
   `;
 }
+
 
 // UI name: lobby-rules-guide. 大厅底部规则讲解入口。
 function renderRulesGuidePanel(): string {
@@ -845,7 +1140,7 @@ function getRuleEntryDisabledReason(
   entryId: RuleEntryId,
   context: "lobby" | "modal"
 ): string | null {
-  if (context === "lobby" || entryId !== "challenge") {
+  if (context === "lobby" || entryId !== "challenge" || state.snapshot === null) {
     return null;
   }
 
@@ -1079,17 +1374,241 @@ function getRoomCodeValue(): string {
   return state.roomCodeDigits.join("");
 }
 
+function syncLobbyChatScroll(): void {
+  const feed = document.querySelector<HTMLElement>("[data-testid='lobby-chat-feed']");
+
+  if (feed === null) {
+    return;
+  }
+
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function isLobbyChatInputKeyboardEvent(event: Event): event is KeyboardEvent {
+  return "key" in event;
+}
+
+function renderLobbyMembersPanel(room: PlayerRoomSnapshot): string {
+  const isHostViewer = room.hostPlayerId === state.playerId;
+  const seatCount = 8;
+  const playersBySeat = Array.from({ length: seatCount }, (_, seatIndex) => {
+    return room.players.find((player) => player.seatIndex === seatIndex) ?? null;
+  });
+
+  return `
+    <div class="lobby-members-panel" data-testid="lobby-members-panel">
+      <div class="lobby-seat-grid">
+        ${playersBySeat
+          .map((player, seatIndex) => {
+            if (player === null) {
+              return `
+                <div class="lobby-seat-card lobby-seat-card-empty" data-seat-index="${String(seatIndex)}">
+                  <div class="lobby-seat-main">
+                    <div class="lobby-seat-avatar lobby-seat-avatar-empty" aria-hidden="true"></div>
+                    <div class="lobby-seat-text">
+                      <strong class="lobby-seat-name">空位</strong>
+                      <small class="lobby-seat-status">等待加入</small>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }
+
+            const readyClass =
+              player.isReady || player.isHost || player.isBot ? "is-ready" : "is-unready";
+            const canKick =
+              isHostViewer &&
+              room.status === "lobby" &&
+              player.playerId !== state.playerId &&
+              !player.isHost;
+
+            return `
+              <div
+                class="lobby-seat-card ${getRoomPlayerPillClass(player)} ${readyClass}"
+                data-testid="room-player"
+                data-seat-index="${String(player.seatIndex)}"
+                data-room-host="${player.isHost ? "true" : "false"}"
+                ${player.isBot === true ? 'data-room-bot="true"' : ""}
+              >
+                <div class="lobby-seat-main">
+                  <img
+                    class="lobby-seat-avatar"
+                    src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
+                    alt="${escapeHtml(player.displayName ?? player.playerId)}"
+                  />
+                  <div class="lobby-seat-text">
+                    <strong class="lobby-seat-name">${escapeHtml(player.displayName ?? player.playerId)}</strong>
+                    <small class="lobby-seat-status">${escapeHtml(getRoomPlayerReadyLabel(player))}</small>
+                  </div>
+                </div>
+                ${canKick
+                  ? `
+                    <button
+                      class="mini-kick-button lobby-seat-kick-button"
+                      data-kick-player="${escapeHtml(player.playerId)}"
+                      title="踢出 ${escapeHtml(player.displayName ?? player.playerId)}"
+                    >踢出</button>
+                  `
+                  : ""}
+              </div>
+            `;
+          })
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+
+function renderLobbyChatFeed(room: PlayerRoomSnapshot | null): string {
+  if (state.roomId === null || state.playerId === null || state.room === null) {
+    return `
+      <div class="lobby-chat-feed lobby-feed-empty" data-testid="lobby-chat-feed">
+        <strong>已退出</strong>
+        <p class="muted">聊天内容已清空。重新创建或加入房间后可继续聊天。</p>
+      </div>
+    `;
+  }
+
+  const activeRoom = state.room;
+
+  return `
+    <div class="lobby-chat-feed" data-testid="lobby-chat-feed">
+      ${state.lobbyChatFeed.length === 0
+        ? `
+          <div class="lobby-feed-item lobby-feed-item-system">
+            <span class="lobby-feed-system-pill">房间已就绪，聊天消息会显示在这里。</span>
+          </div>
+        `
+        : state.lobbyChatFeed
+            .map((entry) => {
+              if (entry.kind === "system") {
+                return `
+                  <div class="lobby-feed-item lobby-feed-item-system">
+                    <span class="lobby-feed-system-pill">${escapeHtml(entry.text)}</span>
+                  </div>
+                `;
+              }
+
+              const player = activeRoom.players.find((candidate) => candidate.playerId === entry.playerId);
+              const isSelf = entry.playerId !== null && entry.playerId === state.playerId;
+
+              return `
+                <div class="lobby-feed-item ${isSelf ? "lobby-feed-item-self" : "lobby-feed-item-player"}">
+                  <img
+                    class="lobby-feed-avatar"
+                    src="${escapeHtml(resolvePlayerAvatar(entry.playerId ?? entry.speakerName, player?.avatarUrl ?? null))}"
+                    alt="${escapeHtml(entry.speakerName)}"
+                  />
+                  <div class="lobby-feed-bubble-wrap">
+                    <strong>${escapeHtml(entry.speakerName)}</strong>
+                    <div class="lobby-feed-bubble">${escapeHtml(entry.text)}</div>
+                  </div>
+                </div>
+              `;
+            })
+            .join("")}
+    </div>
+  `;
+}
+
+
+function appendLobbyChatDraft(nextValue: string): void {
+  state.lobbyChatDraft = nextValue.slice(0, 30);
+}
+
+function focusLobbyChatInput(): void {
+  const input = document.querySelector<HTMLInputElement>("#lobby-chat-input");
+  input?.focus();
+}
+
+function syncLobbyChatSendButtonState(): void {
+  const button = document.querySelector<HTMLButtonElement>("#lobby-chat-send-button");
+
+  if (button === null) {
+    return;
+  }
+
+  const disabled =
+    state.room === null ||
+    state.lobbyChatDraft.trim().length === 0;
+  button.disabled = disabled;
+
+  if (state.room === null || state.lobbyChatDraft.trim().length === 0) {
+    button.title = "进入房间并输入消息后可发送。";
+  } else {
+    button.removeAttribute("title");
+  }
+}
+
+function sendLobbyChatMessage(): void {
+  const roomId = state.roomId;
+  const playerId = state.playerId;
+  const room = state.room;
+  const text = state.lobbyChatDraft.trim();
+
+  if (roomId === null || playerId === null || room === null || text.length === 0) {
+    syncLobbyChatSendButtonState();
+    focusLobbyChatInput();
+    return;
+  }
+
+  sendSafely(
+    buildLobbyChatMessage({
+      roomId,
+      playerId,
+      text
+    })
+  );
+
+  state.lobbyChatDraft = "";
+  render();
+  focusLobbyChatInput();
+}
+
+function renderLobbyReadyStatusTags(room: PlayerRoomSnapshot | null): string {
+  if (room === null) {
+    return '<span class="lobby-ready-tag is-waiting">等待成员</span>';
+  }
+
+  const unreadyPlayers = room.players.filter((player) => {
+    return !player.isHost && !player.isBot && !player.isReady && player.connectionStatus === "connected";
+  });
+
+  if (unreadyPlayers.length === 0) {
+    return '<span class="lobby-ready-tag is-ready">全部玩家已准备</span>';
+  }
+
+  return unreadyPlayers
+    .map((player) => {
+      return `<span class="lobby-ready-tag is-unready">${escapeHtml(player.displayName ?? player.playerId)} 未准备</span>`;
+    })
+    .join("");
+}
+
+function readyStatusTone(room: PlayerRoomSnapshot): "is-waiting" | "is-live" | "is-ready" | "is-alert" {
+  const readyStatus = getLobbyReadyStatus(room);
+
+  if (room.status === "playing") {
+    return "is-live";
+  }
+
+  if (readyStatus.unreadyPlayers.length === 0) {
+    return "is-ready";
+  }
+
+  return "is-alert";
+}
+
 function setRoomCodeFromText(text: string): void {
   const digits = text.replace(/\D/g, "").slice(0, 6).split("");
   state.roomCodeDigits = Array.from({ length: 6 }, (_, index) => digits[index] ?? "");
 }
-
 function showRoomCodeInputError(message: string): void {
   state.lastError = message;
   showToast(message, "warning");
 }
 
-// UI name: lobby-empty-state. 未进入房间时的等待席空状态。
 function renderEmptyLobbyState(): string {
   return `
     <div class="empty-lobby">
@@ -1117,7 +1636,6 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
     state.playerId !== null &&
     selfPlayer !== undefined;
   const hostPlayer = room.players.find((player) => player.isHost);
-  const openSlotCount = Math.max(LOBBY_MAX_PLAYER_SLOTS - room.players.length, 0);
   const canAddBot =
     state.connectionStatus === "open" &&
     isHost &&
@@ -1131,92 +1649,46 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
         <span class="room-code-label">房间号</span>
         <strong data-testid="room-id">${escapeHtml(room.roomCode)}</strong>
       </div>
-      <div class="room-chip-row">
+      <div class="room-chip-row room-chip-row-status">
         <span>${escapeHtml(getModeLabel(room.mode))}</span>
         <span>${escapeHtml(getRoomStatusLabel(room.status))}</span>
         <span>${escapeHtml(readyStatus.label)}</span>
       </div>
+      ${
+        isHost
+          ? `<div class="room-meta-actions">
+              <button id="add-bot-button" data-testid="add-bot-button" class="secondary room-add-bot-button" ${canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`}>添加机器人</button>
+            </div>`
+          : ""
+      }
       <p>房主：${escapeHtml(hostPlayer?.displayName ?? hostPlayer?.playerId ?? "未知")}</p>
     </div>
-    <div class="players">
+    <div class="players players-compact">
       ${room.players
-        .map((player) => {
-          if (player.isBot === true) {
-            return `
-              <div
-                class="player-pill ${getRoomPlayerPillClass(player)}"
-                data-testid="room-player"
-                data-room-host="${player.isHost ? "true" : "false"}"
-                data-room-bot="true"
-              >
-                <img
-                  class="avatar"
-                  src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
-                  alt="${escapeHtml(player.displayName ?? player.playerId)}"
-                />
-                <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
-                ${
-                  isHost && !player.isHost && room.status === "lobby"
-                    ? `<button
-                        class="mini-kick-button"
-                        data-kick-player="${escapeHtml(player.playerId)}"
-                        data-testid="kick-player-button"
-                        title="踢出 ${escapeHtml(player.displayName ?? player.playerId)}"
-                      >踢出</button>`
-                    : ""
-                }
-              </div>
-            `;
-          }
-
-          return `
-            <div
-              class="player-pill ${getRoomPlayerPillClass(player)}"
-              data-testid="room-player"
-              data-room-host="${player.isHost ? "true" : "false"}"
-            >
-              <img
-                class="avatar"
-                src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
-                alt="${escapeHtml(player.displayName ?? player.playerId)}"
-              />
-              <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
-              <small>${escapeHtml(getRoomPlayerReadyLabel(player))}</small>
-              ${
-                isHost && !player.isHost && room.status === "lobby"
-                  ? `<button
-                      class="mini-kick-button"
-                      data-kick-player="${escapeHtml(player.playerId)}"
-                      data-testid="kick-player-button"
-                      title="踢出 ${escapeHtml(player.displayName ?? player.playerId)}"
-                    >踢出</button>`
-                  : ""
-              }
-            </div>
-          `;
-        })
-        .join("")}
-      ${Array.from({ length: openSlotCount }, (_, index) => {
-        const seatNumber = room.players.length + index + 1;
-
-        return `
-          <div class="player-pill player-pill-empty" aria-hidden="true">
-            <span class="avatar avatar-empty">${String(seatNumber)}</span>
-            <span>空位</span>
-            <small>座位 ${String(seatNumber)}</small>
+        .map((player) => `
+          <div
+            class="player-pill player-pill-compact ${getRoomPlayerPillClass(player)} ${player.isReady || player.isHost || player.isBot ? "is-ready" : "is-unready"}"
+            data-testid="room-player"
+            data-room-host="${player.isHost ? "true" : "false"}"
+            ${player.isBot === true ? 'data-room-bot="true"' : ""}
+          >
+            <img
+              class="avatar"
+              src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
+              alt="${escapeHtml(player.displayName ?? player.playerId)}"
+            />
+            <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
           </div>
-        `;
-      }).join("")}
+        `)
+        .join("")}
     </div>
-    <!-- seed input hidden from player-facing lobby -->
     <label class="seed-line" hidden>
       <span>可选种子</span>
       <input id="seed-input" autocomplete="off" />
     </label>
     ${
       isHost
-        ? `<div class="host-room-actions">
-            <button id="add-bot-button" data-testid="add-bot-button" class="secondary" ${canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`}>添加机器人</button>
+        ? `<div class="host-room-actions host-room-actions-single">
             <button id="start-game-button" data-testid="start-game-button" ${canStart ? "" : `disabled title="${escapeHtml(getStartGameDisabledReason(room))}"`}>开始游戏</button>
           </div>`
         : `<button id="ready-button" data-testid="ready-button" ${canToggleReady ? "" : `disabled title="${escapeHtml(getReadyDisabledReason(room))}"`}>${escapeHtml(selfPlayer?.isReady === true ? "取消准备" : "准备")}</button>`
@@ -1237,7 +1709,7 @@ function getRoomPlayerReadyLabel(player: PlayerRoomSnapshot["players"][number]):
   }
 
   if (player.isBot === true) {
-    return "机器人 · 已准备";
+    return "机器人";
   }
 
   if (player.isHost) {
@@ -1401,13 +1873,12 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
 
   return `
     <section
-      class="battle battle-immersive ${isMyTurn ? "my-turn" : "other-turn"}"
+      class="battle battle-immersive ${isMyTurn ? "my-turn" : "other-turn"} ${isChoosingInitialDirection ? "is-initial-direction-lock" : ""}"
       data-testid="battle-view"
       style="${renderBattleUiScaleStyle()}"
     >
       ${state.showDebugGrid ? renderBattleDebugGrid() : ""}
       <div class="table-zone battle-stage">
-        ${renderBattleLoadingOverlay()}
         ${renderTurnDirectionOrbit(snapshot)}
         ${renderBattleHud(snapshot, isMyTurn)}
         <p
@@ -1548,10 +2019,10 @@ function renderInitialDirectionChoiceModal(
     !snapshot.self.isRoundWinner;
 
   return `
-    <div class="initial-direction-backdrop" role="dialog" aria-modal="true" aria-labelledby="initial-direction-title">
+    <div class="initial-direction-backdrop" role="dialog" aria-modal="true" aria-labelledby="initial-direction-title" data-testid="initial-direction-backdrop">
       <div class="initial-direction-modal">
         <strong id="initial-direction-title">选择开局方向</strong>
-        <p>${canChoose ? "你是一号位，请选择本局的出牌方向。" : `等待 ${escapeHtml(chooserName)} 选择本局的出牌方向。`}</p>
+        <p>${canChoose ? "你是一号位，请选择本局的出牌方向。" : "等待第一家选择出牌顺序"}</p>
         <div class="initial-direction-actions">
           <button data-initial-direction="clockwise" ${canChoose ? "" : "disabled"}>顺时针</button>
           <button data-initial-direction="counter-clockwise" ${canChoose ? "" : "disabled"}>逆时针</button>
@@ -1585,26 +2056,6 @@ function renderBattleDebugGrid(): string {
           `;
         })
         .join("")}
-    </div>
-  `;
-}
-
-function renderBattleLoadingOverlay(): string {
-  if (
-    state.battleLoadingOverlayStartedAtMs === null ||
-    state.battleLoadingOverlayDone
-  ) {
-    return "";
-  }
-
-  return `
-    <div class="battle-loading-overlay" aria-live="polite" data-testid="battle-loading-overlay">
-      <div class="battle-loading-panel">
-        <strong>加载中</strong>
-        <div class="battle-loading-track" aria-hidden="true">
-          <span></span>
-        </div>
-      </div>
     </div>
   `;
 }
@@ -4184,8 +4635,12 @@ function getOpponentSeatScale(totalPlayerCount: number): string {
     return "0.92";
   }
 
-  if (totalPlayerCount <= 7) {
-    return "0.82";
+  if (totalPlayerCount === 7) {
+    return "1.07";
+  }
+
+  if (totalPlayerCount === 8) {
+    return "0.96";
   }
 
   return "0.74";
@@ -5091,13 +5546,33 @@ function bindLobbyPanel(): void {
   bindRoomCodeInputs();
 
   document.querySelector("#create-room-button")?.addEventListener("click", () => {
-    const mode = readSelectValue("#mode", "no-challenge") as GameMode;
+    const mode = readSelectValue("#mode", state.lobbyMode) as GameMode;
+    state.lobbyMode = mode;
     const message = buildCreateRoomMessage({
       userId: state.userId,
       nickname: state.nickname,
       mode
     });
     sendSafely(message);
+  });
+
+  document.querySelector("#nickname")?.addEventListener("input", (event) => {
+    const input = event.currentTarget as HTMLInputElement | null;
+    if (input === null) {
+      return;
+    }
+
+    state.nickname = input.value;
+  });
+
+  document.querySelector("#mode")?.addEventListener("change", (event) => {
+    const select = event.currentTarget as HTMLSelectElement | null;
+    if (select === null) {
+      return;
+    }
+
+    state.lobbyMode = select.value === "with-challenge" ? "with-challenge" : "no-challenge";
+    render();
   });
 
   document.querySelector("#join-room-button")?.addEventListener("click", () => {
@@ -5117,15 +5592,27 @@ function bindLobbyPanel(): void {
     sendSafely(message);
   });
 
-  document.querySelector("#copy-room-button")?.addEventListener("click", () => {
-    const roomId = state.roomId ?? getRoomCodeValue();
+  document.querySelector("#copy-room-button")?.addEventListener("click", async () => {
+    if (state.room !== null && state.room.hostPlayerId === state.playerId) {
+      const roomId = state.roomId ?? getRoomCodeValue();
 
-    if (roomId.length !== 6) {
-      showToast("暂无可复制的房间号", "warning");
+      if (roomId.length !== 6) {
+        showToast("暂无可复制的房间号", "warning");
+        return;
+      }
+
+      await copyTextToClipboard(roomId);
       return;
     }
 
-    void copyTextToClipboard(roomId);
+    try {
+      const text = await navigator.clipboard.readText();
+      setRoomCodeFromText(text);
+      render();
+      showToast("已粘贴房间号", "success");
+    } catch {
+      showToast("无法读取剪贴板", "warning");
+    }
   });
 
   document.querySelector("#start-game-button")?.addEventListener("click", () => {
@@ -5220,7 +5707,29 @@ function bindLobbyPanel(): void {
 
     applyUiSetting("background-music", nextValue);
   });
+
+  document.querySelector("#lobby-chat-input")?.addEventListener("input", (event) => {
+    const input = event.currentTarget as HTMLInputElement | null;
+    if (input === null) {
+      return;
+    }
+
+    appendLobbyChatDraft(input.value);
+    syncLobbyChatSendButtonState();
+  });
+
+  document.querySelector("#lobby-chat-input")?.addEventListener("keydown", (event) => {
+    if (isLobbyChatInputKeyboardEvent(event) && event.key === "Enter") {
+      event.preventDefault();
+      sendLobbyChatMessage();
+    }
+  });
+
+  document.querySelector("#lobby-chat-send-button")?.addEventListener("click", () => {
+    sendLobbyChatMessage();
+  });
 }
+
 
 function bindBattlePanel(): void {
   document.querySelector("#battle-settings-button")?.addEventListener("click", () => {
@@ -5727,8 +6236,13 @@ function applyInterfaceAdjustSetting(setting: string | undefined, value: number)
 function bindRuleControls(): void {
   document.querySelectorAll("#battle-rule-button").forEach((button) => {
     button.addEventListener("click", () => {
-      state.ruleModal = { type: "home" };
-      render();
+      openRuleHome();
+    });
+  });
+
+  document.querySelectorAll("#lobby-rule-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      openRuleHome();
     });
   });
 
@@ -5784,6 +6298,11 @@ function bindRuleControls(): void {
   document.querySelector("#rule-next-card-button")?.addEventListener("click", () => {
     moveRuleCard(1);
   });
+}
+
+function openRuleHome(): void {
+  state.ruleModal = { type: "home" };
+  render();
 }
 
 function openRuleEntry(entryId: RuleEntryId): void {
@@ -6424,10 +6943,9 @@ function resetRoomContext(): void {
   state.penaltyDrawProgress = null;
   state.eventModal = null;
   state.ruleModal = null;
-  state.battleLoadingOverlayStartedAtMs = null;
-  state.battleLoadingOverlayDone = false;
-  state.dismissedFinishedNoticeKey = null;
-  clearSelectedCards();
+  state.lobbyChatFeed = [];
+  state.lobbyChatDraft = "";
+
   removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);
 }
 

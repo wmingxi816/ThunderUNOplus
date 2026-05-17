@@ -3,6 +3,8 @@ import type {
   ClientAddBotMessage,
   ClientContinueGameMessage,
   ClientCreateRoomMessage,
+  ClientBattleChatMessage,
+  ClientLobbyChatMessage,
   ClientJoinRoomMessage,
   ClientKickPlayerMessage,
   ClientLeaveRoomMessage,
@@ -31,7 +33,9 @@ const CLIENT_MESSAGE_TYPES = new Set<ClientMessage["type"]>([
   "continue-game",
   "leave-room",
   "command",
-  "reconnect"
+  "reconnect",
+  "battle-chat",
+  "lobby-chat"
 ]);
 
 export class ParseMessageError extends Error {
@@ -102,6 +106,10 @@ export function parseMessage(rawMessage: RawData): ClientMessage {
       return parseCommandMessage(parsed);
     case "reconnect":
       return parseReconnectMessage(parsed);
+    case "battle-chat":
+      return parseBattleChatMessage(parsed);
+    case "lobby-chat":
+      return parseLobbyChatMessage(parsed);
     default: {
       const exhaustiveCheck: never = type;
       throw new ParseMessageError(
@@ -313,6 +321,34 @@ function parseReconnectMessage(
     requestId: requireString(record, "requestId"),
     roomId: requireString(record, "roomId"),
     userId: requireString(record, "userId"),
+    timestampMs: requireNumber(record, "timestampMs")
+  };
+}
+
+function parseBattleChatMessage(
+  record: Record<string, unknown>
+): ClientBattleChatMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "battle-chat",
+    requestId: requireString(record, "requestId"),
+    roomId: requireString(record, "roomId"),
+    playerId: requireString(record, "playerId"),
+    text: requireString(record, "text"),
+    timestampMs: requireNumber(record, "timestampMs")
+  };
+}
+
+function parseLobbyChatMessage(
+  record: Record<string, unknown>
+): ClientLobbyChatMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "lobby-chat",
+    requestId: requireString(record, "requestId"),
+    roomId: requireString(record, "roomId"),
+    playerId: requireString(record, "playerId"),
+    text: requireString(record, "text"),
     timestampMs: requireNumber(record, "timestampMs")
   };
 }

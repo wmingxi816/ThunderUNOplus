@@ -4,6 +4,8 @@ import type {
   ClientAddBotMessage,
   ClientContinueGameMessage,
   ClientCreateRoomMessage,
+  ClientBattleChatMessage,
+  ClientLobbyChatMessage,
   ClientJoinRoomMessage,
   ClientKickPlayerMessage,
   ClientLeaveRoomMessage,
@@ -238,6 +240,40 @@ export function buildPingMessage(requestId = createRequestId("ping")): ClientPin
     protocolVersion: PROTOCOL_VERSION,
     type: "ping",
     requestId,
+    timestampMs: Date.now()
+  };
+}
+
+export function buildBattleChatMessage(params: {
+  roomId: RoomId;
+  playerId: PlayerId;
+  text: string;
+  requestId?: string;
+}): ClientBattleChatMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "battle-chat",
+    requestId: params.requestId ?? createRequestId("chat"),
+    roomId: params.roomId,
+    playerId: params.playerId,
+    text: params.text,
+    timestampMs: Date.now()
+  };
+}
+
+export function buildLobbyChatMessage(params: {
+  roomId: RoomId;
+  playerId: PlayerId;
+  text: string;
+  requestId?: string;
+}): ClientLobbyChatMessage {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "lobby-chat",
+    requestId: params.requestId ?? createRequestId("lobby-chat"),
+    roomId: params.roomId,
+    playerId: params.playerId,
+    text: params.text,
     timestampMs: Date.now()
   };
 }

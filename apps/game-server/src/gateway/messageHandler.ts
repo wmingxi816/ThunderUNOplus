@@ -1,16 +1,19 @@
-import type {
-  ClientAddBotMessage,
-  ClientCreateRoomMessage,
-  ClientContinueGameMessage,
-  ClientJoinRoomMessage,
-  ClientKickPlayerMessage,
-  ClientLeaveRoomMessage,
-  ClientMessage,
-  ClientReconnectMessage,
-  ClientRenamePlayerMessage,
-  ClientRestartGameMessage,
-  ClientSetReadyMessage,
-  ClientStartGameMessage
+import {
+  PROTOCOL_VERSION,
+  type ClientAddBotMessage,
+  type ClientBattleChatMessage,
+  type ClientCreateRoomMessage,
+  type ClientContinueGameMessage,
+  type ClientJoinRoomMessage,
+  type ClientLobbyChatMessage,
+  type ClientKickPlayerMessage,
+  type ClientLeaveRoomMessage,
+  type ClientMessage,
+  type ClientReconnectMessage,
+  type ClientRenamePlayerMessage,
+  type ClientRestartGameMessage,
+  type ClientSetReadyMessage,
+  type ClientStartGameMessage
 } from "@thunder-uno/protocol";
 import type { RawData } from "ws";
 import { broadcastRoomState, createRoomClosedMessage, sendRoomStateToPlayer } from "../broadcast/broadcastRoomState";
@@ -38,6 +41,13 @@ export interface HandleClientMessageParams {
   connectionRegistry: ConnectionRegistry;
   botScheduler?: BotScheduler | undefined;
 }
+
+const BATTLE_CHAT_MAX_LENGTH = 30;
+const BATTLE_CHAT_COOLDOWN_MS = 3_000;
+const LOBBY_CHAT_MAX_LENGTH = 30;
+const LOBBY_CHAT_COOLDOWN_MS = 3_000;
+const battleChatLastSentAtByPlayer = new Map<string, number>();
+const lobbyChatLastSentAtByPlayer = new Map<string, number>();
 
 /**
  * WebSocket 层只负责消息分发与生命周期，不在这里重写游戏规则。
@@ -99,6 +109,12 @@ export function handleClientMessage(params: HandleClientMessageParams): {
       case "reconnect":
         handleReconnect({ ...params, message });
         return { ok: true, messageType: "reconnect" };
+      case "battle-chat":
+        handleBattleChat({ ...params, message });
+        return { ok: true, messageType: "battle-chat" };
+      case "lobby-chat":
+        handleLobbyChat({ ...params, message });
+        return { ok: true, messageType: "lobby-chat" };
       default: {
         const exhaustiveCheck: never = message;
         throw new Error(`Unsupported client message: ${String(exhaustiveCheck)}.`);
@@ -406,6 +422,172 @@ function handleReconnect(params: {
     result.player.playerId,
     params.message.requestId
   );
+}
+
+function handleBattleChat(params: {
+  connection: ServerConnection;
+  message: ClientBattleChatMessage;
+  roomManager: RoomManager;
+  connectionRegistry: ConnectionRegistry;
+}): void {
+  const room = params.roomManager.getRoom(params.message.roomId);
+
+  if (room === null) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "room-not-found",
+        message: "Room was not found.",
+        requestId: params.message.requestId,
+        roomId: params.message.roomId
+      })
+    );
+    return;
+  }
+
+  if (room.status !== "playing" || room.gameState === null) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "room-not-playing",
+        message: `Room ${room.roomId} is not currently playing.`,
+        requestId: params.message.requestId,
+        roomId: room.roomId
+      })
+    );
+    return;
+  }
+
+  const roomPlayer = room.players.find((player) => player.playerId === params.message.playerId);
+
+  if (roomPlayer === undefined) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "player-not-in-room",
+        message: `Player ${params.message.playerId} does not belong to room ${room.roomId}.`,
+        requestId: params.message.requestId,
+        roomId: room.roomId
+      })
+    );
+    return;
+  }
+
+  const trimmedText = params.message.text.trim();
+
+  if (trimmedText.length === 0 || trimmedText.length > BATTLE_CHAT_MAX_LENGTH) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "invalid-message",
+        message: `Battle chat text must be between 1 and ${String(BATTLE_CHAT_MAX_LENGTH)} characters.`,
+        requestId: params.message.requestId,
+        roomId: room.roomId
+      })
+    );
+    return;
+  }
+
+  const cooldownKey = `${room.roomId}:${params.message.playerId}`;
+  const lastSentAt = battleChatLastSentAtByPlayer.get(cooldownKey) ?? 0;
+  const now = Date.now();
+
+  if (now - lastSentAt < BATTLE_CHAT_COOLDOWN_MS) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "invalid-message",
+        message: "Battle chat is cooling down.",
+        requestId: params.message.requestId,
+        roomId: room.roomId
+      })
+    );
+    return;
+  }
+
+  battleChatLastSentAtByPlayer.set(cooldownKey, now);
+
+  params.connectionRegistry.sendToRoom(room.roomId, {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "battle-chat",
+    requestId: params.message.requestId,
+    roomId: room.roomId,
+    playerId: params.message.playerId,
+    text: trimmedText,
+    timestampMs: params.message.timestampMs
+  });
+}
+
+function handleLobbyChat(params: {
+  connection: ServerConnection;
+  message: ClientLobbyChatMessage;
+  roomManager: RoomManager;
+  connectionRegistry: ConnectionRegistry;
+}): void {
+  const room = params.roomManager.getRoom(params.message.roomId);
+
+  if (room === null) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "room-not-found",
+        message: "Room was not found.",
+        requestId: params.message.requestId,
+        roomId: params.message.roomId
+      })
+    );
+    return;
+  }
+
+  const roomPlayer = room.players.find((player) => player.playerId === params.message.playerId);
+
+  if (roomPlayer === undefined) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "player-not-in-room",
+        message: `Player ${params.message.playerId} does not belong to room ${room.roomId}.`,
+        requestId: params.message.requestId,
+        roomId: room.roomId
+      })
+    );
+    return;
+  }
+
+  const trimmedText = params.message.text.trim();
+
+  if (trimmedText.length === 0 || trimmedText.length > LOBBY_CHAT_MAX_LENGTH) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "invalid-message",
+        message: `Lobby chat text must be between 1 and ${String(LOBBY_CHAT_MAX_LENGTH)} characters.`,
+        requestId: params.message.requestId,
+        roomId: room.roomId
+      })
+    );
+    return;
+  }
+
+  const cooldownKey = `${room.roomId}:${params.message.playerId}`;
+  const lastSentAt = lobbyChatLastSentAtByPlayer.get(cooldownKey) ?? 0;
+  const now = Date.now();
+
+  if (now - lastSentAt < LOBBY_CHAT_COOLDOWN_MS) {
+    params.connection.send(
+      createServerErrorMessage({
+        code: "invalid-message",
+        message: "Lobby chat is cooling down.",
+        requestId: params.message.requestId,
+        roomId: room.roomId
+      })
+    );
+    return;
+  }
+
+  lobbyChatLastSentAtByPlayer.set(cooldownKey, now);
+
+  params.connectionRegistry.sendToRoom(room.roomId, {
+    protocolVersion: PROTOCOL_VERSION,
+    type: "lobby-chat",
+    requestId: params.message.requestId,
+    roomId: room.roomId,
+    playerId: params.message.playerId,
+    text: trimmedText,
+    timestampMs: params.message.timestampMs
+  });
 }
 
 function createServerErrorEnvelope(error: unknown) {
