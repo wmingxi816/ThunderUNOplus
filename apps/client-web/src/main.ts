@@ -72,13 +72,13 @@ interface AppState {
   ruleModal: RuleModalView | null;
   settingsModalOpen: boolean;
   settingsAdjustPanelOpen: boolean;
-  uiScalePercent: UiSettingPercent;
+  uiScalePercent: UiScalePercent;
   backgroundMusicPercent: UiSettingPercent;
   soundEffectPercent: UiSettingPercent;
   backgroundMusicBeforeMutePercent: UiSettingPercent | null;
   soundEffectBeforeMutePercent: UiSettingPercent | null;
   showDebugGrid: boolean;
-  turnOrbitYOffsetPercent: number;
+  turnOrbitScalePercent: number;
   seatYOffsetPercent: number;
   battleTableYOffsetPercent: number;
   handCardScalePercent: number;
@@ -242,15 +242,18 @@ interface RuleGuideSection {
 const LAST_ROOM_STORAGE_KEY = "thunder-uno.lastRoomId";
 const USER_ID_STORAGE_KEY = "thunder-uno.userId";
 const USER_NICKNAME_STORAGE_KEY = "thunder-uno.nickname";
-const UI_SCALE_STORAGE_KEY = "thunder-uno.ui-scale-percent";
+const UI_SCALE_STORAGE_KEY = "thunder-uno.ui-scale-percent.v2";
 const BACKGROUND_MUSIC_STORAGE_KEY = "thunder-uno.background-music-percent";
 const SOUND_EFFECT_STORAGE_KEY = "thunder-uno.sound-effect-percent";
 const DEBUG_GRID_STORAGE_KEY = "thunder-uno.debug-grid";
-const TURN_ORBIT_Y_OFFSET_STORAGE_KEY = "thunder-uno.turn-orbit-y-offset-percent";
+const TURN_ORBIT_SCALE_STORAGE_KEY = "thunder-uno.turn-orbit-scale-percent";
 const SEAT_Y_OFFSET_STORAGE_KEY = "thunder-uno.seat-y-offset-percent";
 const BATTLE_TABLE_Y_OFFSET_STORAGE_KEY = "thunder-uno.battle-table-y-offset-percent";
 const HAND_CARD_SCALE_STORAGE_KEY = "thunder-uno.hand-card-scale-percent";
 const DEFAULT_UI_SETTING_PERCENT = 80;
+const UI_SCALE_OPTIONS = [20, 40, 60, 80, 100] as const;
+type UiScalePercent = typeof UI_SCALE_OPTIONS[number];
+const DEFAULT_UI_SCALE_PERCENT: UiScalePercent = 80;
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
@@ -330,7 +333,7 @@ const RULE_IMAGE_GROUPS: RuleImageGroup[] = [
   {
     id: "special",
     title: "特色玩法",
-    images: ["/rules/特色规则（顺子）.png"]
+    images: ["/rules/特色玩法（顺子）.png"]
   },
   {
     id: "challenge",
@@ -505,7 +508,7 @@ const state: AppState = {
   backgroundMusicBeforeMutePercent: null,
   soundEffectBeforeMutePercent: null,
   showDebugGrid: readStoredBoolean(DEBUG_GRID_STORAGE_KEY),
-  turnOrbitYOffsetPercent: readStoredNumber(TURN_ORBIT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
+  turnOrbitScalePercent: readStoredNumber(TURN_ORBIT_SCALE_STORAGE_KEY, 100, 45, 145),
   seatYOffsetPercent: readStoredNumber(SEAT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
   battleTableYOffsetPercent: readStoredNumber(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
   handCardScalePercent: readStoredNumber(HAND_CARD_SCALE_STORAGE_KEY, 100, 60, 140),
@@ -642,34 +645,34 @@ function render(): void {
   syncBackgroundMusic();
 
   appRoot.innerHTML = `
-    <main class="shell ${isBattleView ? "shell-battle" : ""}">
+    <main class="shell ${isBattleView ? "shell-battle" : ""}" style="${isBattleView ? "" : renderLobbyUiScaleStyle()}">
       ${
         isBattleView
           ? renderBattlePanel(snapshot)
           : `
             ${renderLobbyStormBackdrop()}
             <section class="topbar">
-              <div class="lobby-topbar-actions">
-                <button
-                  id="lobby-music-toggle-button"
-                  class="secondary lobby-sound-button ${state.backgroundMusicPercent <= 0 ? "is-muted" : ""}"
-                  aria-label="${state.backgroundMusicPercent <= 0 ? "开启大厅音乐" : "关闭大厅音乐"}"
-                  title="${state.backgroundMusicPercent <= 0 ? "开启大厅音乐" : "关闭大厅音乐"}"
-                >${state.backgroundMusicPercent <= 0 ? "♪" : "♫"}</button>
-              </div>
+              <span
+                class="sr-only"
+                data-testid="connection-status"
+                aria-live="polite"
+              >${state.connectionStatus}</span>
               <div class="lobby-title-wrap">
                 ${renderLobbyTitle()}
               </div>
               <div class="lobby-topbar-status-group">
-                <span
-                  class="status status-${state.connectionStatus}"
-                  data-testid="connection-status"
-                >${state.connectionStatus}</span>
                 <button
                   id="lobby-rule-button"
                   data-testid="lobby-rule-button"
                   class="secondary lobby-rule-button"
                 >规则</button>
+                <button
+                  id="lobby-settings-button"
+                  data-testid="lobby-settings-button"
+                  class="secondary lobby-settings-button"
+                  aria-label="设置"
+                  title="设置"
+                >设置</button>
               </div>
             </section>
 
@@ -678,6 +681,8 @@ function render(): void {
           `
       }
       ${renderRuleModal()}
+      ${renderSettingsModal()}
+      ${renderCardHoverTooltip()}
     </main>
   `;
 
@@ -966,7 +971,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-identity-row">
                 <label class="lobby-field">
                   <span>昵称</span>
-                  <input id="nickname" value="${escapeHtml(state.nickname)}" maxlength="${String(MAX_PLAYER_NICKNAME_LENGTH)}" autocomplete="off" />
+                  <input id="nickname" data-testid="nickname-input" value="${escapeHtml(state.nickname)}" maxlength="${String(MAX_PLAYER_NICKNAME_LENGTH)}" autocomplete="off" />
                 </label>
                 <button
                   id="rename-player-button"
@@ -981,7 +986,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-identity-meta-row">
                 <label class="lobby-identity-meta-label">
                   <span>房间号</span>
-                  <strong>${escapeHtml(room === null ? getRoomCodeValue() || "-" : room.roomCode)}</strong>
+                  <strong data-testid="room-id">${escapeHtml(room === null ? getRoomCodeValue() || "-" : room.roomCode)}</strong>
                 </label>
                 <label class="lobby-identity-meta-label">
                   <span>准备情况</span>
@@ -999,6 +1004,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-actions lobby-actions-v2 lobby-actions-single-column lobby-primary-action-row">
                 <button
                   id="create-room-button"
+                  data-testid="create-room-button"
                   class="lobby-primary-button"
                   ${createDisabled ? `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"` : ""}
                 >创建房间</button>
@@ -1011,6 +1017,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-actions lobby-room-actions-grid">
                 <button
                   id="join-room-button"
+                  data-testid="join-room-button"
                   ${joinDisabled ? `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"` : ""}
                 >加入房间</button>
                 <button
@@ -1050,9 +1057,10 @@ function renderLobbyPanel(): string {
                 <button
                   id="start-game-button"
                   data-testid="start-game-button"
-                  class="lobby-start-game-button"
+                  class="lobby-start-game-button ${canStart ? "is-ready-to-start" : ""}"
                   ${room !== null && isHost && canStart ? "" : `disabled title="${escapeHtml(room !== null && isHost ? getStartGameDisabledReason(room) : "只有房主可以开始游戏。")}"`}
                 >开始游戏</button>
+                <p class="lobby-mobile-scale-tip">可以在页面中调整缩放比例以适配手机</p>
               </div>
               <div class="lobby-field lobby-mode-field">
                 <span>质疑模式</span>
@@ -1891,7 +1899,6 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
         ${renderNormalDrawOfferPrompt(snapshot, canTakeTurnAction)}
         ${renderInitialDirectionChoiceModal(snapshot, isConnected)}
         ${renderEventModal(snapshot)}
-        ${renderSettingsModal()}
         <div class="battle-table">
           <div class="opponents" data-testid="opponents-area">
             ${snapshot.opponents
@@ -2981,17 +2988,27 @@ function renderBattleUiScaleStyle(): string {
   return [
     `--battle-ui-scale: ${scale.toFixed(2)}`,
     `--battle-ui-inverse-scale: ${inverseScale.toFixed(4)}`,
-    `--turn-orbit-y-offset: ${String(state.turnOrbitYOffsetPercent)}%`,
+    `--turn-orbit-scale: ${(state.turnOrbitScalePercent / 100).toFixed(2)}`,
     `--battle-seat-y-offset: ${String(state.seatYOffsetPercent)}%`,
     `--battle-table-adjust-y: ${String(state.battleTableYOffsetPercent)}%`,
     `--hand-card-scale: ${(state.handCardScalePercent / 100).toFixed(2)}`
   ].join("; ");
 }
 
+function renderLobbyUiScaleStyle(): string {
+  return `--lobby-ui-scale: ${(state.uiScalePercent / 100).toFixed(2)}`;
+}
+
+function renderCardHoverTooltip(): string {
+  return '<div id="card-hover-tooltip" class="card-hover-tooltip" role="tooltip" hidden></div>';
+}
+
 function renderSettingsModal(): string {
   if (!state.settingsModalOpen) {
     return "";
   }
+
+  const isBattleSettings = state.snapshot !== null;
 
   return `
     <div
@@ -3009,8 +3026,10 @@ function renderSettingsModal(): string {
         ${renderUiScaleSegment("UI 缩放", state.uiScalePercent)}
         ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
         ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
+        <div class="settings-contact-line" id="settings-contact-content">QQ：2753345388</div>
         <button
           id="settings-adjust-toggle-button"
+          ${isBattleSettings ? "" : "hidden"}
           class="secondary settings-adjust-toggle ${state.settingsAdjustPanelOpen ? "active" : ""}"
           aria-expanded="${state.settingsAdjustPanelOpen ? "true" : "false"}"
         >界面调整</button>
@@ -3030,18 +3049,18 @@ function renderInterfaceAdjustPanel(): string {
       >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
       <fieldset class="settings-segment settings-slider-segment">
         <legend>旋转图标上下</legend>
-        <label class="settings-slider-row settings-orbit-slider-row" for="settings-turn-orbit-y-slider">
+        <label class="settings-slider-row settings-orbit-slider-row" for="settings-turn-orbit-scale-slider">
           <span class="settings-slider-icon" aria-hidden="true">↕</span>
           <input
-            id="settings-turn-orbit-y-slider"
+            id="settings-turn-orbit-scale-slider"
             type="range"
-            min="-30"
-            max="30"
+            min="45"
+            max="145"
             step="1"
-            value="${String(state.turnOrbitYOffsetPercent)}"
-            data-turn-orbit-y-range="true"
+            value="${String(state.turnOrbitScalePercent)}"
+            data-interface-adjust-range="turn-orbit-scale"
           />
-          <output data-turn-orbit-y-output>${String(state.turnOrbitYOffsetPercent)}%</output>
+          <output data-interface-adjust-output="turn-orbit-scale">${String(state.turnOrbitScalePercent)}%</output>
         </label>
       </fieldset>
       ${renderInterfaceAdjustSlider({
@@ -3090,7 +3109,7 @@ function renderInterfaceAdjustSlider(params: {
   step: number;
   unit: string;
   icon: string;
-  dataName: "seat-y" | "battle-table-y" | "hand-card-scale";
+  dataName: "turn-orbit-scale" | "seat-y" | "battle-table-y" | "hand-card-scale";
 }): string {
   return `
     <fieldset class="settings-segment settings-slider-segment">
@@ -3116,13 +3135,11 @@ function renderUiScaleSegment(
   label: string,
   value: UiSettingPercent
 ): string {
-  const options: readonly UiScalePercent[] = [60, 80, 100, 120];
-
   return `
     <fieldset class="settings-segment">
       <legend>${escapeHtml(label)}</legend>
       <div class="settings-segment-options">
-        ${options
+        ${UI_SCALE_OPTIONS
           .map((option) => {
             const isActive = option === value;
 
@@ -3617,7 +3634,6 @@ function renderCardButtonV2(
       aria-pressed="${info.relationState === "selected" ? "true" : "false"}"
       aria-disabled="${info.canSelect ? "false" : "true"}"
       aria-label="${escapeHtml(`${card.displayName} · ${info.reason}`)}"
-      title="${escapeHtml(cardTooltip ?? info.reason)}"
       ${tooltipAttribute}
     >
       <img src="${getCardAssetPath(card)}" alt="${escapeHtml(card.displayName)}" />
@@ -3626,11 +3642,84 @@ function renderCardButtonV2(
 }
 
 function getHandCardTooltip(card: Card, fallbackReason: string): string | null {
-  if (card.kind !== "discard-same-color" || card.color === undefined) {
-    return null;
+  const specialRule = getSpecialCardRuleText(card);
+
+  return specialRule === null ? fallbackReason : `${fallbackReason}；${specialRule}`;
+}
+
+function getSpecialCardRuleText(card: Card): string | null {
+  switch (card.kind) {
+    case "discard-same-color":
+      return card.color === undefined
+        ? "同色丢弃：可带出同色非黑牌。"
+        : `同色丢弃：双击可选中所有${getColorDisplayName(card.color)}手牌。`;
+    case "swap-hands":
+      return "交换手牌：按当前方向轮换所有玩家手牌，少牌时谨慎使用。";
+    case "wild":
+      return "变色牌：打出后指定下一轮颜色。";
+    case "penalty-draw":
+      return "罚抽牌：指定颜色后，下家一直摸到目标颜色。";
+    case "wild-reverse-draw-four":
+      return "反转 +4：反转方向并把加牌压力打向上一家。";
+    case "wild-draw-six":
+      return "变色 +6：可叠加加牌链，下一家累计摸牌。";
+    case "wild-draw-ten":
+      return "变色 +10：强力加牌牌，可抵消已有 +10 压力。";
+    case "draw-four":
+      return "普通 +4：只能接普通 +4 加牌链。";
+    case "draw-two":
+      return "普通 +2：只能接普通 +2 加牌链。";
+    case "skip":
+      return "禁牌：跳过下一位玩家。";
+    case "reverse":
+      return "反转牌：改变当前出牌方向。";
+    default:
+      return null;
+  }
+}
+
+function showCardHoverTooltip(button: HTMLElement, event: PointerEvent): void {
+  const text = button.dataset.cardTooltip;
+
+  if (text === undefined || text.trim().length === 0) {
+    hideCardHoverTooltip();
+    return;
   }
 
-  return `${fallbackReason}；双击可选中所有${getColorDisplayName(card.color)}手牌`;
+  const tooltip = document.querySelector<HTMLElement>("#card-hover-tooltip");
+
+  if (tooltip === null) {
+    return;
+  }
+
+  tooltip.textContent = text;
+  tooltip.hidden = false;
+  moveCardHoverTooltip(event);
+}
+
+function moveCardHoverTooltip(event: PointerEvent): void {
+  const tooltip = document.querySelector<HTMLElement>("#card-hover-tooltip");
+
+  if (tooltip === null || tooltip.hidden) {
+    return;
+  }
+
+  const offset = 14;
+  const maxLeft = Math.max(0, window.innerWidth - tooltip.offsetWidth - 8);
+  const maxTop = Math.max(0, window.innerHeight - tooltip.offsetHeight - 8);
+  tooltip.style.left = `${Math.min(maxLeft, event.clientX + offset)}px`;
+  tooltip.style.top = `${Math.min(maxTop, event.clientY + offset)}px`;
+}
+
+function hideCardHoverTooltip(): void {
+  const tooltip = document.querySelector<HTMLElement>("#card-hover-tooltip");
+
+  if (tooltip === null) {
+    return;
+  }
+
+  tooltip.hidden = true;
+  tooltip.textContent = "";
 }
 
 function getHandCardPresentation(
@@ -4869,7 +4958,6 @@ function playAudioElement(audio: HTMLAudioElement): void {
   }
 }
 
-type UiScalePercent = 60 | 80 | 100 | 120;
 type UiSettingPercent = number;
 type VolumeSettingName = "background-music" | "sound-effect";
 
@@ -5328,7 +5416,7 @@ function handleGameEvents(events: readonly GameEvent[]): void {
       state.latestPlayGroupEvent = playedEvent;
       state.latestPlayGroupAnimationKey = playedEvent.animationKey;
       playDrawStackCardPlayedSound(event);
-      showToast(`${lookupNameFromKnownState(event.playerId)} \u51fa\u724c\u6210\u529f`, "success");
+      showToast(getCardsPlayedToastMessage(event), "success");
     }
 
     if (event.type === "draw-stack-cleared" && event.reason === "resolved") {
@@ -5429,6 +5517,46 @@ function lookupNameFromKnownState(playerId: PlayerId): string {
   }
 
   return playerId;
+}
+
+function getCardsPlayedToastMessage(event: Extract<GameEvent, { type: "cards-played" }>): string {
+  const playerName = lookupNameFromKnownState(event.playerId);
+
+  switch (event.playPattern) {
+    case "sequence":
+      return `${playerName} 打出顺子，下一家需要接顺子最大牌。`;
+    case "multiple-number":
+      return `${playerName} 打出连对，一次压出多张同点数牌。`;
+    case "discard-same-color":
+      return `${playerName} 发动同色丢弃，附带牌只丢弃不触发技能。`;
+    default:
+      break;
+  }
+
+  switch (event.topCardKind) {
+    case "swap-hands":
+      return `${playerName} 打出交换手牌，所有玩家按当前方向轮换手牌。`;
+    case "penalty-draw":
+      return `${playerName} 打出罚抽牌，下家需要摸到指定颜色。`;
+    case "wild":
+      return `${playerName} 打出变色牌，颜色已重新指定。`;
+    case "wild-reverse-draw-four":
+      return `${playerName} 打出反转 +4，方向反转并叠加 4 张。`;
+    case "wild-draw-six":
+      return `${playerName} 打出变色 +6，下一家承受加牌压力。`;
+    case "wild-draw-ten":
+      return `${playerName} 打出变色 +10，加牌压力大幅提升。`;
+    case "draw-four":
+      return `${playerName} 打出 +4，加牌链继续。`;
+    case "draw-two":
+      return `${playerName} 打出 +2，加牌链继续。`;
+    case "skip":
+      return `${playerName} 打出禁牌，跳过下一位玩家。`;
+    case "reverse":
+      return `${playerName} 打出反转牌，方向改变。`;
+    default:
+      return `${playerName} 出牌成功`;
+  }
 }
 
 function translateRejectedMessage(code: ErrorCode, fallbackMessage: string): string {
@@ -5708,6 +5836,11 @@ function bindLobbyPanel(): void {
     applyUiSetting("background-music", nextValue);
   });
 
+  document.querySelector("#lobby-settings-button")?.addEventListener("click", () => {
+    state.settingsModalOpen = true;
+    render();
+  });
+
   document.querySelector("#lobby-chat-input")?.addEventListener("input", (event) => {
     const input = event.currentTarget as HTMLInputElement | null;
     if (input === null) {
@@ -5813,24 +5946,6 @@ function bindBattlePanel(): void {
     });
   });
 
-  document.querySelector<HTMLInputElement>("[data-turn-orbit-y-range]")?.addEventListener("input", (event) => {
-    const slider = event.currentTarget as HTMLInputElement | null;
-
-    if (slider === null) {
-      return;
-    }
-
-    const value = parseNumberInRange(slider.value, -30, 30);
-
-    if (value === null) {
-      return;
-    }
-
-    state.turnOrbitYOffsetPercent = value;
-    setStoredValue(TURN_ORBIT_Y_OFFSET_STORAGE_KEY, String(value));
-    syncTurnOrbitYOffsetControls(value);
-  });
-
   document.querySelectorAll<HTMLInputElement>("[data-interface-adjust-range]").forEach((slider) => {
     slider.addEventListener("input", () => {
       const setting = slider.dataset.interfaceAdjustRange;
@@ -5874,6 +5989,18 @@ function bindBattlePanel(): void {
       }
 
       handleHandCardDoubleClick(cardId);
+    });
+
+    button.addEventListener("pointerenter", (event) => {
+      showCardHoverTooltip(button, event);
+    });
+
+    button.addEventListener("pointermove", (event) => {
+      moveCardHoverTooltip(event);
+    });
+
+    button.addEventListener("pointerleave", () => {
+      hideCardHoverTooltip();
     });
   });
 
@@ -6078,8 +6205,8 @@ function applyUiSetting(
 ): void {
   switch (setting) {
     case "ui-scale":
-      state.uiScalePercent = value;
-      setStoredValue(UI_SCALE_STORAGE_KEY, String(value));
+      state.uiScalePercent = parseUiScalePercent(String(value)) ?? DEFAULT_UI_SCALE_PERCENT;
+      setStoredValue(UI_SCALE_STORAGE_KEY, String(state.uiScalePercent));
       break;
     case "background-music":
       state.backgroundMusicPercent = value;
@@ -6173,24 +6300,13 @@ function syncVolumeSettingControls(
   }
 }
 
-function syncTurnOrbitYOffsetControls(value: number): void {
-  const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
-  const output = document.querySelector<HTMLOutputElement>("[data-turn-orbit-y-output]");
-
-  if (battleRoot !== null) {
-    battleRoot.style.setProperty("--turn-orbit-y-offset", `${String(value)}%`);
-  }
-  if (output !== null) {
-    output.value = `${String(value)}%`;
-    output.textContent = `${String(value)}%`;
-  }
-}
-
 function parseInterfaceAdjustValue(
   setting: string | undefined,
   rawValue: string
 ): number | null {
   switch (setting) {
+    case "turn-orbit-scale":
+      return parseNumberInRange(rawValue, 45, 145);
     case "seat-y":
     case "battle-table-y":
       return parseNumberInRange(rawValue, -30, 30);
@@ -6212,6 +6328,11 @@ function applyInterfaceAdjustSetting(setting: string | undefined, value: number)
       state.seatYOffsetPercent = value;
       setStoredValue(SEAT_Y_OFFSET_STORAGE_KEY, String(value));
       battleRoot?.style.setProperty("--battle-seat-y-offset", `${String(value)}%`);
+      break;
+    case "turn-orbit-scale":
+      state.turnOrbitScalePercent = value;
+      setStoredValue(TURN_ORBIT_SCALE_STORAGE_KEY, String(value));
+      battleRoot?.style.setProperty("--turn-orbit-scale", (value / 100).toFixed(2));
       break;
     case "battle-table-y":
       state.battleTableYOffsetPercent = value;
@@ -7159,15 +7280,25 @@ function readStoredUiSettingPercent(key: string): UiSettingPercent {
 }
 
 function readStoredUiScalePercent(key: string): UiScalePercent {
-  return parseUiScalePercent(getStoredValue(key)) ?? DEFAULT_UI_SETTING_PERCENT;
+  return parseUiScalePercent(getStoredValue(key)) ?? DEFAULT_UI_SCALE_PERCENT;
 }
 
 function parseUiScalePercent(value: string | undefined | null): UiScalePercent | null {
-  if (value === "60" || value === "80" || value === "100" || value === "120") {
-    return Number(value) as UiScalePercent;
+  const parsed = parseVolumeSettingPercent(value);
+
+  if (parsed === null) {
+    return null;
   }
 
-  return null;
+  return UI_SCALE_OPTIONS.reduce((best, option) => {
+    const bestDistance = Math.abs(best - parsed);
+    const optionDistance = Math.abs(option - parsed);
+
+    return optionDistance < bestDistance || optionDistance === bestDistance && option > best
+      ? option
+      : best;
+  }, DEFAULT_UI_SCALE_PERCENT);
+
 }
 
 function parseVolumeSettingPercent(value: string | undefined | null): UiSettingPercent | null {

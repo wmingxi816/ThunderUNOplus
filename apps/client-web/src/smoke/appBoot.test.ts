@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
 
 class FakeWebSocket {
   static readonly CONNECTING = 0;
@@ -72,7 +73,7 @@ describe("client-web smoke", () => {
     expect(document.querySelector("#create-custom-room-button")).toBeNull();
     expect(document.querySelector("#join-room-button")).not.toBeNull();
     expect(document.querySelector("#rename-player-button")).not.toBeNull();
-    expect(document.querySelector("#lobby-music-toggle-button")).not.toBeNull();
+    expect(document.querySelector("#lobby-settings-button")).not.toBeNull();
     expect(document.querySelector("#room-id-input")).not.toBeNull();
     expect(document.querySelectorAll(".room-code-digit")).toHaveLength(6);
     expect(document.querySelector("#lobby-chat-input")).not.toBeNull();
@@ -80,7 +81,7 @@ describe("client-web smoke", () => {
     expect(document.querySelector("[data-testid='lobby-rule-button']")?.textContent).toContain("规则");
     expect(document.querySelectorAll(".rule-entry-button")).toHaveLength(0);
     expect(document.querySelector("#error-line")).not.toBeNull();
-    expect(document.querySelector(".status")).not.toBeNull();
+    expect(document.querySelector("[data-testid='connection-status']")).not.toBeNull();
 
     expect(FakeWebSocket.instances).toHaveLength(1);
 
@@ -98,6 +99,41 @@ describe("client-web smoke", () => {
       roomId: "room-123",
       userId: "user-123"
     });
+  });
+
+  it("shows static contact text and five fixed UI scale choices in settings", async () => {
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#lobby-settings-button")?.click();
+
+    expect(
+      Array.from(document.querySelectorAll("[data-setting-button='ui-scale']")).map((button) => button.textContent)
+    ).toEqual(["20%", "40%", "60%", "80%", "100%"]);
+    expect(document.querySelector("#settings-contact-button")).toBeNull();
+    expect(document.querySelector("#settings-contact-content")?.textContent).toBe("QQ：2753345388");
+  });
+
+  it("keeps the lobby rule and settings buttons in the right group and enlarges player cards", async () => {
+    await import("../main");
+
+    const rightGroup = document.querySelector(".lobby-topbar-status-group");
+    const settingsButton = document.querySelector("#lobby-settings-button");
+    const ruleButton = document.querySelector("#lobby-rule-button");
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(rightGroup?.contains(settingsButton ?? null)).toBe(true);
+    expect(rightGroup?.contains(ruleButton ?? null)).toBe(true);
+    expect(styleText).toContain("min-height: 3.64rem");
+  });
+
+  it("keeps lobby seat avatars and text adaptive on a single line", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain("grid-template-columns: auto minmax(0, 1fr);");
+    expect(styleText).toContain("width: clamp(1.56rem, 16cqi, 2.48rem);");
+    expect(styleText).toContain("font-size: clamp(0.62rem, 6.8cqi, 0.98rem);");
+    expect(styleText).toContain("font-size: clamp(0.48rem, 5.2cqi, 0.76rem);");
+    expect(styleText).toContain("white-space: nowrap;");
   });
 
   it("opens the lobby rules guide and maps card intro buttons to rule images", async () => {
