@@ -967,10 +967,21 @@ label span {
 .room-meta-actions {
   justify-self: end;
   align-self: start;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.room-add-bot-select,
+.room-add-bot-button {
+  min-height: clamp(2.05rem, 4.2vw, 2.4rem);
+}
+
+.room-add-bot-select {
+  min-width: 7.2rem;
+  padding: 0.55rem 2rem 0.55rem 0.72rem;
 }
 
 .room-add-bot-button {
-  min-height: clamp(2.05rem, 4.2vw, 2.4rem);
   padding-inline: 0.72rem;
 }
 
@@ -1664,6 +1675,10 @@ label span {
 
 .lobby-room-actions-grid button {
   width: 100%;
+  min-height: 2.85rem;
+}
+
+.lobby-room-actions-grid .room-add-bot-select {
   min-height: 2.85rem;
 }
 
@@ -2936,6 +2951,57 @@ label span {
   font-weight: 900;
   letter-spacing: 0;
   text-align: right;
+}
+
+.settings-update-log-shell {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.settings-update-log-button {
+  min-height: 2.35rem;
+  border-color: rgba(125, 177, 255, 0.28);
+}
+
+.settings-update-log-button.active {
+  border-color: rgba(248, 214, 78, 0.78);
+  background: #f8d64e;
+  color: #161616;
+}
+
+.settings-update-log-panel {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(125, 177, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(125, 177, 255, 0.08);
+}
+
+.settings-update-log-section {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.settings-update-log-section strong {
+  color: #f5f9ff;
+  font-size: 0.82rem;
+}
+
+.settings-update-log-section ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: #dcecff;
+}
+
+.settings-update-log-section li + li {
+  margin-top: 0.2rem;
+}
+
+.settings-update-log-empty {
+  margin: 0;
+  color: #dcecff;
+  font-size: 0.82rem;
 }
 
 .settings-adjust-panel {

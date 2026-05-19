@@ -92,6 +92,7 @@ export interface ClientAddBotMessage {
   requestId: RequestId;
   roomId: RoomId;
   playerId: PlayerId;
+  botType: "strong" | "chaos";
   timestampMs: UnixMs;
 }
 

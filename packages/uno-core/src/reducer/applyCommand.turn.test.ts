@@ -509,4 +509,103 @@ describe("applyCommand - 基础出牌与回合推进", () => {
     ]);
     expect(result.state.currentPlayerId).toBe("p2");
   });
+
+  it("emits playPattern for single-card, sequence, multiple-number, and discard-same-color plays", () => {
+    const single = coloredCard("red-skip", "red", "skip");
+    const singleState = createGameState({
+      currentColor: "red",
+      topCard: numberCard("top-red-1", "red", 1),
+      players: [
+        createPlayerState("p1", [single, numberCard("blue-2", "blue", 2)]),
+        createPlayerState("p2", []),
+        createPlayerState("p3", [])
+      ]
+    });
+
+    expect(
+      applyCommand(singleState, {
+        type: "play-card",
+        playerId: "p1",
+        cardId: single.id
+      }).events.find((event) => event.type === "cards-played")
+    ).toMatchObject({
+      type: "cards-played",
+      playPattern: "single"
+    });
+
+    const sequenceCards = [
+      numberCard("seq-0", "red", 0),
+      numberCard("seq-1", "blue", 1),
+      numberCard("seq-2", "green", 2),
+      numberCard("seq-3", "yellow", 3),
+      numberCard("seq-4", "red", 4)
+    ];
+    const sequenceState = createGameState({
+      currentColor: "red",
+      topCard: numberCard("top-red-9", "red", 9),
+      players: [
+        createPlayerState("p1", [...sequenceCards, numberCard("blue-7", "blue", 7)]),
+        createPlayerState("p2", []),
+        createPlayerState("p3", [])
+      ]
+    });
+
+    expect(
+      applyCommand(sequenceState, {
+        type: "play-sequence",
+        playerId: "p1",
+        cardIds: sequenceCards.map((card) => card.id)
+      }).events.find((event) => event.type === "cards-played")
+    ).toMatchObject({
+      type: "cards-played",
+      playPattern: "sequence"
+    });
+
+    const multipleA = numberCard("multi-a", "green", 6);
+    const multipleB = numberCard("multi-b", "green", 6);
+    const multipleState = createGameState({
+      currentColor: "green",
+      topCard: numberCard("top-green-2", "green", 2),
+      players: [
+        createPlayerState("p1", [multipleA, multipleB, numberCard("blue-7", "blue", 7)]),
+        createPlayerState("p2", []),
+        createPlayerState("p3", [])
+      ]
+    });
+
+    expect(
+      applyCommand(multipleState, {
+        type: "play-multiple-number",
+        playerId: "p1",
+        cardIds: [multipleA.id, multipleB.id]
+      }).events.find((event) => event.type === "cards-played")
+    ).toMatchObject({
+      type: "cards-played",
+      playPattern: "multiple-number"
+    });
+
+    const discardMain = coloredCard("discard-main", "red", "discard-same-color");
+    const discardAttached = numberCard("discard-attached", "red", 8);
+    const discardState = createGameState({
+      currentColor: "red",
+      topCard: numberCard("top-red-3", "red", 3),
+      players: [
+        createPlayerState("p1", [discardMain, discardAttached, numberCard("blue-7", "blue", 7)]),
+        createPlayerState("p2", []),
+        createPlayerState("p3", [])
+      ]
+    });
+
+    expect(
+      applyCommand(discardState, {
+        type: "play-discard-same-color",
+        playerId: "p1",
+        mainCardId: discardMain.id,
+        attachedCardIds: [discardAttached.id]
+      }).events.find((event) => event.type === "cards-played")
+    ).toMatchObject({
+      type: "cards-played",
+      playPattern: "discard-same-color"
+    });
+  });
 });

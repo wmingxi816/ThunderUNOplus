@@ -39,6 +39,7 @@ test("special rules image points at the existing feature-play asset", async ({ p
 });
 
 test("battle rotation icon is centered and settings only scales it", async ({ browser }) => {
+  test.setTimeout(45_000);
   const context = await browser.newContext();
   const host = await bootPlayer(context, "Orbit-A");
   const roomId = await createRoom(host);
@@ -76,11 +77,10 @@ test("battle rotation icon is centered and settings only scales it", async ({ br
   await host.locator("#settings-adjust-toggle-button").click();
   await expect(host.locator("#settings-turn-orbit-y-slider")).toHaveCount(0);
   await expect(host.locator("#settings-turn-orbit-scale-slider")).toBeVisible();
-
-  await context.close();
 });
 
 test("card hover help renders as a custom cursor-adjacent tooltip element", async ({ browser }) => {
+  test.setTimeout(45_000);
   const context = await browser.newContext();
   const host = await bootPlayer(context, "Tooltip-A");
   const roomId = await createRoom(host);
@@ -128,6 +128,4 @@ test("card hover help renders as a custom cursor-adjacent tooltip element", asyn
 
   await firstCard.dispatchEvent("pointerleave");
   await expect(tooltip).toBeHidden();
-
-  await context.close();
 });

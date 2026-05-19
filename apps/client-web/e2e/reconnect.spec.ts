@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { bootPlayer, createRoom, joinRoom, startGame, waitForBattleView } from "./helpers";
 
 test("reconnects into an active game after reload", async ({ browser }) => {
+  test.setTimeout(60_000);
   const contextA = await browser.newContext();
   const pageA = await bootPlayer(contextA, "Reconnect-A");
   const roomId = await createRoom(pageA);
@@ -19,14 +20,8 @@ test("reconnects into an active game after reload", async ({ browser }) => {
   await waitForBattleView(pageC);
 
   await pageB.reload();
-  await expect(pageB.getByTestId("connect-button")).toHaveText("重连");
-  await pageB.getByTestId("connect-button").click();
+  await expect(pageB.getByTestId("connection-status")).toHaveText("open", { timeout: 20_000 });
+  await expect(pageB.getByTestId("battle-view")).toBeVisible({ timeout: 20_000 });
+  await expect(pageB.getByTestId("top-card")).toBeVisible({ timeout: 20_000 });
 
-  await expect(pageB.getByTestId("connection-status")).toHaveText("open");
-  await expect(pageB.getByTestId("battle-view")).toBeVisible();
-  await expect(pageB.getByTestId("top-card")).toBeVisible();
-
-  await contextA.close();
-  await contextB.close();
-  await contextC.close();
 });

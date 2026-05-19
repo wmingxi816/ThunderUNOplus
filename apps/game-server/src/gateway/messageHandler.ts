@@ -230,7 +230,8 @@ function handleAddBot(params: {
 }): void {
   const result = params.roomManager.addBot({
     roomId: params.message.roomId,
-    playerId: params.message.playerId
+    playerId: params.message.playerId,
+    botType: params.message.botType
   });
 
   broadcastRoomState(

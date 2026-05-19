@@ -1,5 +1,6 @@
 import { applyCommand, type GameEvent } from "@thunder-uno/uno-core";
 import type { ClientCommandMessage, ErrorEnvelope } from "@thunder-uno/protocol";
+import type { CardColor } from "@thunder-uno/shared-types";
 import {
   broadcastEvents,
   createEventEnvelope
@@ -84,6 +85,11 @@ export function dispatchCommand(
     );
   }
 
+  const previousState = room.gameState;
+  const previousCurrentColor = previousState.currentColor;
+  const previousCurrentPlayerId = previousState.currentPlayerId;
+  const previousDrawStackActive = previousState.drawStack.active;
+  const previousDrawUntilColorActive = previousState.drawUntilColor.active;
   const result = applyCommand(room.gameState, params.message.command);
 
   room.gameState = result.state;
@@ -114,6 +120,13 @@ export function dispatchCommand(
     };
   }
 
+  updateBotStateMemory(room, params.message.command, {
+    previousCurrentColor,
+    previousCurrentPlayerId,
+    previousDrawStackActive,
+    previousDrawUntilColorActive
+  });
+
   broadcastEvents({
     room,
     connectionRegistry: params.connectionRegistry,
@@ -129,6 +142,62 @@ export function dispatchCommand(
     snapshotVersion: room.snapshotVersion,
     rejected: false
   };
+}
+
+function updateBotStateMemory(
+  room: RoomRuntime,
+  command: ClientCommandMessage["command"],
+  previous: {
+    previousCurrentColor: CardColor;
+    previousCurrentPlayerId: string;
+    previousDrawStackActive: boolean;
+    previousDrawUntilColorActive: boolean;
+  }
+): void {
+  const rememberedColor =
+    room.botState.lastUnanswerableColorByPlayerId[command.playerId];
+
+  if (
+    command.type === "draw-card" &&
+    !previous.previousDrawStackActive &&
+    !previous.previousDrawUntilColorActive &&
+    previous.previousCurrentPlayerId === command.playerId
+  ) {
+    room.botState.lastUnanswerableColorByPlayerId[command.playerId] =
+      previous.previousCurrentColor;
+    return;
+  }
+
+  if (
+    command.type === "keep-drawn-card" &&
+    !previous.previousDrawStackActive &&
+    !previous.previousDrawUntilColorActive &&
+    previous.previousCurrentPlayerId === command.playerId
+  ) {
+    room.botState.lastUnanswerableColorByPlayerId[command.playerId] =
+      previous.previousCurrentColor;
+    return;
+  }
+
+  if (
+    rememberedColor !== undefined &&
+    isColorAdvancingCommand(command.type) &&
+    room.gameState !== null &&
+    room.gameState.currentColor === rememberedColor
+  ) {
+    delete room.botState.lastUnanswerableColorByPlayerId[command.playerId];
+  }
+}
+
+function isColorAdvancingCommand(
+  commandType: ClientCommandMessage["command"]["type"]
+): boolean {
+  return (
+    commandType === "play-card" ||
+    commandType === "play-sequence" ||
+    commandType === "play-multiple-number" ||
+    commandType === "play-discard-same-color"
+  );
 }
 
 function buildErrorResult(

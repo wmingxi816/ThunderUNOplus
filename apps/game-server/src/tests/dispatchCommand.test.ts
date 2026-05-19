@@ -1,3 +1,4 @@
+import { createNumberCard } from "@thunder-uno/uno-core";
 import { describe, expect, it } from "vitest";
 import { dispatchCommand } from "../dispatch/dispatchCommand";
 import {
@@ -234,5 +235,93 @@ describe("dispatchCommand", () => {
         );
       })
     ).toBe(true);
+  });
+  it("records the current color when a player is forced to take a normal draw", () => {
+    const fixture = createStartedRoomFixture(3);
+    const state = fixture.room.gameState!;
+    const currentPlayerId = state.currentPlayerId;
+    const currentPlayer = state.players.find((player) => player.id === currentPlayerId)!;
+    const topCard = createNumberCard("memory-top-red-5", "red", 5);
+
+    state.topCard = topCard;
+    state.currentColor = "red";
+    state.discardPile = [topCard];
+    state.drawPile = [createNumberCard("memory-draw-blue-2", "blue", 2)];
+    currentPlayer.hand = [createNumberCard("memory-hand-blue-9", "blue", 9)];
+    currentPlayer.handCount = currentPlayer.hand.length;
+
+    const result = dispatchCommand({
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry,
+      message: createCommandMessage({
+        roomId: fixture.room.roomId,
+        playerId: currentPlayerId,
+        command: {
+          type: "draw-card",
+          playerId: currentPlayerId,
+          timestampMs: 1000
+        }
+      })
+    });
+
+    expect(result.ok).toBe(true);
+    expect(
+      fixture.room.botState.lastUnanswerableColorByPlayerId[currentPlayerId]
+    ).toBe("red");
+  });
+
+  it("clears the remembered unanswerable color once that player plays the color", () => {
+    const fixture = createStartedRoomFixture(3);
+    const state = fixture.room.gameState!;
+    const currentPlayerId = state.currentPlayerId;
+    const currentPlayer = state.players.find((player) => player.id === currentPlayerId)!;
+    const topCard = createNumberCard("memory-clear-top-red-5", "red", 5);
+
+    state.topCard = topCard;
+    state.currentColor = "red";
+    state.discardPile = [topCard];
+    state.drawPile = [createNumberCard("memory-clear-draw-blue-2", "blue", 2)];
+    currentPlayer.hand = [createNumberCard("memory-clear-blue-9", "blue", 9)];
+    currentPlayer.handCount = currentPlayer.hand.length;
+
+    dispatchCommand({
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry,
+      message: createCommandMessage({
+        roomId: fixture.room.roomId,
+        playerId: currentPlayerId,
+        command: {
+          type: "draw-card",
+          playerId: currentPlayerId,
+          timestampMs: 1000
+        }
+      })
+    });
+
+    const updatedState = fixture.room.gameState!;
+    const updatedPlayer = updatedState.players.find((player) => player.id === currentPlayerId)!;
+    updatedPlayer.hand = [createNumberCard("memory-clear-red-7", "red", 7)];
+    updatedPlayer.handCount = updatedPlayer.hand.length;
+    updatedState.currentPlayerId = currentPlayerId;
+
+    const result = dispatchCommand({
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry,
+      message: createCommandMessage({
+        roomId: fixture.room.roomId,
+        playerId: currentPlayerId,
+        command: {
+          type: "play-card",
+          playerId: currentPlayerId,
+          cardId: "memory-clear-red-7",
+          timestampMs: 1001
+        }
+      })
+    });
+
+    expect(result.ok).toBe(true);
+    expect(
+      fixture.room.botState.lastUnanswerableColorByPlayerId[currentPlayerId]
+    ).toBeUndefined();
   });
 });

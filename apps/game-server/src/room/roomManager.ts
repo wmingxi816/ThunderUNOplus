@@ -92,6 +92,9 @@ export class RoomManager {
       mode: params.mode,
       players: [ownerPlayer],
       gameState: null,
+      botState: {
+        lastUnanswerableColorByPlayerId: {}
+      },
       snapshotVersion: 0,
       createdAt,
       updatedAt: createdAt
@@ -242,6 +245,14 @@ export class RoomManager {
       }
     }
 
+    if (params.markLeft === true && room.ownerPlayerId === player.playerId) {
+      this.transferRoomOwnerAfterLeave(room, player.playerId);
+
+      if (room.gameState !== null && this.hasRoundDecisionReason(room) && this.canAutoContinueRoom(room)) {
+        this.continueRoomFromRoundDecision(room);
+      }
+    }
+
     room.updatedAt = this.now();
 
     return {
@@ -329,64 +340,7 @@ export class RoomManager {
   continueGame(params: ContinueGameParams): ContinueGameResult {
     const room = this.getRequiredRoom(params.roomId);
     this.assertRoomOwner(room, params.playerId);
-
-    if (room.gameState === null) {
-      throw new GameServerError(
-        "game-not-started",
-        `Room ${params.roomId} has no game to continue.`,
-        params.roomId
-      );
-    }
-
-    if (!this.hasRoundDecisionReason(room)) {
-      throw new GameServerError(
-        "round-decision-not-available",
-        `Room ${params.roomId} cannot be continued yet.`,
-        params.roomId
-      );
-    }
-
-    const gameState = room.gameState;
-    const now = this.now();
-    const activePlayerCount = gameState.players.filter(
-      (player) => !player.isEliminated && !player.isRoundWinner && !player.hasLeftRoom
-    ).length;
-
-    if (activePlayerCount < 2) {
-      throw new GameServerError(
-        "invalid-player-count",
-        `Room ${params.roomId} does not have enough active players to continue.`,
-        params.roomId
-      );
-    }
-
-    gameState.now = now;
-
-    if (gameState.status === "finished") {
-      gameState.status = "in-progress";
-    }
-
-    const currentPlayer = gameState.players.find(
-      (player) => player.id === gameState.currentPlayerId
-    );
-
-    if (
-      currentPlayer === undefined ||
-      currentPlayer.isEliminated ||
-      currentPlayer.isRoundWinner ||
-      currentPlayer.hasLeftRoom
-    ) {
-      const nextPlayerId = this.getNextRoomActivePlayerId(gameState.currentPlayerId, gameState);
-
-      if (nextPlayerId !== null) {
-        gameState.currentPlayerId = nextPlayerId;
-      }
-    }
-
-    gameState.snapshotVersion += 1;
-    room.status = "playing";
-    room.snapshotVersion = gameState.snapshotVersion;
-    room.updatedAt = now;
+    this.continueRoomFromRoundDecision(room);
 
     return { room };
   }
@@ -574,12 +528,13 @@ export class RoomManager {
 
     const joinedAt = this.now();
     const botIndex = room.players.filter((player) => player.isBot).length + 1;
+    const isChaosBot = params.botType === "chaos";
     const botPlayer: ServerRoomPlayer = {
       userId: `bot-${room.roomId}-${String(botIndex)}`,
       playerId: this.createPlayerId(),
       connectionId: null,
       seatIndex: room.players.length,
-      nickname: `雷霆bot${String(botIndex)}`,
+      nickname: `${isChaosBot ? "混沌bot" : "最强bot"}${String(botIndex)}`,
       avatarUrl: this.resolveAvatarUrl(room.players, null),
       connected: true,
       hasLeftRoom: false,
@@ -587,7 +542,7 @@ export class RoomManager {
       joinedAt,
       isBot: true,
       botProfile: {
-        strategy: "greedy-v1",
+        strategy: isChaosBot ? "chaos-v1" : "greedy-v1",
         forgetUnoRate: BOT_FORGET_UNO_RATE
       }
     };
@@ -737,6 +692,7 @@ export class RoomManager {
       snapshotVersion: nextSnapshotVersion,
       ...(seed === undefined ? {} : { seed })
     });
+    room.botState.lastUnanswerableColorByPlayerId = {};
     room.status = "playing";
     room.snapshotVersion = room.gameState.snapshotVersion;
     room.updatedAt = now;
@@ -780,10 +736,105 @@ export class RoomManager {
       return false;
     }
 
-    return (
+    const legacyRoundDecisionReason =
       gameState.status === "finished" ||
-      gameState.players.some((player) => player.isEliminated || player.isRoundWinner)
+      gameState.players.some(
+        (player) => !player.hasLeftRoom && (player.isEliminated || player.isRoundWinner)
+      );
+
+    if (typeof gameState.roundDecisionPending === "boolean") {
+      return gameState.roundDecisionPending || legacyRoundDecisionReason;
+    }
+
+    return legacyRoundDecisionReason;
+  }
+
+  private continueRoomFromRoundDecision(room: RoomRuntime): void {
+    if (room.gameState === null) {
+      throw new GameServerError(
+        "game-not-started",
+        `Room ${room.roomId} has no game to continue.`,
+        room.roomId
+      );
+    }
+
+    if (!this.hasRoundDecisionReason(room)) {
+      throw new GameServerError(
+        "round-decision-not-available",
+        `Room ${room.roomId} cannot be continued yet.`,
+        room.roomId
+      );
+    }
+
+    const gameState = room.gameState;
+    const now = this.now();
+    const activePlayerCount = gameState.players.filter(
+      (player) => !player.isEliminated && !player.isRoundWinner && !player.hasLeftRoom
+    ).length;
+
+    if (activePlayerCount < 2) {
+      throw new GameServerError(
+        "invalid-player-count",
+        `Room ${room.roomId} does not have enough active players to continue.`,
+        room.roomId
+      );
+    }
+
+    gameState.now = now;
+
+    if (gameState.status === "finished") {
+      gameState.status = "in-progress";
+    }
+
+    gameState.roundDecisionPending = false;
+    room.botState.lastUnanswerableColorByPlayerId = {};
+
+    const currentPlayer = gameState.players.find(
+      (player) => player.id === gameState.currentPlayerId
     );
+
+    if (
+      currentPlayer === undefined ||
+      currentPlayer.isEliminated ||
+      currentPlayer.isRoundWinner ||
+      currentPlayer.hasLeftRoom
+    ) {
+      const nextPlayerId = this.getNextRoomActivePlayerId(gameState.currentPlayerId, gameState);
+
+      if (nextPlayerId !== null) {
+        gameState.currentPlayerId = nextPlayerId;
+      }
+    }
+
+    gameState.snapshotVersion += 1;
+    room.status = "playing";
+    room.snapshotVersion = gameState.snapshotVersion;
+    room.updatedAt = now;
+  }
+
+  private canAutoContinueRoom(room: RoomRuntime): boolean {
+    if (room.gameState === null) {
+      return false;
+    }
+
+    const activePlayerCount = room.gameState.players.filter(
+      (player) => !player.isEliminated && !player.isRoundWinner && !player.hasLeftRoom
+    ).length;
+
+    return activePlayerCount >= 2;
+  }
+
+  private transferRoomOwnerAfterLeave(room: RoomRuntime, removedPlayerId: string): void {
+    const nextOwner = this.getPlayersInSeatOrder(room.players).find((player) => {
+      return player.playerId !== removedPlayerId && !player.hasLeftRoom;
+    });
+
+    if (nextOwner === undefined) {
+      return;
+    }
+
+    room.ownerPlayerId = nextOwner.playerId;
+    nextOwner.isReady = true;
   }
 
   private getNextRoomActivePlayerId(

@@ -428,7 +428,7 @@
         <div class="meta-strip">
           <article class="meta-card">
             <strong>收录文档</strong>
-            <span>21</span>
+            <span>22</span>
           </article>
           <article class="meta-card">
             <strong>分组板块</strong>
@@ -1944,7 +1944,7 @@ corepack pnpm --filter @thunder-uno/client-web build</code></pre>
             <h2>机器人与对战打磨</h2>
             <p>围绕 Greedy Bot、权重调优、音效和对战沉浸感的阶段记录。</p>
           </div>
-          <span class="group-chip">3 份文档</span>
+          <span class="group-chip">4 份文档</span>
         </div>
         <div class="doc-grid">
           <article class="doc-card">
@@ -2397,6 +2397,71 @@ finished=180 stuck=0 rejected=0</code></pre>
 <p>后续调参建议继续围绕固定场景库扩展：</p>
 <ol><li>黑牌保留场景：有普通颜色牌可出时，不轻易打 <code>+6</code>、<code>+10</code>。</li><li>冲刺场景：剩 2 张或 1 张时，验证机器人是否合理冒险。</li><li>同色丢弃场景：手牌多时积极丢弃，手牌少时保留。</li><li>顺子 / 连对场景：验证机器人不会轻易拆掉高价值组合。</li><li>加牌链场景：验证不同累计惩罚下是否合理叠加或结算。</li></ol>
 <p>等固定场景库足够丰富后，可以进一步把候选权重搜索做成自动 sweep，但仍需要人工定义“局面排序预期”，否则容易只优化胜率而牺牲玩家观感。</p>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">22</div>
+            <h3>Phase 7C：房主顺移、混沌 bot、更新日志与回合决策收口</h3>
+          </div>
+        </div>
+        <p>Phase 7C 记录的是一次“把半成品改动真正收成闭环”的收口阶段。重点不是再铺一层新系统，而是把已经开始推进的共享状态、房间生命周期、机器人入口、音频反馈、设置入口和文档说明整理成一致的最终行为。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE7C</span><span class="doc-tag">122 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-22" aria-expanded="false">展开内容</button>
+          <a href="./PHASE7C-HOST-TRANSFER-CHAOS-BOT-CHANGELOG.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-22" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 7C：房主顺移、混沌 bot、更新日志与回合决策收口</h1>
+<h2>阶段目标</h2>
+<p>Phase 7C 记录的是一次“把半成品改动真正收成闭环”的收口阶段。重点不是再铺一层新系统，而是把已经开始推进的共享状态、房间生命周期、机器人入口、音频反馈、设置入口和文档说明整理成一致的最终行为。</p>
+<p>这一轮最终落地了 5 组变化：</p>
+<ol><li>房主在回合决策阶段主动离房后的顺位与自动继续。</li><li>房主/非房主在回合决策弹窗中的权限切换。</li><li>大厅机器人从单一入口扩展为 <code>最强bot / 混沌bot</code> 双入口。</li><li>设置里的独立更新日志入口，以及 <code>update-log.md</code> 资源。</li><li>淘汰音乐、罚抽减速音效和相关文档说明的统一收口。</li></ol>
+<h2>与旧阶段文档的关系</h2>
+<p>本阶段是对旧行为说明的覆盖，不是并存规则。</p>
+<ul><li>它覆盖了 Phase 5A 里“普通玩家在结束弹窗中可以选择 <code>留在房间 / 离开房间</code>”的旧口径。现在普通玩家只显示“等待房主决定重开/继续游戏”，不再拥有那两个按钮。</li><li>它扩展了 Phase 6A 里单一 <code>greedy-v1</code> 机器人的设计。当前大厅机器人入口已经分成 <code>strong -&gt; greedy-v1</code> 和 <code>chaos -&gt; chaos-v1</code>。</li><li>它补充了 Phase 7A 的音频与设置能力，把“淘汰音乐、更新日志面板、pitch 保持关闭”这些新行为正式写入记录。</li></ul>
+<p>阅读顺序建议：</p>
+<ol><li>如果你想看机器人最初是怎么引入的，先看 <code>PHASE6A</code>。</li><li>如果你想看这轮最终行为是什么，以本阶段文档为准。</li></ol>
+<h2>核心变更</h2>
+<h3>1. 房主顺移与自动继续</h3>
+<ul><li>只在“房主主动离房”时处理顺位，不把单纯断线视为放弃权限。</li><li>对局已进入回合决策阶段时，如果房主淘汰后主动离房：</li><li>新房主按原始座位/加入顺序顺移到当前仍在房间中的最早玩家。</li><li>若仍有至少两名活跃玩家，则服务端自动执行一次 <code>continueGame()</code> 语义。</li><li>若活跃玩家不足两名，则只转移权限，不自动继续。</li><li><code>roundDecisionPending</code> 正式进入共享快照，作为客户端等待弹窗、服务端继续逻辑和旧状态兼容判断的统一开关。</li></ul>
+<h3>2. 回合决策弹窗</h3>
+<ul><li>房主显示 <code>重开一把 / 继续游戏</code>。</li><li>非房主只显示 <code>等待房主决定重开/继续游戏</code>。</li><li>当服务端自动继续成功，或者新的 snapshot 标明 <code>roundDecisionPending=false</code> 时，等待弹窗立刻关闭。</li><li>如果房主在回合决策阶段离房，客户端收到新的 <code>hostPlayerId</code> 后会立即切换按钮权限，不需要刷新页面。</li></ul>
+<h3>3. 机器人双入口与独立策略层</h3>
+<ul><li>协议层新增 <code>ClientAddBotMessage.botType</code>，字面量固定为 <code>&quot;strong&quot; | &quot;chaos&quot;</code>。</li><li>房间层 <code>ServerRoomPlayer.botProfile.strategy</code> 从单一 <code>&quot;greedy-v1&quot;</code> 扩展为：</li><li><code>&quot;greedy-v1&quot;</code></li><li><code>&quot;chaos-v1&quot;</code></li><li>大厅 UI 现在保留一个“添加机器人”按钮，同时增加一个下拉：</li><li><code>最强bot</code></li><li><code>混沌bot</code></li><li>服务端新增独立策略目录：</li><li><code>greedyStrategy.ts</code></li><li><code>chaosStrategy.ts</code></li><li><code>dispatchBotStrategy.ts</code></li><li>调度器和开发脚本改为统一通过 <code>dispatchBotStrategy()</code> 分发，而不是直接写死 greedy。</li></ul>
+<h3>4. chaos-v1 的核心决策</h3>
+<ul><li><code>chaos-v1</code> 先复用现有候选生成器拿到所有合法动作，再计算 <code>chaosScore</code>。</li><li>只要存在 <code>chaosScore &gt; 0</code> 的候选，就优先选 chaos 分最高者；如果全不命中，则回退到 greedy。</li><li>当前已经写进实现和测试的高优先级规则包括：</li><li><code>wild</code> 指向下家唯一缺色。</li><li>不可叠加回应的加牌压制。</li><li><code>swap-hands</code> 针对短手牌玩家或持有 <code>+10</code> 的对手。</li><li><code>reverse</code> 命中“上家接不了这个颜色”。</li><li><code>+10</code> 配合自己手里的 <code>swap-hands</code>。</li><li>黑牌偏多且手牌过大时优先打 <code>+6</code> / <code>+10</code>。</li><li><code>penalty-draw</code> 针对超大手牌对手。</li><li>“上家接不了某颜色”没有进公共协议，而是保存在服务端房间私有状态 <code>lastUnanswerableColorByPlayerId</code> 中。</li></ul>
+<h3>5. 更新日志与音频</h3>
+<ul><li>设置面板新增独立“日志”按钮，不复用规则弹窗。</li><li>前端读取 <code>apps/client-web/public/update-log.md</code>，只解析 <code>##</code> 标题和 <code>-</code> 列表项。</li><li>文件不存在、拉取失败或内容为空时，面板显示空状态文案“暂无更新日志”。</li><li>新增淘汰音乐资源 <code>apps/client-web/public/sounds/see-you-again-2x.mp3</code>：</li><li>首次收到本轮 <code>player-eliminated</code> 事件时启动。</li><li>循环播放。</li><li>跟随背景音乐音量滑杆。</li><li>继续游戏、重开、离房、自动继续成功时停止并重置。</li><li>同一轮淘汰音乐只允许启动一次。</li><li>罚抽减速音效播放前，统一关闭：</li><li><code>preservesPitch</code></li><li><code>webkitPreservesPitch</code></li><li><code>mozPreservesPitch</code></li></ul>
+<h2>影响文件</h2>
+<h3>共享类型与核心状态</h3>
+<ul><li><code>packages/shared-types/src/game.ts</code></li><li><code>packages/shared-types/src/snapshot.ts</code></li><li><code>packages/protocol/src/messages.ts</code></li><li><code>packages/uno-core/src/reducer/effects.ts</code></li><li><code>packages/uno-core/src/view/createPlayerGameSnapshot.ts</code></li></ul>
+<h3>服务端</h3>
+<ul><li><code>apps/game-server/src/room/roomManager.ts</code></li><li><code>apps/game-server/src/room/roomTypes.ts</code></li><li><code>apps/game-server/src/dispatch/dispatchCommand.ts</code></li><li><code>apps/game-server/src/bot/strategies/</code></li><li><code>apps/game-server/src/bot/botScheduler.ts</code></li><li><code>apps/game-server/src/dev/botSelfPlay.ts</code></li></ul>
+<h3>前端</h3>
+<ul><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/client-web/src/protocol/clientMessages.ts</code></li><li><code>apps/client-web/public/update-log.md</code></li><li><code>apps/client-web/public/sounds/see-you-again-2x.mp3</code></li></ul>
+<h3>文档与验证</h3>
+<ul><li><code>next-step.md</code></li><li><code>README.md</code></li><li><code>apps/client-web/e2e/round-decision-host-transfer.spec.ts</code></li><li><code>apps/game-server/src/tests/dispatchBotStrategy.test.ts</code></li><li><code>apps/game-server/src/tests/chaosStrategy.test.ts</code></li></ul>
+<h2>验证记录</h2>
+<p>本阶段完成后，执行过以下 fresh 验证：</p>
+<pre><code class="language-bash">corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm test:e2e</code></pre>
+<p>验证范围包括：</p>
+<ul><li>共享类型、协议、前端、服务端、模拟器全量 typecheck。</li><li><code>protocol</code>、<code>uno-core</code>、<code>game-server</code>、<code>client-web</code> 的全量单测。</li><li>全量 Playwright e2e，包括新增的：</li><li><code>round-decision-host-transfer.spec.ts</code></li></ul>
+<h2>验收标准</h2>
+<p>本阶段完成后应满足：</p>
+<ol><li><code>roundDecisionPending</code> 已成为共享快照正式字段。</li><li>非房主在回合决策阶段只显示等待文案。</li><li>房主淘汰并离房后，房主顺位与自动继续行为正确。</li><li>大厅机器人入口支持 <code>最强bot / 混沌bot</code>。</li><li>服务端具备 <code>greedy-v1 / chaos-v1</code> 两套策略入口。</li><li>更新日志按钮与 <code>update-log.md</code> 加载链路可用。</li><li>淘汰音乐和罚抽减速音效生命周期正确。</li><li><code>next-step.md</code> 与 <code>README.md</code> 已同步本轮行为。</li></ol>
+<h2>后续建议</h2>
+<p>后续如果继续写日志，建议按下面的边界拆：</p>
+<ol><li>如果是继续打磨 <code>chaos-v1</code> 权重和策略，记到机器人调优阶段。</li><li>如果是继续打磨回合决策、观战、房内重开之类房间生命周期，单独开新 Phase。</li><li>如果是继续打磨设置、更新日志、音频和 UI 面板，再开一篇 UI/UX 补充 Phase。</li></ol>
         </div>
       </div>
     </article>

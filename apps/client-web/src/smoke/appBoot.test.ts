@@ -50,13 +50,49 @@ class FakeWebSocket {
   }
 }
 
+class FakeAudio {
+  static instances: FakeAudio[] = [];
+
+  loop = false;
+  volume = 1;
+  playbackRate = 1;
+  currentTime = 0;
+  paused = true;
+  preservesPitch = true;
+  webkitPreservesPitch = true;
+  mozPreservesPitch = true;
+  playCount = 0;
+  pauseCount = 0;
+
+  constructor(readonly src: string) {
+    FakeAudio.instances.push(this);
+  }
+
+  play(): Promise<void> {
+    this.paused = false;
+    this.playCount += 1;
+    return Promise.resolve();
+  }
+
+  pause(): void {
+    this.paused = true;
+    this.pauseCount += 1;
+  }
+}
+
 describe("client-web smoke", () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="app"></div>';
     localStorage.clear();
     sessionStorage.clear();
     FakeWebSocket.instances = [];
+    FakeAudio.instances = [];
+    vi.unstubAllGlobals();
     vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: "jsdom-test",
+      configurable: true
+    });
     vi.resetModules();
   });
 
@@ -111,6 +147,41 @@ describe("client-web smoke", () => {
     ).toEqual(["20%", "40%", "60%", "80%", "100%"]);
     expect(document.querySelector("#settings-contact-button")).toBeNull();
     expect(document.querySelector("#settings-contact-content")?.textContent).toBe("QQ：2753345388");
+  });
+
+  it("loads update-log.md into a dedicated settings panel", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => "## 2026-05-19\n- 添加混沌bot\n- 增加更新日志入口"
+      })
+    );
+
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#lobby-settings-button")?.click();
+    document.querySelector<HTMLButtonElement>("#settings-update-log-button")?.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelector("[data-testid='settings-update-log-panel']")?.textContent).toContain("2026-05-19");
+    expect(document.querySelector("[data-testid='settings-update-log-panel']")?.textContent).toContain("添加混沌bot");
+    expect(document.querySelector("[data-testid='settings-update-log-panel']")?.textContent).toContain("增加更新日志入口");
+  });
+
+  it("shows an empty update log state when update-log.md cannot be loaded", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("network failed"))
+    );
+
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#lobby-settings-button")?.click();
+    document.querySelector<HTMLButtonElement>("#settings-update-log-button")?.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelector("[data-testid='settings-update-log-panel']")?.textContent).toContain("暂无更新日志");
   });
 
   it("keeps the lobby rule and settings buttons in the right group and enlarges player cards", async () => {
@@ -323,7 +394,7 @@ describe("client-web smoke", () => {
     expect(document.querySelector("#rule-next-button")).toBeNull();
   });
 
-  it("lets non-host players stay or leave from the finished game modal", async () => {
+  it("shows a waiting message for non-host players in the finished game modal", async () => {
     await import("../main");
 
     const socket = FakeWebSocket.instances[0];
@@ -461,33 +532,10 @@ describe("client-web smoke", () => {
     });
 
     expect(document.querySelector("[data-testid='restart-game-button']")).toBeNull();
-    expect(document.querySelector("[data-testid='stay-in-room-button']")).not.toBeNull();
-    expect(document.querySelector("[data-testid='finish-leave-room-button']")).not.toBeNull();
-
-    document.querySelector<HTMLButtonElement>("[data-testid='stay-in-room-button']")?.click();
-    expect(document.querySelector("[data-testid='event-modal']")).toBeNull();
-    expect(document.querySelector("[data-testid='battle-view']")).not.toBeNull();
-
-    socket?.triggerMessage({
-      protocolVersion: "0.1.0",
-      type: "snapshot",
-      roomId: "ROOM1",
-      playerId: "player-2",
-      snapshotVersion: 3,
-      snapshot: buildFinishedSnapshot(["player-3"])
-    });
-    document.querySelector<HTMLButtonElement>("[data-testid='finish-leave-room-button']")?.click();
-
-    const leaveRoomMessage = socket?.sentMessages
-      .map((message) => JSON.parse(message))
-      .find((message) => message.type === "leave-room" && message.roomId === "ROOM1");
-
-    expect(leaveRoomMessage).toMatchObject({
-      type: "leave-room",
-      roomId: "ROOM1",
-      playerId: "player-2"
-    });
-    expect(document.querySelector("[data-testid='lobby-view']")).not.toBeNull();
+    expect(document.querySelector("[data-testid='continue-game-button']")).toBeNull();
+    expect(document.querySelector("[data-testid='stay-in-room-button']")).toBeNull();
+    expect(document.querySelector("[data-testid='finish-leave-room-button']")).toBeNull();
+    expect(document.querySelector("[data-testid='event-modal']")?.textContent).toContain("等待房主决定重开/继续游戏");
   });
 
   it("generates room ids on the server and joins from the six digit room code inputs", async () => {
@@ -1662,6 +1710,275 @@ describe("client-web smoke", () => {
     expect(botPill?.querySelector(".lobby-seat-name")?.textContent).toContain("雷霆bot1");
     expect(botPill?.textContent).not.toContain("BOT");
     expect(botPill?.querySelector(".lobby-seat-status")?.textContent).toContain("机器人");
+  });
+
+  it("lets the host choose strong or chaos bot from the add-bot controls", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-host",
+      snapshotVersion: 1,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "lobby",
+        mode: "no-challenge",
+        hostPlayerId: "player-host",
+        snapshotVersion: 1,
+        players: [
+          {
+            playerId: "player-host",
+            displayName: "Host",
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            isBot: false,
+            connectionStatus: "connected"
+          },
+          {
+            playerId: "player-2",
+            displayName: "Guest",
+            avatarUrl: null,
+            seatIndex: 1,
+            isHost: false,
+            isReady: true,
+            isBot: false,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const botTypeSelect = document.querySelector<HTMLSelectElement>("[data-testid='add-bot-type-select']");
+    expect(botTypeSelect).not.toBeNull();
+    expect(Array.from(botTypeSelect?.options ?? []).map((option) => option.textContent)).toEqual([
+      "最强bot",
+      "混沌bot"
+    ]);
+
+    botTypeSelect!.value = "chaos";
+    botTypeSelect!.dispatchEvent(new Event("change"));
+    document.querySelector<HTMLButtonElement>("#add-bot-button")?.click();
+
+    const addBotMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "add-bot");
+
+    expect(addBotMessage).toMatchObject({
+      type: "add-bot",
+      roomId: "ROOM1",
+      playerId: "player-host",
+      botType: "chaos"
+    });
+  });
+
+  it("disables pitch preservation for penalty sounds and stops elimination music after the round decision ends", async () => {
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: "unit-test-browser",
+      configurable: true
+    });
+    vi.stubGlobal("Audio", FakeAudio as unknown as typeof Audio);
+
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: true,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      events: [
+        {
+          type: "cards-drawn",
+          playerId: "player-1",
+          count: 1,
+          reason: "draw-until-color",
+          drawUntilColor: {
+            targetColor: "red",
+            revealedColor: "blue",
+            matched: false
+          }
+        },
+        {
+          type: "player-eliminated",
+          playerId: "player-2",
+          handCount: 26,
+          reason: "hand-limit"
+        }
+      ]
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "events",
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      events: [
+        {
+          type: "player-eliminated",
+          playerId: "player-3",
+          handCount: 26,
+          reason: "hand-limit"
+        }
+      ]
+    });
+
+    const penaltyAudio = FakeAudio.instances.find((audio) =>
+      audio.src.includes("%E7%BD%9A%E6%8A%BD%E5%BC%80%E5%A7%8B.mp3")
+    );
+    const eliminationAudio = FakeAudio.instances.find((audio) =>
+      audio.src.includes("see-you-again-2x.mp3")
+    );
+
+    expect(penaltyAudio).not.toBeUndefined();
+    expect(penaltyAudio?.preservesPitch).toBe(false);
+    expect(penaltyAudio?.webkitPreservesPitch).toBe(false);
+    expect(penaltyAudio?.mozPreservesPitch).toBe(false);
+    expect(eliminationAudio).not.toBeUndefined();
+    expect(eliminationAudio?.playCount).toBe(1);
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 2,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 2,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    expect(eliminationAudio?.paused).toBe(true);
+    expect(eliminationAudio?.currentTime).toBe(0);
   });
 
   it("counts penalty draw toast messages and resets when resolved", async () => {

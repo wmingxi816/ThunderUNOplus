@@ -225,12 +225,19 @@ function parseRenamePlayerMessage(record: Record<string, unknown>): ClientRename
 }
 
 function parseAddBotMessage(record: Record<string, unknown>): ClientAddBotMessage {
+  const botType = record.botType;
+
+  if (botType !== "strong" && botType !== "chaos") {
+    throw new ParseMessageError("invalid-message", "botType must be either strong or chaos.");
+  }
+
   return {
     protocolVersion: PROTOCOL_VERSION,
     type: "add-bot",
     requestId: requireString(record, "requestId"),
     roomId: requireString(record, "roomId"),
     playerId: requireString(record, "playerId"),
+    botType,
     timestampMs: requireNumber(record, "timestampMs")
   };
 }

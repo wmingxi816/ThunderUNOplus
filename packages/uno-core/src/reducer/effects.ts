@@ -31,7 +31,9 @@ export function cloneGameState(state: GameState): GameState {
     drawStack: { ...state.drawStack },
     drawUntilColor: { ...state.drawUntilColor },
     normalDrawOffer: { ...state.normalDrawOffer },
+    initialDirectionChoice: { ...state.initialDirectionChoice },
     challengeWindow: { ...state.challengeWindow },
+    roundDecisionPending: state.roundDecisionPending,
     winnerPlayerIds: [...state.winnerPlayerIds]
   };
 }
@@ -264,6 +266,7 @@ export function markPlayerEliminated(
   player.unoPendingSinceMs = null;
   player.unoProtectionStartedAtMs = null;
   player.unoProtectionEndsAtMs = null;
+  state.roundDecisionPending = true;
 
   events.push({
     type: "player-eliminated",
@@ -358,6 +361,7 @@ export function finishGame(
   events: GameEvent[]
 ): void {
   state.status = "finished";
+  state.roundDecisionPending = true;
   const winnerIdSet = new Set(state.winnerPlayerIds);
 
   for (const winnerPlayerId of winnerPlayerIds) {
