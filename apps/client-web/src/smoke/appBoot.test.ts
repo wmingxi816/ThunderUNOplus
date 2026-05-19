@@ -136,6 +136,157 @@ describe("client-web smoke", () => {
     expect(styleText).toContain("white-space: nowrap;");
   });
 
+  it("upgrades lobby title effects without changing title or title-wrap sizing rules", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+    const mainText = await readFile("src/main.ts", "utf8");
+
+    expect(styleText).toContain("width: min(100%, 78rem);");
+    expect(styleText).toContain("min-height: clamp(2.9rem, 5.3vw, 3.9rem);");
+    expect(styleText).toContain("font-size: clamp(1.8rem, 3.6vw, 3rem);");
+    expect(styleText).toContain(".lobby-title-wrap::before");
+    expect(styleText).toContain(".lobby-title-wrap::after");
+    expect(styleText).toContain(".lobby-title::before");
+    expect(styleText).toContain(".lobby-screen-lightning");
+    expect(mainText).toContain("lobby-screen-lightning");
+    expect(mainText).toContain("lobby-title-bolt");
+  });
+
+  it("shows initial direction choices only for the chooser and waiting copy for others", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    const chooserSnapshot = {
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      status: "in-progress",
+      mode: "no-challenge",
+      currentPlayerId: "player-1",
+      currentColor: "red",
+      direction: "clockwise",
+      topCard,
+      discardPile: [topCard],
+      drawPileCount: 80,
+      drawStack: {
+        active: false,
+        amount: 0,
+        previousDrawValue: null,
+        previousDrawKind: null,
+        targetPlayerId: null
+      },
+      drawUntilColor: {
+        active: false,
+        color: null,
+        targetPlayerId: null
+      },
+      normalDrawOffer: {
+        active: false,
+        playerId: null,
+        cardId: null
+      },
+      challengeWindow: {
+        active: false,
+        targetPlayerId: null
+      },
+      winnerPlayerIds: [],
+      initialDirectionChoice: {
+        active: true,
+        chooserPlayerId: "player-1"
+      },
+      self: {
+        playerId: "player-1",
+        displayName: "player-1",
+        avatarUrl: null,
+        hand: [],
+        handCount: 0,
+        hasCalledUno: false,
+        unoPendingSinceMs: null,
+        unoProtectionStartedAtMs: null,
+        unoProtectionEndsAtMs: null,
+        isEliminated: false,
+        isCurrentPlayer: true
+      },
+      opponents: [
+        {
+          playerId: "player-2",
+          displayName: "player-2",
+          avatarUrl: null,
+          handCount: 7,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: false
+        }
+      ]
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: chooserSnapshot
+    });
+
+    expect(document.querySelector("[data-testid='initial-direction-backdrop']")?.textContent).toContain("选择开局方向");
+    expect(document.querySelectorAll("[data-initial-direction]")).toHaveLength(2);
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-2",
+      snapshotVersion: 2,
+      snapshot: {
+        ...chooserSnapshot,
+        snapshotVersion: 2,
+        self: {
+          playerId: "player-2",
+          displayName: "player-2",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: false
+        },
+        opponents: [
+          {
+            playerId: "player-1",
+            displayName: "player-1",
+            avatarUrl: null,
+            handCount: 0,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: true
+          }
+        ]
+      }
+    });
+
+    expect(document.querySelector("[data-testid='initial-direction-backdrop']")?.textContent).toContain("等待 player-1 选择出牌方向");
+    expect(document.querySelectorAll("[data-initial-direction]")).toHaveLength(0);
+  });
+
   it("opens the lobby rules guide and maps card intro buttons to rule images", async () => {
     await import("../main");
 

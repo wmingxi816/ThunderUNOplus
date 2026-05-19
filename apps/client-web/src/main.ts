@@ -715,6 +715,11 @@ function renderLobbyStormBackdrop(): string {
     const opacity = `${0.35 + (index % 4) * 0.1}`;
     return { left, size, duration, delay, drift, opacity };
   });
+  const screenLightnings = [
+    { className: "flash-a", left: "14%", top: "-6%", height: "18rem", rotate: "-16deg" },
+    { className: "flash-b", left: "48%", top: "-10%", height: "22rem", rotate: "-4deg" },
+    { className: "flash-c", left: "78%", top: "-7%", height: "19rem", rotate: "11deg" }
+  ];
 
   return `
     <div class="lobby-storm-backdrop" aria-hidden="true">
@@ -722,6 +727,18 @@ function renderLobbyStormBackdrop(): string {
       <div class="lobby-storm-grid"></div>
       <div class="lobby-storm-glow glow-left"></div>
       <div class="lobby-storm-glow glow-right"></div>
+      <div class="lobby-screen-lightnings">
+        ${screenLightnings
+          .map(
+            (lightning) => `
+              <span
+                class="lobby-screen-lightning ${lightning.className}"
+                style="--lightning-left: ${lightning.left}; --lightning-top: ${lightning.top}; --lightning-height: ${lightning.height}; --lightning-rotate: ${lightning.rotate};"
+              ></span>
+            `
+          )
+          .join("")}
+      </div>
       <div class="lobby-storm-beams">
         ${beams
           .map(
@@ -754,6 +771,11 @@ function renderLobbyTitle(): string {
   const title = "雷霆UNOplus";
 
   return `
+    <span class="lobby-title-bolt bolt-left" aria-hidden="true"></span>
+    <span class="lobby-title-bolt bolt-center" aria-hidden="true"></span>
+    <span class="lobby-title-bolt bolt-right" aria-hidden="true"></span>
+    <span class="lobby-title-arc arc-left" aria-hidden="true"></span>
+    <span class="lobby-title-arc arc-right" aria-hidden="true"></span>
     <h1 class="lobby-title" aria-label="${escapeHtml(title)}">${escapeHtml(title)}</h1>
   `;
 }
@@ -1878,6 +1900,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
     topCard: snapshot.topCard
   });
   const challengePrompt = getVisibleChallengePrompt(snapshot, isConnected, isGameFinished);
+  const initialDirectionModal = renderInitialDirectionChoiceModal(snapshot, isConnected);
 
   return `
     <section
@@ -1897,7 +1920,6 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
         >${state.lastError === null ? "" : escapeHtml(state.lastError)}</p>
         ${renderToastPanel()}
         ${renderNormalDrawOfferPrompt(snapshot, canTakeTurnAction)}
-        ${renderInitialDirectionChoiceModal(snapshot, isConnected)}
         ${renderEventModal(snapshot)}
         <div class="battle-table">
           <div class="opponents" data-testid="opponents-area">
@@ -1967,6 +1989,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
         </div>
       </div>
     </section>
+    ${initialDirectionModal}
     ${renderColorPickerPanel(snapshot.self.hand, canTakeTurnAction)}
   `;
 }
@@ -2029,11 +2052,17 @@ function renderInitialDirectionChoiceModal(
     <div class="initial-direction-backdrop" role="dialog" aria-modal="true" aria-labelledby="initial-direction-title" data-testid="initial-direction-backdrop">
       <div class="initial-direction-modal">
         <strong id="initial-direction-title">选择开局方向</strong>
-        <p>${canChoose ? "你是一号位，请选择本局的出牌方向。" : "等待第一家选择出牌顺序"}</p>
-        <div class="initial-direction-actions">
-          <button data-initial-direction="clockwise" ${canChoose ? "" : "disabled"}>顺时针</button>
-          <button data-initial-direction="counter-clockwise" ${canChoose ? "" : "disabled"}>逆时针</button>
-        </div>
+        <p>${canChoose ? "你是一号位，请选择本局的出牌方向。" : `等待 ${escapeHtml(chooserName)} 选择出牌方向`}</p>
+        ${
+          canChoose
+            ? `
+              <div class="initial-direction-actions">
+                <button data-initial-direction="clockwise">顺时针</button>
+                <button data-initial-direction="counter-clockwise">逆时针</button>
+              </div>
+            `
+            : ""
+        }
       </div>
     </div>
   `;
@@ -3378,7 +3407,7 @@ function renderActionGuide(
     message =
       snapshot.initialDirectionChoice.chooserPlayerId === state.playerId
         ? "请先选择本局顺时针或逆时针。"
-        : `等待 ${chooserName} 选择本局方向。`;
+        : `等待 ${chooserName} 选择出牌方向。`;
     tone = "warning";
   } else if (canTakeTurnAction && snapshot.drawStack.active) {
     message = `加牌链正在压到你：可以叠加加牌，或结算摸 ${String(snapshot.drawStack.amount)} 张。`;

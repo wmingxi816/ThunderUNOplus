@@ -170,6 +170,36 @@ label span {
   text-align: center;
 }
 
+.lobby-title-wrap::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(100%, 34rem);
+  height: 145%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(85, 198, 255, 0.34), rgba(14, 86, 181, 0.18) 42%, transparent 72%);
+  filter: blur(14px);
+  transform: translate(-50%, -50%);
+  opacity: 0.92;
+  pointer-events: none;
+  animation: lobby-title-pulse 3.8s ease-in-out infinite;
+}
+
+.lobby-title-wrap::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(100%, 29rem);
+  height: 120%;
+  background: linear-gradient(108deg, transparent 0%, rgba(255, 255, 255, 0.08) 36%, rgba(161, 229, 255, 0.84) 48%, transparent 60%);
+  transform: translate(-50%, -50%) skewX(-18deg);
+  opacity: 0;
+  pointer-events: none;
+  animation: lobby-title-sheen 6.8s ease-in-out infinite;
+}
+
 .lobby-title {
   margin: 0;
   color: #0b3a8f;
@@ -249,6 +279,110 @@ label span {
   border-color: rgba(17, 24, 39, 0.16);
   background: #eef2f8;
   color: #172033;
+}
+
+.lobby-storm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lobby-storm-vignette,
+.lobby-storm-grid,
+.lobby-storm-glow,
+.lobby-storm-beams,
+.lobby-storm-particles,
+.lobby-screen-lightnings {
+  position: absolute;
+  inset: 0;
+}
+
+.lobby-storm-vignette {
+  background:
+    radial-gradient(circle at 50% 20%, rgba(88, 191, 255, 0.22), transparent 24rem),
+    radial-gradient(circle at 50% 48%, rgba(9, 58, 128, 0.18), transparent 34rem),
+    linear-gradient(180deg, rgba(2, 9, 22, 0.12), rgba(2, 9, 22, 0.4));
+}
+
+.lobby-storm-grid {
+  background-image:
+    linear-gradient(rgba(77, 169, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77, 169, 255, 0.06) 1px, transparent 1px);
+  background-size: 4.8rem 4.8rem;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.84), rgba(0, 0, 0, 0.18));
+}
+
+.lobby-storm-glow {
+  filter: blur(24px);
+  opacity: 0.72;
+}
+
+.lobby-storm-glow.glow-left {
+  background: radial-gradient(circle at 0% 50%, rgba(67, 165, 255, 0.26), transparent 36%);
+}
+
+.lobby-storm-glow.glow-right {
+  background: radial-gradient(circle at 100% 38%, rgba(0, 191, 255, 0.24), transparent 34%);
+}
+
+.lobby-storm-beam {
+  position: absolute;
+  left: var(--storm-left);
+  top: -5rem;
+  width: var(--storm-width);
+  height: var(--storm-height);
+  opacity: var(--storm-opacity);
+  background: linear-gradient(180deg, rgba(138, 220, 255, 0.42), rgba(5, 32, 82, 0));
+  filter: blur(8px);
+  transform-origin: top center;
+  animation: lobby-storm-beam-sway var(--storm-duration) ease-in-out infinite;
+  animation-delay: var(--storm-delay);
+}
+
+.lobby-storm-particle {
+  position: absolute;
+  left: var(--storm-particle-left);
+  bottom: -2.6rem;
+  width: var(--storm-particle-size);
+  height: var(--storm-particle-size);
+  border-radius: 999px;
+  background: rgba(98, 201, 255, 0.72);
+  box-shadow:
+    0 0 0.55rem rgba(0, 191, 255, 0.76),
+    0 0 1.1rem rgba(19, 110, 255, 0.28);
+  animation: lobby-storm-particle-rise var(--storm-particle-duration) linear infinite;
+  animation-delay: var(--storm-particle-delay);
+}
+
+.lobby-screen-lightning {
+  position: absolute;
+  left: var(--lightning-left);
+  top: var(--lightning-top);
+  width: clamp(0.12rem, 0.22vw, 0.22rem);
+  height: var(--lightning-height);
+  opacity: 0;
+  background: linear-gradient(180deg, rgba(244, 251, 255, 0.96), rgba(0, 191, 255, 0.92));
+  clip-path: polygon(50% 0%, 0% 16%, 66% 26%, 28% 46%, 100% 58%, 38% 72%, 76% 100%, 18% 84%);
+  box-shadow:
+    0 0 0.8rem rgba(112, 213, 255, 0.86),
+    0 0 1.9rem rgba(0, 71, 171, 0.42);
+  mix-blend-mode: screen;
+  transform: rotate(var(--lightning-rotate));
+  transform-origin: top center;
+}
+
+.lobby-screen-lightning.flash-a {
+  animation: lobby-lightning-flash-a 8.2s infinite;
+}
+
+.lobby-screen-lightning.flash-b {
+  animation: lobby-lightning-flash-b 9.8s infinite;
+}
+
+.lobby-screen-lightning.flash-c {
+  animation: lobby-lightning-flash-c 11.4s infinite;
 }
 
 /* UI name: app-toast. 全局临时提示条。 */
@@ -1884,8 +2018,93 @@ label span {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: lobby-title-silver-flow 5.6s linear infinite;
-  text-shadow: 0 0.14rem 0.35rem rgba(42, 112, 204, 0.2);
+  position: relative;
+  z-index: 2;
+  animation:
+    lobby-title-silver-flow 5.6s linear infinite,
+    lobby-title-rumble 3.8s infinite,
+    lobby-title-pulse 3.4s ease-in-out infinite;
+  text-shadow:
+    0 0 0.18rem rgba(132, 220, 255, 0.56),
+    0 0 0.55rem rgba(53, 133, 255, 0.42),
+    0 0 1.2rem rgba(17, 76, 184, 0.24);
+}
+
+.lobby-title::before {
+  content: attr(aria-label);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: transparent;
+  background: linear-gradient(110deg, rgba(248, 251, 255, 0.88) 0%, rgba(84, 183, 255, 0.78) 45%, rgba(47, 127, 216, 0.84) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: blur(5px);
+  opacity: 0.54;
+  transform: translateY(0.02em);
+  animation:
+    lobby-title-flow 7.6s linear infinite,
+    lobby-title-overexpose-flash 9.4s ease-in-out infinite;
+}
+
+.lobby-title-bolt,
+.lobby-title-arc {
+  position: absolute;
+  top: 50%;
+  pointer-events: none;
+}
+
+.lobby-title-bolt {
+  width: clamp(0.14rem, 0.24vw, 0.24rem);
+  height: clamp(3.8rem, 10vh, 5.5rem);
+  opacity: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(0, 191, 255, 0.92));
+  clip-path: polygon(50% 0%, 0% 18%, 66% 30%, 22% 52%, 100% 66%, 34% 78%, 74% 100%, 16% 84%);
+  box-shadow:
+    0 0 0.55rem rgba(120, 220, 255, 0.82),
+    0 0 1.25rem rgba(0, 71, 171, 0.36);
+  mix-blend-mode: screen;
+  z-index: 1;
+}
+
+.lobby-title-bolt.bolt-left {
+  left: calc(50% - min(15.2rem, 32vw));
+  transform: translate(-50%, -58%) rotate(-14deg);
+  animation: lobby-lightning-flash-a 8.8s infinite;
+}
+
+.lobby-title-bolt.bolt-center {
+  left: 50%;
+  transform: translate(-50%, -60%) rotate(-2deg);
+  animation: lobby-lightning-flash-b 9.6s infinite;
+}
+
+.lobby-title-bolt.bolt-right {
+  left: calc(50% + min(15rem, 31vw));
+  transform: translate(-50%, -58%) rotate(13deg);
+  animation: lobby-lightning-flash-c 10.7s infinite;
+}
+
+.lobby-title-arc {
+  width: clamp(1.8rem, 6vw, 3rem);
+  height: clamp(1rem, 3.4vw, 1.7rem);
+  border-top: 2px solid rgba(137, 223, 255, 0.78);
+  border-left: 2px solid rgba(78, 171, 255, 0.58);
+  filter: drop-shadow(0 0 0.4rem rgba(0, 191, 255, 0.4));
+  opacity: 0.82;
+  z-index: 1;
+}
+
+.lobby-title-arc.arc-left {
+  left: calc(50% - min(16.8rem, 35vw));
+  transform: translate(-50%, -56%) rotate(-11deg);
+}
+
+.lobby-title-arc.arc-right {
+  left: calc(50% + min(16.8rem, 35vw));
+  transform: translate(-50%, -44%) rotate(169deg);
 }
 
 @keyframes lobby-title-silver-flow {
