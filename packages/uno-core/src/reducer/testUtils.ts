@@ -142,6 +142,7 @@ export function createGameState(
       hadBlackCardBeforeDraw: false,
       expiresWhenNextPlayerCompletesAction: false
     },
+    roundDecisionPending: false,
     winnerPlayerIds: params.winnerPlayerIds ?? [],
     ...(params.seed === undefined ? {} : { seed: params.seed })
   };

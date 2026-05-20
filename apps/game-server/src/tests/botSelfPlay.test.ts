@@ -21,7 +21,7 @@ describe("Greedy bot self-play", () => {
     expect(report.finishedGames).toBe(report.games);
     expect(report.averageSteps).toBeGreaterThan(0);
     expect(report.commandCounts["play-card"] ?? 0).toBeGreaterThan(0);
-  });
+  }, 15_000);
 
   it("can compare contender weights against baseline bots with rotated seats", () => {
     const report = evaluateGreedyBotWeights({

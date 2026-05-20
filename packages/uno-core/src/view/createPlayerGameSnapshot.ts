@@ -58,6 +58,7 @@ export function createPlayerGameSnapshot(
       active: state.challengeWindow.active,
       targetPlayerId: state.challengeWindow.targetPlayerId
     },
+    roundDecisionPending: state.roundDecisionPending,
     winnerPlayerIds: [...state.winnerPlayerIds],
     self: {
       playerId: self.id,

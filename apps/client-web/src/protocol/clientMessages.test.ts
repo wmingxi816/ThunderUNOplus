@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAddBotMessage,
   buildCommandMessage,
   buildContinueGameMessage,
   buildCreateRoomMessage,
@@ -146,6 +147,23 @@ describe("client message builders", () => {
       requestId: "req-continue",
       roomId: "ROOM1",
       playerId: "player-1"
+    });
+  });
+
+  it("builds add-bot messages with an explicit bot type", () => {
+    const message = buildAddBotMessage({
+      requestId: "req-add-bot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      botType: "chaos"
+    });
+
+    expect(message).toMatchObject({
+      type: "add-bot",
+      requestId: "req-add-bot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      botType: "chaos"
     });
   });
 });

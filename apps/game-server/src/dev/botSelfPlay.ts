@@ -8,7 +8,7 @@ import type {
   GamePlayerState,
   PlayerId
 } from "@thunder-uno/shared-types";
-import { decideGreedyBotAction } from "../bot/greedyBot";
+import { dispatchBotStrategy } from "../bot/strategies/dispatchBotStrategy";
 import {
   DEFAULT_BOT_SCORING_WEIGHTS,
   type BotScoringWeights
@@ -158,7 +158,8 @@ export function simulateGreedyBotSelfPlay(
             playerId: currentPlayer.id,
             direction: random() < 0.5 ? "clockwise" : "counter-clockwise"
           } satisfies GameCommand)
-        : decideGreedyBotAction({
+        : dispatchBotStrategy({
+            strategy: "greedy-v1",
             state,
             playerId: currentPlayer.id,
             forgetUnoRate,

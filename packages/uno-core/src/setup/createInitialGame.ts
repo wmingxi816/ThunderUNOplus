@@ -130,6 +130,7 @@ export function createInitialGame(
       hadBlackCardBeforeDraw: false,
       expiresWhenNextPlayerCompletesAction: false
     },
+    roundDecisionPending: false,
     winnerPlayerIds: [],
     ...(params.seed === undefined ? {} : { seed: params.seed })
   };

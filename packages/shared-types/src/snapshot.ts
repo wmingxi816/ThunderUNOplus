@@ -67,6 +67,7 @@ export interface PlayerGameSnapshot {
     active: boolean;
     targetPlayerId: PlayerId | null;
   };
+  roundDecisionPending: boolean;
   winnerPlayerIds: PlayerId[];
   self: PlayerGameSnapshotSelf;
   opponents: PlayerGameSnapshotPlayerPublic[];

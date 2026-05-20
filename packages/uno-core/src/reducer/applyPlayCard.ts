@@ -135,7 +135,8 @@ export function applyPlayCardCommand(
     topCard: card,
     declaredColor: command.declaredColor,
     command,
-    effectMode: "resolve-top-card"
+    effectMode: "resolve-top-card",
+    playPattern: "single"
   });
 }
 
@@ -227,7 +228,8 @@ export function applyPlaySequenceCommand(
     discardCards,
     topCard: validation.maxCard,
     command,
-    effectMode: "advance-only"
+    effectMode: "advance-only",
+    playPattern: "sequence"
   });
 }
 
@@ -320,7 +322,8 @@ export function applyPlayMultipleNumberCommand(
     discardCards: cards,
     topCard: referenceCard,
     command,
-    effectMode: "advance-only"
+    effectMode: "advance-only",
+    playPattern: "multiple-number"
   });
 }
 
@@ -421,7 +424,8 @@ export function applyPlayDiscardSameColorCommand(
     discardCards: [...attachedCards, mainCard],
     topCard: mainCard,
     command,
-    effectMode: "advance-only"
+    effectMode: "advance-only",
+    playPattern: "discard-same-color"
   });
 }
 
@@ -434,6 +438,7 @@ interface PlayResolvedCardsParams {
   discardCards: Card[];
   topCard: Card;
   declaredColor?: CardColor | undefined;
+  playPattern: NonNullable<Extract<GameEvent, { type: "cards-played" }>["playPattern"]>;
   command:
     | PlayCardCommand
     | PlaySequenceCommand
@@ -449,6 +454,7 @@ function playResolvedCards({
   discardCards,
   topCard,
   declaredColor,
+  playPattern,
   command,
   effectMode
 }: PlayResolvedCardsParams): ApplyCommandResult {
@@ -488,6 +494,7 @@ function playResolvedCards({
     playerId,
     cardIds: [...cardsToRemoveIds],
     topCardId: topCard.id,
+    playPattern,
     topCardKind: topCard.kind,
     ...(topCard.drawValue === undefined ? {} : { topCardDrawValue: topCard.drawValue }),
     ...(declaredColor === undefined ? {} : { declaredColor })

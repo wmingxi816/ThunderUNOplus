@@ -4,16 +4,26 @@ import { ConnectionRegistry } from "../connection/connectionRegistry";
 import { dispatchCommand } from "../dispatch/dispatchCommand";
 import { RoomManager } from "../room/roomManager";
 import type { RoomRuntime } from "../room/roomTypes";
-import { decideGreedyBotAction } from "./greedyBot";
+import { dispatchBotStrategy } from "./strategies/dispatchBotStrategy";
 
 const BOT_THINK_MS = 3_000;
 const BOT_DRAW_THINK_MIN_MS = 2_000;
 const BOT_DRAW_THINK_MAX_MS = 4_000;
+const BOT_UNO_CHANCE_CHECK_MS = 3_000;
+const BOT_UNO_FORCE_CHECK_MS = 6_000;
 
 interface BotTimer {
   roomId: RoomId;
   playerId: PlayerId;
   snapshotVersion: number;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+interface BotUnoTimer {
+  roomId: RoomId;
+  playerId: PlayerId;
+  pendingSinceMs: number;
+  stage: "chance" | "force";
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -36,6 +46,7 @@ export class BotScheduler {
   private readonly drawThinkMaxMs: number;
   private readonly random: () => number;
   private readonly timers = new Map<RoomId, BotTimer>();
+  private readonly unoTimers = new Map<string, BotUnoTimer>();
 
   constructor(options: BotSchedulerOptions) {
     this.roomManager = options.roomManager;
@@ -52,8 +63,11 @@ export class BotScheduler {
 
     if (room === null || room.gameState === null) {
       this.clearRoom(roomId);
+      this.clearUnoTimersForRoom(roomId);
       return;
     }
+
+    this.schedulePendingBotUnoChecks(room);
 
     const botPlayer = this.getCurrentBotPlayer(room);
 
@@ -100,6 +114,10 @@ export class BotScheduler {
     for (const roomId of this.timers.keys()) {
       this.clearRoom(roomId);
     }
+
+    for (const key of this.unoTimers.keys()) {
+      this.clearUnoTimer(key);
+    }
   }
 
   private executeScheduledTurn(
@@ -136,11 +154,15 @@ export class BotScheduler {
       return;
     }
 
-    const decision = decideGreedyBotAction({
+    const decision = dispatchBotStrategy({
+      strategy: botPlayer.botProfile?.strategy ?? "greedy-v1",
       state: room.gameState,
       playerId,
       forgetUnoRate: botPlayer.botProfile?.forgetUnoRate ?? 0.2,
-      random: this.random
+      random: this.random,
+      context: {
+        lastUnanswerableColorByPlayerId: room.botState.lastUnanswerableColorByPlayerId
+      }
     });
 
     if (decision === null) {
@@ -149,28 +171,186 @@ export class BotScheduler {
 
     const result = this.dispatchBotCommand(roomId, playerId, decision.command);
 
-    if (result.room !== null && decision.willCallUno) {
-      const refreshedBot = result.room.gameState?.players.find(
-        (player) => player.id === playerId
-      );
-
-      if (
-        refreshedBot !== undefined &&
-        refreshedBot.handCount === 1 &&
-        refreshedBot.unoPendingSinceMs !== null &&
-        !refreshedBot.hasCalledUno
-      ) {
-        this.dispatchBotCommand(roomId, playerId, {
-          type: "say-uno",
-          playerId
-        });
-      }
-    }
+    this.schedulePendingBotUnoChecks(result.room ?? this.roomManager.getRoom(roomId));
 
     this.scheduleRoom(
       roomId,
       isBotDrawLikeCommand(decision.command) ? this.getDrawThinkDelayMs() : this.thinkMs
     );
+  }
+
+  private schedulePendingBotUnoChecks(room: RoomRuntime | null): void {
+    if (
+      room === null ||
+      room.status !== "playing" ||
+      room.gameState === null ||
+      room.gameState.status === "finished"
+    ) {
+      if (room !== null) {
+        this.clearUnoTimersForRoom(room.roomId);
+      }
+      return;
+    }
+
+    const activePendingKeys = new Set<string>();
+
+    for (const roomPlayer of room.players) {
+      if (!roomPlayer.isBot) {
+        continue;
+      }
+
+      const gamePlayer = room.gameState.players.find((player) => player.id === roomPlayer.playerId);
+
+      if (!this.isPendingBotUnoPlayer(room, roomPlayer.playerId)) {
+        this.clearUnoTimer(this.getUnoTimerKey(room.roomId, roomPlayer.playerId));
+        continue;
+      }
+
+      if (gamePlayer?.unoPendingSinceMs === null || gamePlayer?.unoPendingSinceMs === undefined) {
+        continue;
+      }
+
+      const key = this.getUnoTimerKey(room.roomId, roomPlayer.playerId);
+      activePendingKeys.add(key);
+      const existingTimer = this.unoTimers.get(key);
+
+      if (
+        existingTimer !== undefined &&
+        existingTimer.pendingSinceMs === gamePlayer.unoPendingSinceMs
+      ) {
+        continue;
+      }
+
+      this.clearUnoTimer(key);
+      this.scheduleBotUnoTimer(
+        room.roomId,
+        roomPlayer.playerId,
+        gamePlayer.unoPendingSinceMs,
+        "chance"
+      );
+    }
+
+    for (const [key, timer] of this.unoTimers) {
+      if (timer.roomId === room.roomId && !activePendingKeys.has(key)) {
+        this.clearUnoTimer(key);
+      }
+    }
+  }
+
+  private scheduleBotUnoTimer(
+    roomId: RoomId,
+    playerId: PlayerId,
+    pendingSinceMs: number,
+    stage: BotUnoTimer["stage"]
+  ): void {
+    const key = this.getUnoTimerKey(roomId, playerId);
+    const dueMs =
+      pendingSinceMs +
+      (stage === "chance" ? BOT_UNO_CHANCE_CHECK_MS : BOT_UNO_FORCE_CHECK_MS);
+    const delayMs = Math.max(0, dueMs - Date.now());
+    const timer = setTimeout(() => {
+      this.executeBotUnoTimer(roomId, playerId, pendingSinceMs, stage);
+    }, delayMs);
+
+    this.unoTimers.set(key, {
+      roomId,
+      playerId,
+      pendingSinceMs,
+      stage,
+      timer
+    });
+  }
+
+  private executeBotUnoTimer(
+    roomId: RoomId,
+    playerId: PlayerId,
+    pendingSinceMs: number,
+    stage: BotUnoTimer["stage"]
+  ): void {
+    const key = this.getUnoTimerKey(roomId, playerId);
+    this.unoTimers.delete(key);
+
+    const room = this.roomManager.getRoom(roomId);
+
+    if (!this.isPendingBotUnoPlayer(room, playerId, pendingSinceMs)) {
+      return;
+    }
+
+    if (stage === "chance") {
+      const roomPlayer = room?.players.find((player) => player.playerId === playerId);
+      const forgetUnoRate = roomPlayer?.botProfile?.forgetUnoRate ?? 0.2;
+
+      if (this.random() >= forgetUnoRate) {
+        this.dispatchBotCommand(roomId, playerId, {
+          type: "say-uno",
+          playerId
+        });
+        this.schedulePendingBotUnoChecks(this.roomManager.getRoom(roomId));
+        return;
+      }
+
+      this.scheduleBotUnoTimer(roomId, playerId, pendingSinceMs, "force");
+      return;
+    }
+
+    this.dispatchBotCommand(roomId, playerId, {
+      type: "say-uno",
+      playerId
+    });
+    this.schedulePendingBotUnoChecks(this.roomManager.getRoom(roomId));
+  }
+
+  private isPendingBotUnoPlayer(
+    room: RoomRuntime | null,
+    playerId: PlayerId,
+    pendingSinceMs?: number
+  ): boolean {
+    if (
+      room === null ||
+      room.status !== "playing" ||
+      room.gameState === null ||
+      room.gameState.status === "finished"
+    ) {
+      return false;
+    }
+
+    const roomPlayer = room.players.find((player) => player.playerId === playerId);
+    const gamePlayer = room.gameState.players.find((player) => player.id === playerId);
+
+    return (
+      roomPlayer?.isBot === true &&
+      gamePlayer !== undefined &&
+      !gamePlayer.isEliminated &&
+      !gamePlayer.isRoundWinner &&
+      !gamePlayer.hasLeftRoom &&
+      gamePlayer.handCount === 1 &&
+      gamePlayer.unoPendingSinceMs !== null &&
+      (pendingSinceMs === undefined || gamePlayer.unoPendingSinceMs === pendingSinceMs) &&
+      !gamePlayer.hasCalledUno
+    );
+  }
+
+  private clearUnoTimersForRoom(roomId: RoomId): void {
+    for (const [key, timer] of this.unoTimers) {
+      if (timer.roomId === roomId) {
+        this.clearUnoTimer(key);
+      }
+    }
+  }
+
+  private clearUnoTimer(key: string): void {
+    const existingTimer = this.unoTimers.get(key);
+
+    if (existingTimer === undefined) {
+      return;
+    }
+
+    clearTimeout(existingTimer.timer);
+    this.unoTimers.delete(key);
+  }
+
+  private getUnoTimerKey(roomId: RoomId, playerId: PlayerId): string {
+    return `${roomId}:${playerId}`;
   }
 
   private getDrawThinkDelayMs(): number {

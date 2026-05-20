@@ -45,7 +45,8 @@ export function generateBotCandidates(
     ...generateDiscardSameColorCandidates(state, playerId, player.hand),
     ...generateSequenceCandidates(state, playerId, player.hand),
     ...generateMultipleNumberCandidates(state, playerId, player.hand),
-    ...generateSingleCardCandidates(state, playerId, player.hand)
+    ...generateSingleCardCandidates(state, playerId, player.hand),
+    ...generateStrategicDrawCandidates(state, playerId)
   ];
 
   if (candidates.length > 0) {
@@ -60,6 +61,26 @@ export function generateBotCandidates(
       },
       cardIds: [],
       reasons: ["no-playable-card"]
+    }
+  ];
+}
+
+function generateStrategicDrawCandidates(
+  state: GameState,
+  playerId: PlayerId
+): BotCandidateAction[] {
+  if (state.drawPile.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      command: {
+        type: "draw-card",
+        playerId
+      },
+      cardIds: [],
+      reasons: ["strategic-draw"]
     }
   ];
 }

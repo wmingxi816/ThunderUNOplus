@@ -77,6 +77,7 @@ export interface GameState {
   normalDrawOffer: NormalDrawOfferState;
   initialDirectionChoice: InitialDirectionChoiceState;
   challengeWindow: ChallengeWindowState;
+  roundDecisionPending: boolean;
   winnerPlayerIds: PlayerId[];
   seed?: ShuffleSeed;
 }

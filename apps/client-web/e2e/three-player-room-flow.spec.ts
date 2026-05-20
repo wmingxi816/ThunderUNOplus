@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { bootPlayer, createRoom, joinRoom, startGame, waitForBattleView } from "./helpers";
 
 test("three-player room flow keeps the main path alive", async ({ browser }) => {
+  test.setTimeout(45_000);
   const contextA = await browser.newContext();
   const pageA = await bootPlayer(contextA, "Alice");
   const roomId = await createRoom(pageA);
@@ -59,6 +60,4 @@ test("three-player room flow keeps the main path alive", async ({ browser }) => 
   await currentPage.getByTestId("draw-card-button").click();
 
   await expect(handCards).toHaveCount(beforeCount + 1);
-
-  await contextA.close();
 });

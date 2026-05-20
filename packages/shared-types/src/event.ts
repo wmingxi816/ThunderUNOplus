@@ -42,6 +42,7 @@ export interface CardsPlayedEvent {
   playerId: PlayerId;
   cardIds: string[];
   topCardId: string;
+  playPattern?: "single" | "sequence" | "multiple-number" | "discard-same-color";
   topCardKind?: CardKind;
   topCardDrawValue?: DrawValue;
   declaredColor?: CardColor;

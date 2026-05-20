@@ -5,7 +5,9 @@ test("joining a missing room surfaces a visible error", async ({ browser }) => {
   const context = await browser.newContext();
   const page = await bootPlayer(context, "ErrorCase");
 
-  await page.getByTestId("join-room-input").fill("000000");
+  for (let index = 0; index < 6; index += 1) {
+    await page.getByTestId(`room-code-digit-${String(index)}`).fill("0");
+  }
   await page.getByTestId("join-room-button").click();
 
   await expect(page.getByTestId("error-line")).not.toHaveText("");

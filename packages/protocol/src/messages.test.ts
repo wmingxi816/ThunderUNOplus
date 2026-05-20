@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type {
+  ClientAddBotMessage,
   ClientBattleChatMessage,
   ClientCreateRoomMessage,
   ClientCommandMessage,
@@ -45,6 +46,20 @@ describe("protocol - messages", () => {
     };
 
     expect(message.type).toBe("command");
+  });
+
+  it("可以构造带 botType 的 ClientAddBotMessage", () => {
+    const message: ClientAddBotMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: "add-bot",
+      requestId: "req-add-bot-1",
+      roomId: "room-1",
+      playerId: "player-1",
+      botType: "chaos",
+      timestampMs: 1000
+    };
+
+    expect(message.botType).toBe("chaos");
   });
 
   it("可以构造带 seed 的 ClientStartGameMessage", () => {
@@ -152,6 +167,7 @@ describe("protocol - messages", () => {
           previousDrawKind: null,
           targetPlayerId: null
         },
+        roundDecisionPending: false,
         drawUntilColor: {
           active: false,
           color: null,

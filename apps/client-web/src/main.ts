@@ -72,18 +72,24 @@ interface AppState {
   ruleModal: RuleModalView | null;
   settingsModalOpen: boolean;
   settingsAdjustPanelOpen: boolean;
-  uiScalePercent: UiSettingPercent;
+  addBotMenuOpen: boolean;
+  updateLogOpen: boolean;
+  updateLogStatus: "idle" | "loading" | "ready" | "error";
+  updateLogSections: UpdateLogSection[];
+  updateLogDialogPosition: UpdateLogDialogPosition | null;
+  uiScalePercent: UiScalePercent;
   backgroundMusicPercent: UiSettingPercent;
   soundEffectPercent: UiSettingPercent;
   backgroundMusicBeforeMutePercent: UiSettingPercent | null;
   soundEffectBeforeMutePercent: UiSettingPercent | null;
   showDebugGrid: boolean;
-  turnOrbitYOffsetPercent: number;
+  turnOrbitScalePercent: number;
   seatYOffsetPercent: number;
   battleTableYOffsetPercent: number;
   handCardScalePercent: number;
   turnOrbitAnimationStartedAtMs: number;
   turnOrbitAnimationDirection: TurnDirection | null;
+  battleTurnSweepStartedAtMs: number | null;
   uiToast: UiToastState | null;
   dismissedFinishedNoticeKey: string | null;
   snapshotRecoveryRoomId: RoomId | null;
@@ -100,6 +106,16 @@ interface LobbyChatEntry {
   speakerName: string;
   text: string;
   timestampMs: number;
+}
+
+interface UpdateLogSection {
+  title: string;
+  items: string[];
+}
+
+interface UpdateLogDialogPosition {
+  left: number;
+  top: number;
 }
 
 interface CardsPlayedAnimationEvent {
@@ -242,19 +258,24 @@ interface RuleGuideSection {
 const LAST_ROOM_STORAGE_KEY = "thunder-uno.lastRoomId";
 const USER_ID_STORAGE_KEY = "thunder-uno.userId";
 const USER_NICKNAME_STORAGE_KEY = "thunder-uno.nickname";
-const UI_SCALE_STORAGE_KEY = "thunder-uno.ui-scale-percent";
+const UI_SCALE_STORAGE_KEY = "thunder-uno.ui-scale-percent.v2";
 const BACKGROUND_MUSIC_STORAGE_KEY = "thunder-uno.background-music-percent";
 const SOUND_EFFECT_STORAGE_KEY = "thunder-uno.sound-effect-percent";
 const DEBUG_GRID_STORAGE_KEY = "thunder-uno.debug-grid";
-const TURN_ORBIT_Y_OFFSET_STORAGE_KEY = "thunder-uno.turn-orbit-y-offset-percent";
+const TURN_ORBIT_SCALE_STORAGE_KEY = "thunder-uno.turn-orbit-scale-percent";
 const SEAT_Y_OFFSET_STORAGE_KEY = "thunder-uno.seat-y-offset-percent";
 const BATTLE_TABLE_Y_OFFSET_STORAGE_KEY = "thunder-uno.battle-table-y-offset-percent";
 const HAND_CARD_SCALE_STORAGE_KEY = "thunder-uno.hand-card-scale-percent";
+const UPDATE_LOG_PATH = "/update-log.md";
+const BATTLE_UI_BASE_SCALE = 0.8;
 const DEFAULT_UI_SETTING_PERCENT = 80;
+const UI_SCALE_OPTIONS = [20, 40, 60, 80, 100] as const;
+type UiScalePercent = typeof UI_SCALE_OPTIONS[number];
+const DEFAULT_UI_SCALE_PERCENT: UiScalePercent = 80;
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
-const MAX_PLAYER_NICKNAME_LENGTH = 20;
+const MAX_PLAYER_NICKNAME_LENGTH = 10;
 const MAX_DISCARD_LAYOUT_CARDS = 15;
 const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
   {
@@ -330,7 +351,7 @@ const RULE_IMAGE_GROUPS: RuleImageGroup[] = [
   {
     id: "special",
     title: "特色玩法",
-    images: ["/rules/特色规则（顺子）.png"]
+    images: ["/rules/特色玩法（顺子）.png"]
   },
   {
     id: "challenge",
@@ -427,12 +448,14 @@ const RULE_CARD_INTROS: RuleCardIntro[] = [
 ];
 const root = document.querySelector<HTMLDivElement>("#app");
 let unoProtectionRenderTimer: number | null = null;
+let battleTurnSweepClearTimer: number | null = null;
 const PENALTY_DRAW_START_SOUND_PATH = "/sounds/%E7%BD%9A%E6%8A%BD%E5%BC%80%E5%A7%8B.mp3";
 const PENALTY_DRAW_END_SOUND_PATH = "/sounds/%E7%BD%9A%E6%8A%BD%E7%BB%93%E6%9D%9F.mp3";
 const DRAW_STACK_PLAY_SMALL_SOUND_PATH = "/sounds/%E8%BF%9B%E8%A1%8C%E5%8A%A0%E7%89%8C1.mp3";
 const DRAW_STACK_PLAY_BIG_SOUND_PATH = "/sounds/%E8%BF%9B%E8%A1%8C%E5%8A%A0%E7%89%8C2.mp3";
 const DRAW_STACK_RESOLVE_BIG_SOUND_PATH = "/sounds/%E8%A2%AB%E5%8A%A0%E7%89%8C1.mp3";
 const DRAW_STACK_RESOLVE_SMALL_SOUND_PATH = "/sounds/%E8%A2%AB%E5%8A%A0%E7%89%8C2.mp3";
+const BATTLE_TURN_SWEEP_MS = 1_150;
 const LOBBY_BACKGROUND_MUSIC_PATHS = [
   "/sounds/%E5%A4%A7%E5%8E%851.mp3",
   "/sounds/%E5%A4%A7%E5%8E%852.mp3",
@@ -451,9 +474,14 @@ const PENALTY_DRAW_OTHER_SOUND_VOLUME = 0.7;
 const DRAW_STACK_TARGET_SOUND_VOLUME = 1;
 const DRAW_STACK_OTHER_SOUND_VOLUME = 0.546;
 const DRAW_STACK_PLAY_SOUND_VOLUME = 0.936;
+const ELIMINATION_MUSIC_PATH = "/sounds/%E5%87%BA%E5%B1%80%E9%9F%B3%E6%95%88.mp3";
+const ELIMINATION_MUSIC_VOLUME = 0.34;
 let lobbyBackgroundMusic: HTMLAudioElement | null = null;
 let battleBackgroundMusic: HTMLAudioElement | null = null;
+let eliminationMusic: HTMLAudioElement | null = null;
+let eliminationMusicActive = false;
 let backgroundMusicUnlockInstalled = false;
+let updateLogDragState: { offsetX: number; offsetY: number } | null = null;
 
 if (root === null) {
   throw new Error("App root was not found.");
@@ -499,18 +527,24 @@ const state: AppState = {
   ruleModal: null,
   settingsModalOpen: false,
   settingsAdjustPanelOpen: false,
+  addBotMenuOpen: false,
+  updateLogOpen: false,
+  updateLogStatus: "idle",
+  updateLogSections: [],
+  updateLogDialogPosition: null,
   uiScalePercent: readStoredUiScalePercent(UI_SCALE_STORAGE_KEY),
   backgroundMusicPercent: readStoredUiSettingPercent(BACKGROUND_MUSIC_STORAGE_KEY),
   soundEffectPercent: readStoredUiSettingPercent(SOUND_EFFECT_STORAGE_KEY),
   backgroundMusicBeforeMutePercent: null,
   soundEffectBeforeMutePercent: null,
   showDebugGrid: readStoredBoolean(DEBUG_GRID_STORAGE_KEY),
-  turnOrbitYOffsetPercent: readStoredNumber(TURN_ORBIT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
+  turnOrbitScalePercent: readStoredNumber(TURN_ORBIT_SCALE_STORAGE_KEY, 100, 45, 145),
   seatYOffsetPercent: readStoredNumber(SEAT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
   battleTableYOffsetPercent: readStoredNumber(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
   handCardScalePercent: readStoredNumber(HAND_CARD_SCALE_STORAGE_KEY, 100, 60, 140),
   turnOrbitAnimationStartedAtMs: Date.now(),
   turnOrbitAnimationDirection: null,
+  battleTurnSweepStartedAtMs: null,
   uiToast: null,
   dismissedFinishedNoticeKey: null,
   snapshotRecoveryRoomId: null,
@@ -553,6 +587,9 @@ const wsClient = new WsClient({
   }
 });
 
+let globalLobbyInteractionsInstalled = false;
+installGlobalLobbyInteractions();
+
 render();
 installBackgroundMusicUnlock();
 connectUsingCurrentInputs();
@@ -582,9 +619,14 @@ function handleServerMessage(message: ServerMessage): void {
       if (snapshot.status !== "finished") {
         state.dismissedFinishedNoticeKey = null;
       }
+      if (!snapshot.roundDecisionPending) {
+        state.eventModal = null;
+        stopEliminationMusic();
+      }
       syncRecentDrawnCards(previousSnapshot, snapshot);
       syncFlyingCardAnimation(snapshot);
       syncPenaltyDrawProgress(snapshot);
+      syncBattleTurnSweep(previousSnapshot, snapshot, message.playerId);
       state.roomId = message.roomId;
       state.playerId = message.playerId;
       state.snapshot = snapshot;
@@ -647,37 +689,44 @@ function render(): void {
         isBattleView
           ? renderBattlePanel(snapshot)
           : `
+            <div class="lobby-scale-frame">
+              <div class="lobby-scale-content" data-testid="lobby-scale-content" style="${renderLobbyUiScaleStyle()}">
             ${renderLobbyStormBackdrop()}
             <section class="topbar">
-              <div class="lobby-topbar-actions">
-                <button
-                  id="lobby-music-toggle-button"
-                  class="secondary lobby-sound-button ${state.backgroundMusicPercent <= 0 ? "is-muted" : ""}"
-                  aria-label="${state.backgroundMusicPercent <= 0 ? "开启大厅音乐" : "关闭大厅音乐"}"
-                  title="${state.backgroundMusicPercent <= 0 ? "开启大厅音乐" : "关闭大厅音乐"}"
-                >${state.backgroundMusicPercent <= 0 ? "♪" : "♫"}</button>
-              </div>
+              <span
+                class="sr-only"
+                data-testid="connection-status"
+                aria-live="polite"
+              >${state.connectionStatus}</span>
               <div class="lobby-title-wrap">
                 ${renderLobbyTitle()}
               </div>
               <div class="lobby-topbar-status-group">
-                <span
-                  class="status status-${state.connectionStatus}"
-                  data-testid="connection-status"
-                >${state.connectionStatus}</span>
                 <button
                   id="lobby-rule-button"
                   data-testid="lobby-rule-button"
                   class="secondary lobby-rule-button"
                 >规则</button>
+                <button
+                  id="lobby-settings-button"
+                  data-testid="lobby-settings-button"
+                  class="secondary lobby-settings-button"
+                  aria-label="设置"
+                  title="设置"
+                >设置</button>
               </div>
             </section>
 
             ${renderToastPanel()}
             ${renderLobbyPanel()}
+              </div>
+            </div>
           `
       }
       ${renderRuleModal()}
+      ${renderSettingsModal()}
+      ${renderUpdateLogDialog()}
+      ${renderCardHoverTooltip()}
     </main>
   `;
 
@@ -710,6 +759,11 @@ function renderLobbyStormBackdrop(): string {
     const opacity = `${0.35 + (index % 4) * 0.1}`;
     return { left, size, duration, delay, drift, opacity };
   });
+  const screenLightnings = [
+    { className: "flash-a", left: "14%", top: "-6%", height: "18rem", rotate: "-16deg" },
+    { className: "flash-b", left: "48%", top: "-10%", height: "22rem", rotate: "-4deg" },
+    { className: "flash-c", left: "78%", top: "-7%", height: "19rem", rotate: "11deg" }
+  ];
 
   return `
     <div class="lobby-storm-backdrop" aria-hidden="true">
@@ -717,6 +771,18 @@ function renderLobbyStormBackdrop(): string {
       <div class="lobby-storm-grid"></div>
       <div class="lobby-storm-glow glow-left"></div>
       <div class="lobby-storm-glow glow-right"></div>
+      <div class="lobby-screen-lightnings">
+        ${screenLightnings
+          .map(
+            (lightning) => `
+              <span
+                class="lobby-screen-lightning ${lightning.className}"
+                style="--lightning-left: ${lightning.left}; --lightning-top: ${lightning.top}; --lightning-height: ${lightning.height}; --lightning-rotate: ${lightning.rotate};"
+              ></span>
+            `
+          )
+          .join("")}
+      </div>
       <div class="lobby-storm-beams">
         ${beams
           .map(
@@ -749,6 +815,11 @@ function renderLobbyTitle(): string {
   const title = "雷霆UNOplus";
 
   return `
+    <span class="lobby-title-bolt bolt-left" aria-hidden="true"></span>
+    <span class="lobby-title-bolt bolt-center" aria-hidden="true"></span>
+    <span class="lobby-title-bolt bolt-right" aria-hidden="true"></span>
+    <span class="lobby-title-arc arc-left" aria-hidden="true"></span>
+    <span class="lobby-title-arc arc-right" aria-hidden="true"></span>
     <h1 class="lobby-title" aria-label="${escapeHtml(title)}">${escapeHtml(title)}</h1>
   `;
 }
@@ -966,7 +1037,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-identity-row">
                 <label class="lobby-field">
                   <span>昵称</span>
-                  <input id="nickname" value="${escapeHtml(state.nickname)}" maxlength="${String(MAX_PLAYER_NICKNAME_LENGTH)}" autocomplete="off" />
+                  <input id="nickname" data-testid="nickname-input" value="${escapeHtml(state.nickname)}" maxlength="${String(MAX_PLAYER_NICKNAME_LENGTH)}" autocomplete="off" />
                 </label>
                 <button
                   id="rename-player-button"
@@ -981,7 +1052,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-identity-meta-row">
                 <label class="lobby-identity-meta-label">
                   <span>房间号</span>
-                  <strong>${escapeHtml(room === null ? getRoomCodeValue() || "-" : room.roomCode)}</strong>
+                  <strong data-testid="room-id">${escapeHtml(room === null ? getRoomCodeValue() || "-" : room.roomCode)}</strong>
                 </label>
                 <label class="lobby-identity-meta-label">
                   <span>准备情况</span>
@@ -999,6 +1070,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-actions lobby-actions-v2 lobby-actions-single-column lobby-primary-action-row">
                 <button
                   id="create-room-button"
+                  data-testid="create-room-button"
                   class="lobby-primary-button"
                   ${createDisabled ? `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"` : ""}
                 >创建房间</button>
@@ -1011,6 +1083,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-actions lobby-room-actions-grid">
                 <button
                   id="join-room-button"
+                  data-testid="join-room-button"
                   ${joinDisabled ? `disabled title="${escapeHtml(getLobbyDisabledReason(isConnected))}"` : ""}
                 >加入房间</button>
                 <button
@@ -1029,12 +1102,7 @@ function renderLobbyPanel(): string {
                 >离开房间</button>
                 ${room !== null && isHost
                   ? `
-                    <button
-                      id="add-bot-button"
-                      data-testid="add-bot-button"
-                      class="secondary room-add-bot-button ${canAddBot ? "is-active" : "is-inactive"}"
-                      ${canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`}
-                    >添加机器人</button>
+                    ${renderAddBotMenu(canAddBot, room)}
                   `
                   : room !== null
                     ? `
@@ -1050,15 +1118,16 @@ function renderLobbyPanel(): string {
                 <button
                   id="start-game-button"
                   data-testid="start-game-button"
-                  class="lobby-start-game-button"
+                  class="lobby-start-game-button ${canStart ? "is-ready-to-start" : ""}"
                   ${room !== null && isHost && canStart ? "" : `disabled title="${escapeHtml(room !== null && isHost ? getStartGameDisabledReason(room) : "只有房主可以开始游戏。")}"`}
                 >开始游戏</button>
+                <p class="lobby-mobile-scale-tip">可以在页面中调整缩放比例以适配手机</p>
               </div>
               <div class="lobby-field lobby-mode-field">
                 <span>质疑模式</span>
                 <select id="mode">
-                  <option value="no-challenge" ${getLobbyMode() === "no-challenge" ? "selected" : ""}>无质疑</option>
-                  <option value="with-challenge" ${getLobbyMode() === "with-challenge" ? "selected" : ""}>有质疑</option>
+                  <option value="no-challenge" selected>无质疑</option>
+                  <option value="with-challenge" disabled>敬请期待</option>
                 </select>
               </div>
               <div class="lobby-room-status-pill ${room === null ? "is-alert" : readyStatusTone(room)}">
@@ -1437,7 +1506,10 @@ function renderLobbyMembersPanel(room: PlayerRoomSnapshot): string {
                     alt="${escapeHtml(player.displayName ?? player.playerId)}"
                   />
                   <div class="lobby-seat-text">
-                    <strong class="lobby-seat-name">${escapeHtml(player.displayName ?? player.playerId)}</strong>
+                    <strong
+                      class="lobby-seat-name"
+                      style="${escapeHtml(getLobbyPlayerNameStyle(player.displayName ?? player.playerId, "seat"))}"
+                    >${escapeHtml(player.displayName ?? player.playerId)}</strong>
                     <small class="lobby-seat-status">${escapeHtml(getRoomPlayerReadyLabel(player))}</small>
                   </div>
                 </div>
@@ -1501,7 +1573,7 @@ function renderLobbyChatFeed(room: PlayerRoomSnapshot | null): string {
                     alt="${escapeHtml(entry.speakerName)}"
                   />
                   <div class="lobby-feed-bubble-wrap">
-                    <strong>${escapeHtml(entry.speakerName)}</strong>
+                    <strong class="lobby-feed-speaker">${escapeHtml(entry.speakerName)}</strong>
                     <div class="lobby-feed-bubble">${escapeHtml(entry.text)}</div>
                   </div>
                 </div>
@@ -1515,6 +1587,59 @@ function renderLobbyChatFeed(room: PlayerRoomSnapshot | null): string {
 
 function appendLobbyChatDraft(nextValue: string): void {
   state.lobbyChatDraft = nextValue.slice(0, 30);
+}
+
+function getLobbyPlayerNameStyle(
+  name: string,
+  variant: "seat" | "compact"
+): string {
+  const length = Array.from(name.trim()).length;
+  const sizeRem =
+    variant === "seat"
+      ? getLobbySeatNameFontSizeRem(length)
+      : getLobbyCompactNameFontSizeRem(length);
+
+  return `--lobby-player-name-size: ${sizeRem.toFixed(2)}rem;`;
+}
+
+function getLobbySeatNameFontSizeRem(length: number): number {
+  if (length <= 4) {
+    return 1.08;
+  }
+
+  if (length <= 6) {
+    return 1.00;
+  }
+
+  if (length <= 8) {
+    return 0.90;
+  }
+
+  if (length <= MAX_PLAYER_NICKNAME_LENGTH) {
+    return 0.78;
+  }
+
+  return 0.72;
+}
+
+function getLobbyCompactNameFontSizeRem(length: number): number {
+  if (length <= 4) {
+    return 0.98;
+  }
+
+  if (length <= 6) {
+    return 0.90;
+  }
+
+  if (length <= 8) {
+    return 0.82;
+  }
+
+  if (length <= MAX_PLAYER_NICKNAME_LENGTH) {
+    return 0.72;
+  }
+
+  return 0.68;
 }
 
 function focusLobbyChatInput(): void {
@@ -1657,7 +1782,7 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
       ${
         isHost
           ? `<div class="room-meta-actions">
-              <button id="add-bot-button" data-testid="add-bot-button" class="secondary room-add-bot-button" ${canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`}>添加机器人</button>
+              ${renderAddBotMenu(canAddBot, room)}
             </div>`
           : ""
       }
@@ -1677,7 +1802,7 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
               src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
               alt="${escapeHtml(player.displayName ?? player.playerId)}"
             />
-            <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
+            <span style="${escapeHtml(getLobbyPlayerNameStyle(player.displayName ?? player.playerId, "compact"))}">${escapeHtml(player.displayName ?? player.playerId)}</span>
           </div>
         `)
         .join("")}
@@ -1829,6 +1954,53 @@ function getAddBotDisabledReason(room: PlayerRoomSnapshot): string {
   return "当前不能添加机器人。";
 }
 
+function renderAddBotMenu(canAddBot: boolean, room: PlayerRoomSnapshot): string {
+  const disabledAttrs = canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`;
+
+  return `
+    <div class="add-bot-menu" data-add-bot-menu-root="true">
+      <button
+        id="add-bot-menu-button"
+        type="button"
+        data-testid="add-bot-menu-button"
+        class="secondary add-bot-menu-button ${canAddBot ? "is-active" : "is-inactive"}"
+        aria-expanded="${state.addBotMenuOpen ? "true" : "false"}"
+        ${disabledAttrs}
+      >添加机器人</button>
+      ${
+        state.addBotMenuOpen && canAddBot
+          ? `
+            <div class="add-bot-menu-panel" data-testid="add-bot-menu-panel">
+              ${renderAddBotMenuRow("strong", "最强bot", canAddBot)}
+              ${renderAddBotMenuRow("chaos", "混沌bot", canAddBot)}
+            </div>
+          `
+          : ""
+      }
+    </div>
+  `;
+}
+
+function renderAddBotMenuRow(
+  botType: "strong" | "chaos",
+  label: string,
+  canAddBot: boolean
+): string {
+  return `
+    <div class="add-bot-menu-row" data-testid="add-bot-menu-row">
+      <span class="add-bot-menu-label">${escapeHtml(label)}</span>
+      <button
+        type="button"
+        class="secondary add-bot-menu-add-button"
+        data-add-bot-type="${botType}"
+        ${canAddBot ? "" : "disabled"}
+        aria-label="添加${escapeHtml(label)}"
+        title="添加${escapeHtml(label)}"
+      >+</button>
+    </div>
+  `;
+}
+
 function getReadyDisabledReason(room: PlayerRoomSnapshot): string {
   if (state.connectionStatus !== "open") {
     return "未连接服务端。";
@@ -1870,6 +2042,9 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
     topCard: snapshot.topCard
   });
   const challengePrompt = getVisibleChallengePrompt(snapshot, isConnected, isGameFinished);
+  const initialDirectionModal = renderInitialDirectionChoiceModal(snapshot, isConnected);
+  const battleTurnSweepActive = isBattleTurnSweepActive();
+  const battleTurnSweepStyle = renderBattleTurnSweepStyle();
 
   return `
     <section
@@ -1889,9 +2064,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
         >${state.lastError === null ? "" : escapeHtml(state.lastError)}</p>
         ${renderToastPanel()}
         ${renderNormalDrawOfferPrompt(snapshot, canTakeTurnAction)}
-        ${renderInitialDirectionChoiceModal(snapshot, isConnected)}
         ${renderEventModal(snapshot)}
-        ${renderSettingsModal()}
         <div class="battle-table">
           <div class="opponents" data-testid="opponents-area">
             ${snapshot.opponents
@@ -1926,7 +2099,10 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
           ${challengePrompt === null ? "" : renderChallengePrompt(snapshot, challengePrompt)}
           ${renderSelfSeat(snapshot)}
         </div>
-        <div class="battle-action-dock">
+        <div
+          class="battle-action-dock ${battleTurnSweepActive ? "turn-sweep-active" : ""}"
+          ${battleTurnSweepStyle === "" ? "" : `style="${escapeHtml(battleTurnSweepStyle)}"`}
+        >
           <div class="actions ${canTakeTurnAction ? "is-active" : ""}">
             <button
               id="say-uno-button"
@@ -1960,6 +2136,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
         </div>
       </div>
     </section>
+    ${initialDirectionModal}
     ${renderColorPickerPanel(snapshot.self.hand, canTakeTurnAction)}
   `;
 }
@@ -2022,11 +2199,17 @@ function renderInitialDirectionChoiceModal(
     <div class="initial-direction-backdrop" role="dialog" aria-modal="true" aria-labelledby="initial-direction-title" data-testid="initial-direction-backdrop">
       <div class="initial-direction-modal">
         <strong id="initial-direction-title">选择开局方向</strong>
-        <p>${canChoose ? "你是一号位，请选择本局的出牌方向。" : "等待第一家选择出牌顺序"}</p>
-        <div class="initial-direction-actions">
-          <button data-initial-direction="clockwise" ${canChoose ? "" : "disabled"}>顺时针</button>
-          <button data-initial-direction="counter-clockwise" ${canChoose ? "" : "disabled"}>逆时针</button>
-        </div>
+        <p>${canChoose ? "你是一号位，请选择本局的出牌方向。" : `等待 ${escapeHtml(chooserName)} 选择出牌方向`}</p>
+        ${
+          canChoose
+            ? `
+              <div class="initial-direction-actions">
+                <button data-initial-direction="clockwise">顺时针</button>
+                <button data-initial-direction="counter-clockwise">逆时针</button>
+              </div>
+            `
+            : ""
+        }
       </div>
     </div>
   `;
@@ -2126,16 +2309,7 @@ function renderEventModal(snapshot: PlayerGameSnapshot): string {
 
 function renderRoundDecisionControls(snapshot: PlayerGameSnapshot): string {
   if (!canCurrentPlayerMakeRoundDecision(snapshot)) {
-    if (snapshot.status === "finished") {
-      return `
-        <div class="challenge-actions">
-          <button id="stay-in-room-button" data-testid="stay-in-room-button">留在房间</button>
-          <button id="finish-leave-room-button" data-testid="finish-leave-room-button" class="secondary">离开房间</button>
-        </div>
-      `;
-    }
-
-    return `<p class="muted">等待房主选择继续游戏或重开一把。</p>`;
+    return `<p class="muted">等待房主决定重开/继续游戏</p>`;
   }
 
   return `
@@ -2147,12 +2321,7 @@ function renderRoundDecisionControls(snapshot: PlayerGameSnapshot): string {
 }
 
 function hasRoundDecisionReason(snapshot: PlayerGameSnapshot): boolean {
-  return (
-    snapshot.status === "finished" ||
-    snapshot.self.isEliminated ||
-    snapshot.self.isRoundWinner ||
-    snapshot.opponents.some((player) => player.isEliminated || player.isRoundWinner)
-  );
+  return snapshot.roundDecisionPending;
 }
 
 function canCurrentPlayerMakeRoundDecision(snapshot: PlayerGameSnapshot): boolean {
@@ -2975,23 +3144,36 @@ function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): strin
 }
 
 function renderBattleUiScaleStyle(): string {
-  const scale = state.uiScalePercent / 100;
-  const inverseScale = 100 / state.uiScalePercent;
+  const scale = (state.uiScalePercent / 100) * BATTLE_UI_BASE_SCALE;
+  const inverseScale = 1 / scale;
 
   return [
     `--battle-ui-scale: ${scale.toFixed(2)}`,
     `--battle-ui-inverse-scale: ${inverseScale.toFixed(4)}`,
-    `--turn-orbit-y-offset: ${String(state.turnOrbitYOffsetPercent)}%`,
+    `--turn-orbit-scale: ${(state.turnOrbitScalePercent / 100).toFixed(2)}`,
     `--battle-seat-y-offset: ${String(state.seatYOffsetPercent)}%`,
     `--battle-table-adjust-y: ${String(state.battleTableYOffsetPercent)}%`,
     `--hand-card-scale: ${(state.handCardScalePercent / 100).toFixed(2)}`
   ].join("; ");
 }
 
+function renderLobbyUiScaleStyle(): string {
+  return [
+    `--lobby-ui-scale: ${(state.uiScalePercent / 100).toFixed(2)}`,
+    `--lobby-ui-scale-inverse: ${(100 / state.uiScalePercent).toFixed(2)}`
+  ].join("; ");
+}
+
+function renderCardHoverTooltip(): string {
+  return '<div id="card-hover-tooltip" class="card-hover-tooltip" role="tooltip" hidden></div>';
+}
+
 function renderSettingsModal(): string {
   if (!state.settingsModalOpen) {
     return "";
   }
+
+  const isBattleSettings = state.snapshot !== null;
 
   return `
     <div
@@ -3009,8 +3191,13 @@ function renderSettingsModal(): string {
         ${renderUiScaleSegment("UI 缩放", state.uiScalePercent)}
         ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
         ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
+        <div class="settings-contact-row">
+          <div class="settings-contact-line" id="settings-contact-content">QQ：2753345388</div>
+          ${renderSettingsUpdateLogBlock()}
+        </div>
         <button
           id="settings-adjust-toggle-button"
+          ${isBattleSettings ? "" : "hidden"}
           class="secondary settings-adjust-toggle ${state.settingsAdjustPanelOpen ? "active" : ""}"
           aria-expanded="${state.settingsAdjustPanelOpen ? "true" : "false"}"
         >界面调整</button>
@@ -3018,6 +3205,144 @@ function renderSettingsModal(): string {
       </div>
     </div>
   `;
+}
+
+function renderSettingsUpdateLogBlock(): string {
+  return `
+    <div class="settings-update-log-shell">
+      <button
+        id="settings-update-log-button"
+        data-testid="settings-update-log-button"
+        class="secondary settings-update-log-button ${state.updateLogOpen ? "active" : ""}"
+        aria-expanded="${state.updateLogOpen ? "true" : "false"}"
+        aria-controls="settings-update-log-panel"
+      >更新日志</button>
+      ${state.updateLogOpen ? renderSettingsUpdateLogPanel() : ""}
+    </div>
+  `;
+}
+
+function renderSettingsUpdateLogPanel(): string {
+  const content =
+    state.updateLogStatus === "loading"
+      ? '<p class="settings-update-log-empty">加载中...</p>'
+      : state.updateLogStatus === "ready"
+        ? state.updateLogSections
+            .map((section) => {
+              return `
+                <section class="settings-update-log-section">
+                  <strong>${escapeHtml(section.title)}</strong>
+                  <ul>
+                    ${section.items
+                      .map((item) => `<li>${escapeHtml(item)}</li>`)
+                      .join("")}
+                  </ul>
+                </section>
+              `;
+            })
+            .join("")
+        : '<p class="settings-update-log-empty">暂无更新日志</p>';
+
+  return `
+    <div
+      id="settings-update-log-panel"
+      data-testid="settings-update-log-panel"
+      class="settings-update-log-panel"
+    >
+      ${content}
+    </div>
+  `;
+}
+
+function renderUpdateLogDialog(): string {
+  if (!state.updateLogOpen) {
+    return "";
+  }
+
+  return `
+    <div class="update-log-backdrop" data-update-log-backdrop="true">
+      <section class="update-log-dialog" data-testid="update-log-dialog" style="${renderUpdateLogDialogStyle()}">
+        <header class="update-log-dialog-header" data-update-log-drag-handle="true">
+          <div class="update-log-dialog-title-wrap">
+            <span class="update-log-dialog-dragbar" aria-hidden="true"></span>
+            <strong>更新日志</strong>
+          </div>
+          <button id="close-update-log-button" class="secondary update-log-dialog-close" aria-label="关闭更新日志">×</button>
+        </header>
+        ${renderSettingsUpdateLogPanel()}
+      </section>
+    </div>
+  `;
+}
+
+function renderUpdateLogDialogStyle(): string {
+  if (state.updateLogDialogPosition === null) {
+    return "";
+  }
+
+  return [
+    `left: ${String(state.updateLogDialogPosition.left)}px`,
+    `top: ${String(state.updateLogDialogPosition.top)}px`,
+    "transform: none"
+  ].join("; ");
+}
+
+async function loadUpdateLog(): Promise<void> {
+  if (state.updateLogStatus === "loading") {
+    return;
+  }
+
+  state.updateLogStatus = "loading";
+  render();
+
+  try {
+    const response = await fetch(UPDATE_LOG_PATH);
+
+    if (!response.ok) {
+      throw new Error(`Failed to load ${UPDATE_LOG_PATH}`);
+    }
+
+    const markdown = await response.text();
+    const sections = parseUpdateLogMarkdown(markdown);
+
+    if (sections.length === 0) {
+      throw new Error("Empty update log");
+    }
+
+    state.updateLogSections = sections;
+    state.updateLogStatus = "ready";
+  } catch {
+    state.updateLogSections = [];
+    state.updateLogStatus = "error";
+  }
+
+  render();
+}
+
+function parseUpdateLogMarkdown(markdown: string): UpdateLogSection[] {
+  const lines = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const sections: UpdateLogSection[] = [];
+  let currentSection: UpdateLogSection | null = null;
+
+  for (const line of lines) {
+    if (line.startsWith("##")) {
+      currentSection = {
+        title: line.slice(2).trim(),
+        items: []
+      };
+      sections.push(currentSection);
+      continue;
+    }
+
+    if (line.startsWith("-") && currentSection !== null) {
+      currentSection.items.push(line.slice(1).trim());
+    }
+  }
+
+  return sections.filter((section) => section.title.length > 0 && section.items.length > 0);
 }
 
 function renderInterfaceAdjustPanel(): string {
@@ -3030,18 +3355,18 @@ function renderInterfaceAdjustPanel(): string {
       >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
       <fieldset class="settings-segment settings-slider-segment">
         <legend>旋转图标上下</legend>
-        <label class="settings-slider-row settings-orbit-slider-row" for="settings-turn-orbit-y-slider">
+        <label class="settings-slider-row settings-orbit-slider-row" for="settings-turn-orbit-scale-slider">
           <span class="settings-slider-icon" aria-hidden="true">↕</span>
           <input
-            id="settings-turn-orbit-y-slider"
+            id="settings-turn-orbit-scale-slider"
             type="range"
-            min="-30"
-            max="30"
+            min="45"
+            max="145"
             step="1"
-            value="${String(state.turnOrbitYOffsetPercent)}"
-            data-turn-orbit-y-range="true"
+            value="${String(state.turnOrbitScalePercent)}"
+            data-interface-adjust-range="turn-orbit-scale"
           />
-          <output data-turn-orbit-y-output>${String(state.turnOrbitYOffsetPercent)}%</output>
+          <output data-interface-adjust-output="turn-orbit-scale">${String(state.turnOrbitScalePercent)}%</output>
         </label>
       </fieldset>
       ${renderInterfaceAdjustSlider({
@@ -3090,7 +3415,7 @@ function renderInterfaceAdjustSlider(params: {
   step: number;
   unit: string;
   icon: string;
-  dataName: "seat-y" | "battle-table-y" | "hand-card-scale";
+  dataName: "turn-orbit-scale" | "seat-y" | "battle-table-y" | "hand-card-scale";
 }): string {
   return `
     <fieldset class="settings-segment settings-slider-segment">
@@ -3116,13 +3441,11 @@ function renderUiScaleSegment(
   label: string,
   value: UiSettingPercent
 ): string {
-  const options: readonly UiScalePercent[] = [60, 80, 100, 120];
-
   return `
     <fieldset class="settings-segment">
       <legend>${escapeHtml(label)}</legend>
       <div class="settings-segment-options">
-        ${options
+        ${UI_SCALE_OPTIONS
           .map((option) => {
             const isActive = option === value;
 
@@ -3361,7 +3684,7 @@ function renderActionGuide(
     message =
       snapshot.initialDirectionChoice.chooserPlayerId === state.playerId
         ? "请先选择本局顺时针或逆时针。"
-        : `等待 ${chooserName} 选择本局方向。`;
+        : `等待 ${chooserName} 选择出牌方向。`;
     tone = "warning";
   } else if (canTakeTurnAction && snapshot.drawStack.active) {
     message = `加牌链正在压到你：可以叠加加牌，或结算摸 ${String(snapshot.drawStack.amount)} 张。`;
@@ -3617,7 +3940,6 @@ function renderCardButtonV2(
       aria-pressed="${info.relationState === "selected" ? "true" : "false"}"
       aria-disabled="${info.canSelect ? "false" : "true"}"
       aria-label="${escapeHtml(`${card.displayName} · ${info.reason}`)}"
-      title="${escapeHtml(cardTooltip ?? info.reason)}"
       ${tooltipAttribute}
     >
       <img src="${getCardAssetPath(card)}" alt="${escapeHtml(card.displayName)}" />
@@ -3626,11 +3948,84 @@ function renderCardButtonV2(
 }
 
 function getHandCardTooltip(card: Card, fallbackReason: string): string | null {
-  if (card.kind !== "discard-same-color" || card.color === undefined) {
-    return null;
+  const specialRule = getSpecialCardRuleText(card);
+
+  return specialRule === null ? fallbackReason : `${fallbackReason}；${specialRule}`;
+}
+
+function getSpecialCardRuleText(card: Card): string | null {
+  switch (card.kind) {
+    case "discard-same-color":
+      return card.color === undefined
+        ? "同色丢弃：可带出同色非黑牌。"
+        : `同色丢弃：双击可选中所有${getColorDisplayName(card.color)}手牌。`;
+    case "swap-hands":
+      return "交换手牌：按当前方向轮换所有玩家手牌，少牌时谨慎使用。";
+    case "wild":
+      return "变色牌：打出后指定下一轮颜色。";
+    case "penalty-draw":
+      return "罚抽牌：指定颜色后，下家一直摸到目标颜色；罚抽叠加罚抽。";
+    case "wild-reverse-draw-four":
+      return "反转 +4：反转方向并把加牌压力打向上一家。";
+    case "wild-draw-six":
+      return "变色 +6：可叠加加牌链，下一家累计摸牌。";
+    case "wild-draw-ten":
+      return "变色 +10：强力加牌牌；+10叠加+10，也可抵消已有 +10 压力。";
+    case "draw-four":
+      return "普通 +4：只能接普通 +4 加牌链。";
+    case "draw-two":
+      return "普通 +2：只能接普通 +2 加牌链。";
+    case "skip":
+      return "禁牌：跳过下一位玩家。";
+    case "reverse":
+      return "反转牌：改变当前出牌方向。";
+    default:
+      return null;
+  }
+}
+
+function showCardHoverTooltip(button: HTMLElement, event: PointerEvent): void {
+  const text = button.dataset.cardTooltip;
+
+  if (text === undefined || text.trim().length === 0) {
+    hideCardHoverTooltip();
+    return;
   }
 
-  return `${fallbackReason}；双击可选中所有${getColorDisplayName(card.color)}手牌`;
+  const tooltip = document.querySelector<HTMLElement>("#card-hover-tooltip");
+
+  if (tooltip === null) {
+    return;
+  }
+
+  tooltip.textContent = text;
+  tooltip.hidden = false;
+  moveCardHoverTooltip(event);
+}
+
+function moveCardHoverTooltip(event: PointerEvent): void {
+  const tooltip = document.querySelector<HTMLElement>("#card-hover-tooltip");
+
+  if (tooltip === null || tooltip.hidden) {
+    return;
+  }
+
+  const offset = 14;
+  const maxLeft = Math.max(0, window.innerWidth - tooltip.offsetWidth - 8);
+  const maxTop = Math.max(0, window.innerHeight - tooltip.offsetHeight - 8);
+  tooltip.style.left = `${Math.min(maxLeft, event.clientX + offset)}px`;
+  tooltip.style.top = `${Math.min(maxTop, event.clientY + offset)}px`;
+}
+
+function hideCardHoverTooltip(): void {
+  const tooltip = document.querySelector<HTMLElement>("#card-hover-tooltip");
+
+  if (tooltip === null) {
+    return;
+  }
+
+  tooltip.hidden = true;
+  tooltip.textContent = "";
 }
 
 function getHandCardPresentation(
@@ -4795,6 +5190,87 @@ function syncPenaltyDrawProgress(snapshot: PlayerGameSnapshot): void {
   };
 }
 
+function syncBattleTurnSweep(
+  previousSnapshot: PlayerGameSnapshot | null,
+  nextSnapshot: PlayerGameSnapshot,
+  viewerPlayerId: PlayerId
+): void {
+  if (!canShowBattleTurnSweep(nextSnapshot, viewerPlayerId)) {
+    clearBattleTurnSweep(false);
+    return;
+  }
+
+  if (previousSnapshot !== null && previousSnapshot.currentPlayerId === viewerPlayerId) {
+    return;
+  }
+
+  startBattleTurnSweep();
+}
+
+function canShowBattleTurnSweep(
+  snapshot: PlayerGameSnapshot,
+  viewerPlayerId: PlayerId
+): boolean {
+  return (
+    snapshot.currentPlayerId === viewerPlayerId &&
+    snapshot.status !== "finished" &&
+    !snapshot.roundDecisionPending &&
+    !snapshot.initialDirectionChoice.active &&
+    !snapshot.self.isEliminated &&
+    !snapshot.self.isRoundWinner
+  );
+}
+
+function startBattleTurnSweep(): void {
+  const startedAtMs = Date.now();
+
+  if (battleTurnSweepClearTimer !== null) {
+    window.clearTimeout(battleTurnSweepClearTimer);
+  }
+
+  state.battleTurnSweepStartedAtMs = startedAtMs;
+  battleTurnSweepClearTimer = window.setTimeout(() => {
+    if (state.battleTurnSweepStartedAtMs === startedAtMs) {
+      state.battleTurnSweepStartedAtMs = null;
+      battleTurnSweepClearTimer = null;
+      render();
+    }
+  }, BATTLE_TURN_SWEEP_MS + 40);
+}
+
+function clearBattleTurnSweep(shouldRender = false): void {
+  if (battleTurnSweepClearTimer !== null) {
+    window.clearTimeout(battleTurnSweepClearTimer);
+    battleTurnSweepClearTimer = null;
+  }
+
+  if (state.battleTurnSweepStartedAtMs === null) {
+    return;
+  }
+
+  state.battleTurnSweepStartedAtMs = null;
+
+  if (shouldRender) {
+    render();
+  }
+}
+
+function isBattleTurnSweepActive(): boolean {
+  return (
+    state.battleTurnSweepStartedAtMs !== null &&
+    Date.now() - state.battleTurnSweepStartedAtMs < BATTLE_TURN_SWEEP_MS
+  );
+}
+
+function renderBattleTurnSweepStyle(): string {
+  if (!isBattleTurnSweepActive() || state.battleTurnSweepStartedAtMs === null) {
+    return "";
+  }
+
+  const elapsedMs = Math.max(0, Date.now() - state.battleTurnSweepStartedAtMs);
+  return `--battle-turn-sweep-delay-ms: -${String(elapsedMs)}ms;`;
+}
+
 function getPenaltyDrawDisplayIndex(
   event: Extract<GameEvent, { type: "cards-drawn" }>
 ): number {
@@ -4869,7 +5345,6 @@ function playAudioElement(audio: HTMLAudioElement): void {
   }
 }
 
-type UiScalePercent = 60 | 80 | 100 | 120;
 type UiSettingPercent = number;
 type VolumeSettingName = "background-music" | "sound-effect";
 
@@ -4925,9 +5400,25 @@ function getBattleBackgroundMusic(): HTMLAudioElement | null {
   return battleBackgroundMusic;
 }
 
+function getEliminationMusic(): HTMLAudioElement | null {
+  if (eliminationMusic === null) {
+    eliminationMusic = createLoopingAudio(
+      ELIMINATION_MUSIC_PATH,
+      ELIMINATION_MUSIC_VOLUME
+    );
+
+    if (eliminationMusic !== null) {
+      eliminationMusic.playbackRate = 2;
+    }
+  }
+
+  return eliminationMusic;
+}
+
 function syncBackgroundMusic(): void {
   const lobbyAudio = getLobbyBackgroundMusic();
   const battleAudio = getBattleBackgroundMusic();
+  const eliminationAudio = getEliminationMusic();
   const isBattleView = state.snapshot !== null;
 
   if (lobbyAudio !== null) {
@@ -4947,6 +5438,13 @@ function syncBackgroundMusic(): void {
       }
     } else {
       battleAudio.pause();
+    }
+  }
+
+  if (eliminationAudio !== null) {
+    eliminationAudio.volume = getBackgroundMusicVolume(ELIMINATION_MUSIC_VOLUME);
+    if (!isBattleView && !eliminationAudio.paused) {
+      eliminationAudio.pause();
     }
   }
 }
@@ -4970,7 +5468,48 @@ function playPenaltyDrawSound(path: string, playbackRate = 1, volume = PENALTY_D
   const audio = new Audio(path);
   audio.playbackRate = playbackRate;
   audio.volume = getSoundEffectVolume(volume);
+  disablePitchPreservation(audio);
   playAudioElement(audio);
+}
+
+function disablePitchPreservation(audio: HTMLAudioElement): void {
+  const pitchAwareAudio = audio as HTMLAudioElement & {
+    preservesPitch?: boolean;
+    webkitPreservesPitch?: boolean;
+    mozPreservesPitch?: boolean;
+  };
+
+  pitchAwareAudio.preservesPitch = false;
+  pitchAwareAudio.webkitPreservesPitch = false;
+  pitchAwareAudio.mozPreservesPitch = false;
+}
+
+function playEliminationMusicOncePerRound(): void {
+  if (eliminationMusicActive) {
+    return;
+  }
+
+  const audio = getEliminationMusic();
+
+  if (audio === null) {
+    return;
+  }
+
+  eliminationMusicActive = true;
+  audio.currentTime = 0;
+  audio.volume = getBackgroundMusicVolume(ELIMINATION_MUSIC_VOLUME);
+  playAudioElement(audio);
+}
+
+function stopEliminationMusic(): void {
+  eliminationMusicActive = false;
+
+  if (eliminationMusic === null) {
+    return;
+  }
+
+  eliminationMusic.pause();
+  eliminationMusic.currentTime = 0;
 }
 
 function playPenaltyDrawResultSound(
@@ -5328,7 +5867,7 @@ function handleGameEvents(events: readonly GameEvent[]): void {
       state.latestPlayGroupEvent = playedEvent;
       state.latestPlayGroupAnimationKey = playedEvent.animationKey;
       playDrawStackCardPlayedSound(event);
-      showToast(`${lookupNameFromKnownState(event.playerId)} \u51fa\u724c\u6210\u529f`, "success");
+      showToast(getCardsPlayedToastMessage(event), "success");
     }
 
     if (event.type === "draw-stack-cleared" && event.reason === "resolved") {
@@ -5392,6 +5931,7 @@ function handleGameEvents(events: readonly GameEvent[]): void {
     }
 
     if (event.type === "player-eliminated") {
+      playEliminationMusicOncePerRound();
       const message = `${lookupNameFromKnownState(event.playerId)} 手牌为 ${String(event.handCount)} 张，已出局。`;
       state.eventModal = {
         key: `player-eliminated-${event.playerId}-${Date.now()}`,
@@ -5429,6 +5969,46 @@ function lookupNameFromKnownState(playerId: PlayerId): string {
   }
 
   return playerId;
+}
+
+function getCardsPlayedToastMessage(event: Extract<GameEvent, { type: "cards-played" }>): string {
+  const playerName = lookupNameFromKnownState(event.playerId);
+
+  switch (event.playPattern) {
+    case "sequence":
+      return `${playerName} 打出顺子，下一家需要接顺子最大牌。`;
+    case "multiple-number":
+      return `${playerName} 打出连对，一次压出多张同点数牌。`;
+    case "discard-same-color":
+      return `${playerName} 发动同色丢弃，附带牌只丢弃不触发技能。`;
+    default:
+      break;
+  }
+
+  switch (event.topCardKind) {
+    case "swap-hands":
+      return `${playerName} 打出交换手牌，所有玩家按当前方向轮换手牌。`;
+    case "penalty-draw":
+      return `${playerName} 打出罚抽牌，下家需要摸到指定颜色。`;
+    case "wild":
+      return `${playerName} 打出变色牌，颜色已重新指定。`;
+    case "wild-reverse-draw-four":
+      return `${playerName} 打出反转 +4，方向反转并叠加 4 张。`;
+    case "wild-draw-six":
+      return `${playerName} 打出变色 +6，下一家承受加牌压力。`;
+    case "wild-draw-ten":
+      return `${playerName} 打出变色 +10，加牌压力大幅提升。`;
+    case "draw-four":
+      return `${playerName} 打出 +4，加牌链继续。`;
+    case "draw-two":
+      return `${playerName} 打出 +2，加牌链继续。`;
+    case "skip":
+      return `${playerName} 打出禁牌，跳过下一位玩家。`;
+    case "reverse":
+      return `${playerName} 打出反转牌，方向改变。`;
+    default:
+      return `${playerName} 出牌成功`;
+  }
 }
 
 function translateRejectedMessage(code: ErrorCode, fallbackMessage: string): string {
@@ -5517,6 +6097,7 @@ function renameCurrentPlayer(): void {
 
   const nicknameInput = document.querySelector<HTMLInputElement>("#nickname");
   const nickname = nicknameInput?.value.trim() ?? "";
+  const nicknameLength = getNicknameCharacterCount(nickname);
 
   if (nickname.length === 0) {
     showToast("昵称不能为空。", "warning");
@@ -5524,7 +6105,7 @@ function renameCurrentPlayer(): void {
     return;
   }
 
-  if (nickname.length > MAX_PLAYER_NICKNAME_LENGTH) {
+  if (nicknameLength > MAX_PLAYER_NICKNAME_LENGTH) {
     showToast(`昵称不能超过 ${String(MAX_PLAYER_NICKNAME_LENGTH)} 字。`, "warning");
     render();
     return;
@@ -5546,7 +6127,7 @@ function bindLobbyPanel(): void {
   bindRoomCodeInputs();
 
   document.querySelector("#create-room-button")?.addEventListener("click", () => {
-    const mode = readSelectValue("#mode", state.lobbyMode) as GameMode;
+    const mode: GameMode = "no-challenge";
     state.lobbyMode = mode;
     const message = buildCreateRoomMessage({
       userId: state.userId,
@@ -5562,7 +6143,8 @@ function bindLobbyPanel(): void {
       return;
     }
 
-    state.nickname = input.value;
+    state.nickname = ensureNicknameValue(input.value);
+    input.value = state.nickname;
   });
 
   document.querySelector("#mode")?.addEventListener("change", (event) => {
@@ -5571,7 +6153,8 @@ function bindLobbyPanel(): void {
       return;
     }
 
-    state.lobbyMode = select.value === "with-challenge" ? "with-challenge" : "no-challenge";
+    select.value = "no-challenge";
+    state.lobbyMode = "no-challenge";
     render();
   });
 
@@ -5629,17 +6212,34 @@ function bindLobbyPanel(): void {
     );
   });
 
-  document.querySelector("#add-bot-button")?.addEventListener("click", () => {
-    if (state.roomId === null || state.playerId === null) {
-      return;
-    }
+  document.querySelectorAll("#add-bot-menu-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.addBotMenuOpen = !state.addBotMenuOpen;
+      render();
+    });
+  });
 
-    sendSafely(
-      buildAddBotMessage({
-        roomId: state.roomId,
-        playerId: state.playerId
-      })
-    );
+  document.querySelectorAll<HTMLButtonElement>("[data-add-bot-type]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (state.roomId === null || state.playerId === null) {
+        return;
+      }
+
+      const botType = button.dataset.addBotType;
+
+      if (botType !== "strong" && botType !== "chaos") {
+        return;
+      }
+
+      sendSafely(
+        buildAddBotMessage({
+          roomId: state.roomId,
+          playerId: state.playerId,
+          botType
+        })
+      );
+      render();
+    });
   });
 
   document.querySelectorAll<HTMLButtonElement>("[data-kick-player]").forEach((button) => {
@@ -5708,6 +6308,11 @@ function bindLobbyPanel(): void {
     applyUiSetting("background-music", nextValue);
   });
 
+  document.querySelector("#lobby-settings-button")?.addEventListener("click", () => {
+    state.settingsModalOpen = true;
+    render();
+  });
+
   document.querySelector("#lobby-chat-input")?.addEventListener("input", (event) => {
     const input = event.currentTarget as HTMLInputElement | null;
     if (input === null) {
@@ -5743,11 +6348,60 @@ function bindBattlePanel(): void {
     }
 
     state.settingsModalOpen = false;
+    closeUpdateLogDialog({ shouldRender: false });
     render();
   });
 
   document.querySelector("#close-settings-modal-button")?.addEventListener("click", () => {
     state.settingsModalOpen = false;
+    closeUpdateLogDialog({ shouldRender: false });
+    render();
+  });
+
+  document.querySelector("#settings-update-log-button")?.addEventListener("click", () => {
+    state.updateLogOpen = !state.updateLogOpen;
+    if (!state.updateLogOpen) {
+      state.updateLogDialogPosition = null;
+    }
+    render();
+
+    if (state.updateLogOpen && state.updateLogStatus !== "ready") {
+      void loadUpdateLog();
+    }
+  });
+
+  document.querySelector("[data-update-log-backdrop]")?.addEventListener("click", (event) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
+    closeUpdateLogDialog();
+  });
+
+  document.querySelector("#close-update-log-button")?.addEventListener("click", () => {
+    closeUpdateLogDialog();
+  });
+
+  document.querySelector("[data-update-log-drag-handle='true']")?.addEventListener("pointerdown", (event) => {
+    if (!(event instanceof PointerEvent)) {
+      return;
+    }
+
+    const dialog = document.querySelector<HTMLElement>("[data-testid='update-log-dialog']");
+
+    if (dialog === null) {
+      return;
+    }
+
+    const rect = dialog.getBoundingClientRect();
+    state.updateLogDialogPosition = {
+      left: rect.left,
+      top: rect.top
+    };
+    updateLogDragState = {
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top
+    };
     render();
   });
 
@@ -5813,24 +6467,6 @@ function bindBattlePanel(): void {
     });
   });
 
-  document.querySelector<HTMLInputElement>("[data-turn-orbit-y-range]")?.addEventListener("input", (event) => {
-    const slider = event.currentTarget as HTMLInputElement | null;
-
-    if (slider === null) {
-      return;
-    }
-
-    const value = parseNumberInRange(slider.value, -30, 30);
-
-    if (value === null) {
-      return;
-    }
-
-    state.turnOrbitYOffsetPercent = value;
-    setStoredValue(TURN_ORBIT_Y_OFFSET_STORAGE_KEY, String(value));
-    syncTurnOrbitYOffsetControls(value);
-  });
-
   document.querySelectorAll<HTMLInputElement>("[data-interface-adjust-range]").forEach((slider) => {
     slider.addEventListener("input", () => {
       const setting = slider.dataset.interfaceAdjustRange;
@@ -5874,6 +6510,18 @@ function bindBattlePanel(): void {
       }
 
       handleHandCardDoubleClick(cardId);
+    });
+
+    button.addEventListener("pointerenter", (event) => {
+      showCardHoverTooltip(button, event);
+    });
+
+    button.addEventListener("pointermove", (event) => {
+      moveCardHoverTooltip(event);
+    });
+
+    button.addEventListener("pointerleave", () => {
+      hideCardHoverTooltip();
     });
   });
 
@@ -5975,6 +6623,7 @@ function bindBattlePanel(): void {
     }
 
     state.eventModal = null;
+    stopEliminationMusic();
     sendSafely(
       buildRestartGameMessage({
         roomId: state.roomId,
@@ -5990,6 +6639,7 @@ function bindBattlePanel(): void {
     }
 
     state.eventModal = null;
+    stopEliminationMusic();
     sendSafely(
       buildContinueGameMessage({
         roomId: state.roomId,
@@ -6065,6 +6715,7 @@ function leaveCurrentRoomFromBattle(): void {
     return;
   }
 
+  stopEliminationMusic();
   sendSafely(buildLeaveRoomMessage({ roomId: state.roomId, playerId: state.playerId }));
   returnToLobbyAfterLeavingBattle(state.roomId, state.playerId);
   pushLog("已退出房间");
@@ -6078,8 +6729,8 @@ function applyUiSetting(
 ): void {
   switch (setting) {
     case "ui-scale":
-      state.uiScalePercent = value;
-      setStoredValue(UI_SCALE_STORAGE_KEY, String(value));
+      state.uiScalePercent = parseUiScalePercent(String(value)) ?? DEFAULT_UI_SCALE_PERCENT;
+      setStoredValue(UI_SCALE_STORAGE_KEY, String(state.uiScalePercent));
       break;
     case "background-music":
       state.backgroundMusicPercent = value;
@@ -6173,24 +6824,13 @@ function syncVolumeSettingControls(
   }
 }
 
-function syncTurnOrbitYOffsetControls(value: number): void {
-  const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
-  const output = document.querySelector<HTMLOutputElement>("[data-turn-orbit-y-output]");
-
-  if (battleRoot !== null) {
-    battleRoot.style.setProperty("--turn-orbit-y-offset", `${String(value)}%`);
-  }
-  if (output !== null) {
-    output.value = `${String(value)}%`;
-    output.textContent = `${String(value)}%`;
-  }
-}
-
 function parseInterfaceAdjustValue(
   setting: string | undefined,
   rawValue: string
 ): number | null {
   switch (setting) {
+    case "turn-orbit-scale":
+      return parseNumberInRange(rawValue, 45, 145);
     case "seat-y":
     case "battle-table-y":
       return parseNumberInRange(rawValue, -30, 30);
@@ -6212,6 +6852,11 @@ function applyInterfaceAdjustSetting(setting: string | undefined, value: number)
       state.seatYOffsetPercent = value;
       setStoredValue(SEAT_Y_OFFSET_STORAGE_KEY, String(value));
       battleRoot?.style.setProperty("--battle-seat-y-offset", `${String(value)}%`);
+      break;
+    case "turn-orbit-scale":
+      state.turnOrbitScalePercent = value;
+      setStoredValue(TURN_ORBIT_SCALE_STORAGE_KEY, String(value));
+      battleRoot?.style.setProperty("--turn-orbit-scale", (value / 100).toFixed(2));
       break;
     case "battle-table-y":
       state.battleTableYOffsetPercent = value;
@@ -6922,6 +7567,8 @@ function resetRoomContext(): void {
     unoProtectionRenderTimer = null;
   }
 
+  clearBattleTurnSweep(false);
+  stopEliminationMusic();
   state.room = null;
   state.snapshot = null;
   state.roomId = null;
@@ -6943,6 +7590,8 @@ function resetRoomContext(): void {
   state.penaltyDrawProgress = null;
   state.eventModal = null;
   state.ruleModal = null;
+  state.updateLogOpen = false;
+  state.updateLogDialogPosition = null;
   state.lobbyChatFeed = [];
   state.lobbyChatDraft = "";
 
@@ -6958,6 +7607,8 @@ function returnToLobbyAfterLeavingBattle(
     unoProtectionRenderTimer = null;
   }
 
+  clearBattleTurnSweep(false);
+  stopEliminationMusic();
   const preservedRoomCode =
     state.room !== null && state.room.roomId === roomId ? state.room.roomCode : roomId;
 
@@ -7040,6 +7691,14 @@ function normalizePlayerGameSnapshot(snapshot: unknown): PlayerGameSnapshot {
       targetPlayerId: null,
       ...partial.challengeWindow
     },
+    roundDecisionPending:
+      typeof partial.roundDecisionPending === "boolean"
+        ? partial.roundDecisionPending
+        : partial.status === "finished" ||
+            self.isEliminated === true ||
+            self.isRoundWinner === true ||
+            (Array.isArray(partial.opponents) &&
+              partial.opponents.some((player) => player.isEliminated || player.isRoundWinner)),
     winnerPlayerIds: Array.isArray(partial.winnerPlayerIds)
       ? partial.winnerPlayerIds
       : [],
@@ -7159,15 +7818,85 @@ function readStoredUiSettingPercent(key: string): UiSettingPercent {
 }
 
 function readStoredUiScalePercent(key: string): UiScalePercent {
-  return parseUiScalePercent(getStoredValue(key)) ?? DEFAULT_UI_SETTING_PERCENT;
+  return parseUiScalePercent(getStoredValue(key)) ?? DEFAULT_UI_SCALE_PERCENT;
+}
+
+function installGlobalLobbyInteractions(): void {
+  if (globalLobbyInteractionsInstalled) {
+    return;
+  }
+
+  globalLobbyInteractionsInstalled = true;
+  const closeAddBotMenu = (event: Event) => {
+    if (!state.addBotMenuOpen) {
+      return;
+    }
+
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    if (event.target.closest("[data-add-bot-menu-root='true']") !== null) {
+      return;
+    }
+
+    state.addBotMenuOpen = false;
+    render();
+  };
+
+  document.addEventListener("click", closeAddBotMenu);
+  window.addEventListener("click", closeAddBotMenu);
+  document.addEventListener("pointermove", (event) => {
+    if (updateLogDragState === null || state.updateLogOpen === false) {
+      return;
+    }
+
+    state.updateLogDialogPosition = {
+      left: event.clientX - updateLogDragState.offsetX,
+      top: event.clientY - updateLogDragState.offsetY
+    };
+
+    const dialog = document.querySelector<HTMLElement>("[data-testid='update-log-dialog']");
+
+    if (dialog !== null) {
+      dialog.style.left = `${String(state.updateLogDialogPosition.left)}px`;
+      dialog.style.top = `${String(state.updateLogDialogPosition.top)}px`;
+      dialog.style.transform = "none";
+    }
+  });
+  document.addEventListener("pointerup", () => {
+    updateLogDragState = null;
+  });
+}
+
+function closeUpdateLogDialog(
+  options: { shouldRender?: boolean } = {}
+): void {
+  state.updateLogOpen = false;
+  state.updateLogDialogPosition = null;
+  updateLogDragState = null;
+
+  if (options.shouldRender !== false) {
+    render();
+  }
 }
 
 function parseUiScalePercent(value: string | undefined | null): UiScalePercent | null {
-  if (value === "60" || value === "80" || value === "100" || value === "120") {
-    return Number(value) as UiScalePercent;
+  const parsed = parseVolumeSettingPercent(value);
+
+  if (parsed === null) {
+    return null;
   }
 
-  return null;
+  return UI_SCALE_OPTIONS.reduce((best, option) => {
+    const bestDistance = Math.abs(best - parsed);
+    const optionDistance = Math.abs(option - parsed);
+
+    return optionDistance < bestDistance || optionDistance === bestDistance && option > best
+      ? option
+      : best;
+  }, DEFAULT_UI_SCALE_PERCENT);
+
 }
 
 function parseVolumeSettingPercent(value: string | undefined | null): UiSettingPercent | null {
@@ -7291,8 +8020,12 @@ function removeSessionStoredValue(key: string): void {
 }
 
 function ensureNicknameValue(value: string): string {
-  const trimmed = value.trim();
+  const trimmed = Array.from(value.trim()).slice(0, MAX_PLAYER_NICKNAME_LENGTH).join("");
   return trimmed.length === 0 ? createRandomNickname() : trimmed;
+}
+
+function getNicknameCharacterCount(value: string): number {
+  return Array.from(value).length;
 }
 
 function createRandomNickname(): string {

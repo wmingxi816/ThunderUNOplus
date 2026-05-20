@@ -1,5 +1,5 @@
 import type { GameState } from "@thunder-uno/uno-core";
-import type { GameMode, PlayerId, RoomId, UnixMs } from "@thunder-uno/shared-types";
+import type { CardColor, GameMode, PlayerId, RoomId, UnixMs } from "@thunder-uno/shared-types";
 
 export const ROOM_RUNTIME_STATUSES = [
   "waiting",
@@ -22,7 +22,7 @@ export interface ServerRoomPlayer {
   joinedAt: UnixMs;
   isBot: boolean;
   botProfile?: {
-    strategy: "greedy-v1";
+    strategy: "greedy-v1" | "chaos-v1";
     forgetUnoRate: number;
   };
 }
@@ -34,6 +34,9 @@ export interface RoomRuntime {
   mode: GameMode;
   players: ServerRoomPlayer[];
   gameState: GameState | null;
+  botState: {
+    lastUnanswerableColorByPlayerId: Partial<Record<PlayerId, CardColor>>;
+  };
   snapshotVersion: number;
   createdAt: UnixMs;
   updatedAt: UnixMs;
@@ -82,6 +85,7 @@ export interface LeaveRoomResult {
 export interface AddBotParams {
   roomId: string;
   playerId: string;
+  botType: "strong" | "chaos";
 }
 
 export interface AddBotResult {

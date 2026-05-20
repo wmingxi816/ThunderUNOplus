@@ -44,6 +44,12 @@ export interface BotScoringWeights {
   swapQualityPressureWeight: number;
   swapLowValuePressureWeight: number;
   swapWeakHandPressureWeight: number;
+  swapTinyHandLargeSourcePenalty: number;
+  swapSourceCriticalBonus: number;
+  swapSourceGapBonusPerCard: number;
+  swapLargeIncomingPenaltyPerCard: number;
+  swapStrongPowerPenaltyPerPoint: number;
+  swapNonCriticalSourceScoreMax: number;
   discardLargeHandBonus: number;
   discardLargeHandPerCardBonus: number;
   discardMediumHandBonus: number;
@@ -93,6 +99,12 @@ export const DEFAULT_BOT_SCORING_WEIGHTS: BotScoringWeights = {
   swapQualityPressureWeight: 0.65,
   swapLowValuePressureWeight: 0.6,
   swapWeakHandPressureWeight: 0.4,
+  swapTinyHandLargeSourcePenalty: 5_000,
+  swapSourceCriticalBonus: 800,
+  swapSourceGapBonusPerCard: 60,
+  swapLargeIncomingPenaltyPerCard: 110,
+  swapStrongPowerPenaltyPerPoint: 140,
+  swapNonCriticalSourceScoreMax: 2_850,
   discardLargeHandBonus: 160,
   discardLargeHandPerCardBonus: 20,
   discardMediumHandBonus: 220,
@@ -160,7 +172,7 @@ function scoreCandidate(
   score += scoreDrawStack(state, command, weights);
   score += scoreDeclaredColor(state, playerId, candidate.declaredColor, weights);
   score += scoreReserveCost(state, beforePlayer.hand, command, weights);
-  score += scoreSwapHandsOpportunity(beforePlayer.hand, command, weights);
+  score += scoreSwapHandsOpportunity(state, beforePlayer.hand, command, weights);
   score += scoreDiscardSameColor(
     beforePlayer.handCount,
     command,
@@ -382,6 +394,7 @@ function hasPlayablePressureAlternative(
 }
 
 function scoreSwapHandsOpportunity(
+  state: GameState,
   hand: readonly Card[],
   command: GameCommand,
   weights: BotScoringWeights
@@ -396,24 +409,35 @@ function scoreSwapHandsOpportunity(
     return 0;
   }
 
+  const sourcePlayer = getSwapHandsSourcePlayer(state, command.playerId);
+  const ownRemainingCount = Math.max(0, hand.length - 1);
+  const incomingCount = sourcePlayer?.handCount ?? null;
+
+  if (
+    incomingCount !== null &&
+    ownRemainingCount < 4 &&
+    ownRemainingCount < incomingCount
+  ) {
+    return -weights.swapTinyHandLargeSourcePenalty;
+  }
+
   const profile = evaluateHandExchangeProfile(hand);
+  let score = 0;
 
   if (hand.length > 15) {
-    return calculateSwapHandsDynamicScore(
+    score += calculateSwapHandsDynamicScore(
       hand.length,
       profile,
       weights.swapHugeWeakHandMin,
       weights.swapHugeWeakHandMax,
       weights
     );
-  }
-
-  if (
+  } else if (
     hand.length >= 7 &&
     profile.lowValueRatio >= 0.7 &&
     profile.averageValue <= 3
   ) {
-    return calculateSwapHandsDynamicScore(
+    score += calculateSwapHandsDynamicScore(
       hand.length,
       profile,
       weights.swapMediumWeakHandMin,
@@ -422,7 +446,29 @@ function scoreSwapHandsOpportunity(
     );
   }
 
-  return 0;
+  if (incomingCount !== null) {
+    const gap = ownRemainingCount - incomingCount;
+
+    if (incomingCount <= 2 && ownRemainingCount >= 5) {
+      score += weights.swapSourceCriticalBonus;
+    }
+
+    if (gap > 0) {
+      score += Math.min(600, gap * weights.swapSourceGapBonusPerCard);
+    }
+
+    if (incomingCount >= 8) {
+      score -= (incomingCount - 7) * weights.swapLargeIncomingPenaltyPerCard;
+    }
+
+    if (incomingCount > 2) {
+      score = Math.min(score, weights.swapNonCriticalSourceScoreMax);
+    }
+  }
+
+  const powerPenalty = Math.max(0, profile.powerValue - 8) * weights.swapStrongPowerPenaltyPerPoint;
+
+  return score - powerPenalty;
 }
 
 function calculateSwapHandsDynamicScore(
@@ -451,20 +497,24 @@ function calculateSwapHandsDynamicScore(
 function evaluateHandExchangeProfile(hand: readonly Card[]): {
   averageValue: number;
   lowValueRatio: number;
+  powerValue: number;
 } {
   if (hand.length === 0) {
     return {
       averageValue: 0,
-      lowValueRatio: 0
+      lowValueRatio: 0,
+      powerValue: 0
     };
   }
 
   let totalValue = 0;
   let lowValueCount = 0;
+  let powerValue = 0;
 
   for (const card of hand) {
     const value = getHandExchangeCardValue(card);
     totalValue += value;
+    powerValue += getHandExchangePowerValue(card);
 
     if (value <= 2) {
       lowValueCount += 1;
@@ -473,8 +523,28 @@ function evaluateHandExchangeProfile(hand: readonly Card[]): {
 
   return {
     averageValue: totalValue / hand.length,
-    lowValueRatio: lowValueCount / hand.length
+    lowValueRatio: lowValueCount / hand.length,
+    powerValue
   };
+}
+
+function getSwapHandsSourcePlayer(state: GameState, playerId: PlayerId) {
+  const orderedPlayers = state.playerOrder
+    .map((orderedPlayerId) => state.players.find((player) => player.id === orderedPlayerId))
+    .filter((player): player is NonNullable<typeof player> => player !== undefined)
+    .filter((player) => !player.isEliminated && !player.isRoundWinner);
+  const playerIndex = orderedPlayers.findIndex((player) => player.id === playerId);
+
+  if (playerIndex < 0 || orderedPlayers.length <= 1) {
+    return null;
+  }
+
+  const sourceIndex =
+    state.direction === "clockwise"
+      ? (playerIndex - 1 + orderedPlayers.length) % orderedPlayers.length
+      : (playerIndex + 1) % orderedPlayers.length;
+
+  return orderedPlayers[sourceIndex] ?? null;
 }
 
 function getHandExchangeCardValue(card: Card): number {
@@ -499,6 +569,27 @@ function getHandExchangeCardValue(card: Card): number {
       return 9;
     case "wild-draw-ten":
       return 10;
+  }
+}
+
+function getHandExchangePowerValue(card: Card): number {
+  switch (card.kind) {
+    case "wild-draw-ten":
+      return 5;
+    case "wild-draw-six":
+    case "wild-reverse-draw-four":
+      return 4;
+    case "penalty-draw":
+    case "draw-four":
+      return 3;
+    case "draw-two":
+      return 2;
+    case "skip":
+    case "reverse":
+    case "wild":
+      return 1;
+    default:
+      return 0;
   }
 }
 

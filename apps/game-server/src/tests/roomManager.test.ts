@@ -160,7 +160,7 @@ describe("RoomManager", () => {
       roomId: fixture.room.roomId,
       userId: reconnectConnection.userId,
       connectionId: reconnectConnection.connectionId,
-      nickname: "Player 2 Reconnected",
+      nickname: "玩家2重连",
       avatarUrl: null
     });
 
@@ -265,6 +265,26 @@ describe("RoomManager", () => {
     expect(result.room.players).toHaveLength(2);
   });
 
+  it("addBot 会根据 botType 写入不同昵称和策略", () => {
+    const fixture = createWaitingRoomFixture(1, "no-challenge");
+
+    const strongBot = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      botType: "strong"
+    }).botPlayer;
+    const chaosBot = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      botType: "chaos"
+    }).botPlayer;
+
+    expect(strongBot.nickname).toBe("最强bot");
+    expect(strongBot.botProfile?.strategy).toBe("greedy-v1");
+    expect(chaosBot.nickname).toBe("混沌bot");
+    expect(chaosBot.botProfile?.strategy).toBe("chaos-v1");
+  });
+
   it("有质疑模式不能添加机器人", () => {
     const fixture = createWaitingRoomFixture(1, "with-challenge");
 
@@ -367,6 +387,72 @@ describe("RoomManager", () => {
     expect(result.room.gameState!.players[0]!.isRoundWinner).toBe(true);
   });
 
+  it("playing 中房主主动离房时会把房主顺位给下一位仍在房间中的玩家", () => {
+    const fixture = createStartedRoomFixture(4);
+    const leavingOwnerId = fixture.room.ownerPlayerId;
+
+    const result = fixture.roomManager.leaveRoom({
+      roomId: fixture.room.roomId,
+      playerId: leavingOwnerId,
+      markLeft: true
+    });
+
+    expect(result.room).not.toBeNull();
+    expect(result.room!.ownerPlayerId).toBe(fixture.room.players[1]!.playerId);
+  });
+
+  it("房主被淘汰后主动离房且仍有至少两名活跃玩家时会自动继续游戏", () => {
+    const fixture = createStartedRoomFixture(4);
+    const gameState = fixture.room.gameState!;
+    const ownerId = fixture.room.ownerPlayerId;
+    const ownerGamePlayer = gameState.players.find((player) => player.id === ownerId)!;
+
+    ownerGamePlayer.isEliminated = true;
+    ownerGamePlayer.handCount = 26;
+    fixture.room.status = "finished";
+    gameState.status = "finished";
+    gameState.currentPlayerId = ownerId;
+
+    const result = fixture.roomManager.leaveRoom({
+      roomId: fixture.room.roomId,
+      playerId: ownerId,
+      markLeft: true
+    });
+
+    expect(result.room).not.toBeNull();
+    expect(result.room!.ownerPlayerId).toBe(fixture.room.players[1]!.playerId);
+    expect(result.room!.status).toBe("playing");
+    expect(result.room!.gameState!.status).toBe("in-progress");
+    expect(result.room!.gameState!.currentPlayerId).not.toBe(ownerId);
+  });
+
+  it("房主被淘汰后主动离房但活跃玩家不足两名时不会自动继续", () => {
+    const fixture = createStartedRoomFixture(3);
+    const gameState = fixture.room.gameState!;
+    const ownerId = fixture.room.ownerPlayerId;
+    const ownerGamePlayer = gameState.players.find((player) => player.id === ownerId)!;
+    const otherPlayers = gameState.players.filter((player) => player.id !== ownerId);
+
+    ownerGamePlayer.isEliminated = true;
+    ownerGamePlayer.handCount = 26;
+    otherPlayers[0]!.isRoundWinner = true;
+    gameState.winnerPlayerIds = [otherPlayers[0]!.id];
+    fixture.room.status = "finished";
+    gameState.status = "finished";
+    gameState.currentPlayerId = ownerId;
+
+    const result = fixture.roomManager.leaveRoom({
+      roomId: fixture.room.roomId,
+      playerId: ownerId,
+      markLeft: true
+    });
+
+    expect(result.room).not.toBeNull();
+    expect(result.room!.ownerPlayerId).toBe(fixture.room.players[1]!.playerId);
+    expect(result.room!.status).toBe("finished");
+    expect(result.room!.gameState!.status).toBe("finished");
+  });
+
   it("非房主不能 restartGame 或 continueGame", () => {
     const fixture = createStartedRoomFixture(3);
     fixture.room.gameState!.players[1]!.isEliminated = true;
@@ -415,7 +501,7 @@ describe("RoomManager", () => {
       roomId: fixture.room.roomId,
       userId: leaver.userId,
       connectionId: newConnection.connectionId,
-      nickname: "Returned Player",
+      nickname: "回归玩家",
       avatarUrl: null
     });
     const restoredGamePlayer = fixture.room.gameState!.players.find(
@@ -426,7 +512,7 @@ describe("RoomManager", () => {
     expect(result.player.playerId).toBe(originalPlayerId);
     expect(result.player.hasLeftRoom).toBe(false);
     expect(restoredGamePlayer.hasLeftRoom).toBe(false);
-    expect(restoredGamePlayer.displayName).toBe("Returned Player");
+    expect(restoredGamePlayer.displayName).toBe("回归玩家");
     expect(restoredGamePlayer.hand.map((card) => card.id)).toEqual(originalHandIds);
     expect(fixture.room.players).toHaveLength(3);
   });
@@ -483,7 +569,7 @@ describe("RoomManager", () => {
       roomId: fixture.room.roomId,
       userId: winnerRoomPlayer.userId,
       connectionId: newConnection.connectionId,
-      nickname: "Returned Winner",
+      nickname: "回归赢家",
       avatarUrl: null
     });
     const restoredWinner = fixture.room.gameState!.players.find(
@@ -564,14 +650,14 @@ describe("RoomManager", () => {
     fixture.roomManager.renamePlayer({
       roomId: fixture.room.roomId,
       playerId: player.playerId,
-      nickname: "Battle Name"
+      nickname: "战斗名"
     });
 
-    expect(fixture.room.players[1]!.nickname).toBe("Battle Name");
+    expect(fixture.room.players[1]!.nickname).toBe("战斗名");
     expect(
       fixture.room.gameState!.players.find((candidate) => candidate.id === player.playerId)
         ?.displayName
-    ).toBe("Battle Name");
+    ).toBe("战斗名");
   });
 
   it("renamePlayer rejects bot and overlong nicknames", () => {
@@ -593,7 +679,7 @@ describe("RoomManager", () => {
       fixture.roomManager.renamePlayer({
         roomId: fixture.room.roomId,
         playerId: fixture.room.players[1]!.playerId,
-        nickname: "123456789012345678901"
+        nickname: "12345678901"
       });
     }).toThrowError(GameServerError);
   });
