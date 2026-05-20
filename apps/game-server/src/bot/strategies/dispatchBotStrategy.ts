@@ -1,5 +1,6 @@
 import { decideChaosBotAction } from "./chaosStrategy";
 import { decideGreedyBotAction } from "./greedyStrategy";
+import { decideMischiefBotAction } from "./mischiefStrategy";
 import type { BotStrategyDecision, BotStrategyName, BotStrategyParams } from "./types";
 
 export interface DispatchBotStrategyParams extends BotStrategyParams {
@@ -10,6 +11,8 @@ export function dispatchBotStrategy(
   params: DispatchBotStrategyParams
 ): BotStrategyDecision | null {
   switch (params.strategy) {
+    case "mischief-v1":
+      return decideMischiefBotAction(params);
     case "chaos-v1":
       return decideChaosBotAction(params);
     case "greedy-v1":

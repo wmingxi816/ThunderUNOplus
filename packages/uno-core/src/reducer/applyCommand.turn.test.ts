@@ -358,7 +358,7 @@ describe("applyCommand - 基础出牌与回合推进", () => {
     expect(result.state.currentPlayerId).toBe("p3");
   });
 
-  it("第二张 +10 会抵消已有加牌链", () => {
+  it("黑色 +10 可以继续接在较低等级的加牌链后面", () => {
     const oldTop = blackCard("wild-six-top", "wild-draw-six");
     const drawTen = blackCard("wild-ten", "wild-draw-ten");
     const state = createGameState({
@@ -396,6 +396,108 @@ describe("applyCommand - 基础出牌与回合推进", () => {
     });
     expect(result.state.currentPlayerId).toBe("p3");
     expect(result.state.currentColor).toBe("green");
+  });
+
+  it("+10 接 +10 时会清空整条当前加牌链，并只保留变色", () => {
+    const oldTop = blackCard("wild-ten-top", "wild-draw-ten");
+    const drawTen = blackCard("wild-ten-response", "wild-draw-ten");
+    const state = createGameState({
+      currentPlayerId: "p2",
+      currentColor: "red",
+      topCard: oldTop,
+      discardPile: [oldTop],
+      players: [
+        createPlayerState("p1", []),
+        createPlayerState("p2", [drawTen, numberCard("blue-1", "blue", 1)]),
+        createPlayerState("p3", [])
+      ],
+      drawStack: {
+        active: true,
+        amount: 22,
+        previousDrawValue: 10,
+        previousDrawKind: "wild-draw-ten",
+        targetPlayerId: "p2"
+      }
+    });
+
+    const result = applyCommand(state, {
+      type: "play-card",
+      playerId: "p2",
+      cardId: drawTen.id,
+      declaredColor: "green"
+    });
+
+    expect(result.state.drawStack).toMatchObject({
+      active: false,
+      amount: 0,
+      previousDrawValue: null,
+      previousDrawKind: null,
+      targetPlayerId: null
+    });
+    expect(result.state.currentPlayerId).toBe("p3");
+    expect(result.state.currentColor).toBe("green");
+    expect(result.events).toContainEqual({
+      type: "draw-stack-cleared",
+      reason: "canceled-by-draw-ten",
+      topCardId: drawTen.id
+    });
+
+    const resolveResult = applyCommand(result.state, {
+      type: "resolve-draw-stack",
+      playerId: "p3"
+    });
+
+    expect(resolveResult.events[0]).toMatchObject({
+      type: "command-rejected",
+      code: "DRAW_STACK_NOT_ACTIVE"
+    });
+  });
+
+  it("第三张 +10 会在清链后重新开启一条新的加牌链", () => {
+    const firstDrawTen = blackCard("wild-ten-first", "wild-draw-ten");
+    const secondDrawTen = blackCard("wild-ten-second", "wild-draw-ten");
+    const thirdDrawTen = blackCard("wild-ten-third", "wild-draw-ten");
+    const state = createGameState({
+      currentPlayerId: "p2",
+      currentColor: "red",
+      topCard: firstDrawTen,
+      discardPile: [firstDrawTen],
+      players: [
+        createPlayerState("p1", []),
+        createPlayerState("p2", [secondDrawTen, numberCard("p2-blue-1", "blue", 1)]),
+        createPlayerState("p3", [thirdDrawTen, numberCard("p3-green-1", "green", 1)])
+      ],
+      drawStack: {
+        active: true,
+        amount: 10,
+        previousDrawValue: 10,
+        previousDrawKind: "wild-draw-ten",
+        targetPlayerId: "p2"
+      }
+    });
+
+    const canceledResult = applyCommand(state, {
+      type: "play-card",
+      playerId: "p2",
+      cardId: secondDrawTen.id,
+      declaredColor: "green"
+    });
+    const thirdResult = applyCommand(canceledResult.state, {
+      type: "play-card",
+      playerId: "p3",
+      cardId: thirdDrawTen.id,
+      declaredColor: "blue"
+    });
+
+    expect(thirdResult.state.drawStack).toMatchObject({
+      active: true,
+      amount: 10,
+      previousDrawValue: 10,
+      previousDrawKind: "wild-draw-ten",
+      targetPlayerId: "p1"
+    });
+    expect(thirdResult.state.currentPlayerId).toBe("p1");
+    expect(thirdResult.state.currentColor).toBe("blue");
   });
 
   it("反转变色 +4 会反转方向并把加牌压力打向上一家", () => {

@@ -55,11 +55,11 @@ describe("protocol - messages", () => {
       requestId: "req-add-bot-1",
       roomId: "room-1",
       playerId: "player-1",
-      botType: "chaos",
+      botType: "mischief",
       timestampMs: 1000
     };
 
-    expect(message.botType).toBe("chaos");
+    expect(message.botType).toBe("mischief");
   });
 
   it("可以构造带 seed 的 ClientStartGameMessage", () => {

@@ -10,6 +10,7 @@ import { validateSequencePlay } from "../rules/sequence";
 import { isDrawCard } from "../rules/cardGuards";
 import {
   cardRequiresDeclaredColor,
+  clearDrawStack,
   clearNormalDrawOffer,
   cloneGameState,
   findCardsInHand,
@@ -618,6 +619,21 @@ function resolveDrawCardEffect(
   card: Card & { kind: DrawCardKind },
   events: GameEvent[]
 ): void {
+  if (
+    card.kind === "wild-draw-ten" &&
+    state.drawStack.active &&
+    state.drawStack.previousDrawKind === "wild-draw-ten"
+  ) {
+    clearDrawStack(state);
+    events.push({
+      type: "draw-stack-cleared",
+      reason: "canceled-by-draw-ten",
+      topCardId: card.id
+    });
+    resolveAdvance(state, playerId, 1, events);
+    return;
+  }
+
   if (card.kind === "wild-reverse-draw-four") {
     state.direction = toggleDirection(state.direction);
     events.push({

@@ -155,7 +155,7 @@ describe("client message builders", () => {
       requestId: "req-add-bot",
       roomId: "ROOM1",
       playerId: "player-1",
-      botType: "chaos"
+      botType: "mischief"
     });
 
     expect(message).toMatchObject({
@@ -163,7 +163,7 @@ describe("client message builders", () => {
       requestId: "req-add-bot",
       roomId: "ROOM1",
       playerId: "player-1",
-      botType: "chaos"
+      botType: "mischief"
     });
   });
 });

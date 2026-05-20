@@ -227,8 +227,8 @@ function parseRenamePlayerMessage(record: Record<string, unknown>): ClientRename
 function parseAddBotMessage(record: Record<string, unknown>): ClientAddBotMessage {
   const botType = record.botType;
 
-  if (botType !== "strong" && botType !== "chaos") {
-    throw new ParseMessageError("invalid-message", "botType must be either strong or chaos.");
+  if (botType !== "strong" && botType !== "chaos" && botType !== "mischief") {
+    throw new ParseMessageError("invalid-message", "botType must be either strong, chaos, or mischief.");
   }
 
   return {

@@ -22,7 +22,7 @@ export interface ServerRoomPlayer {
   joinedAt: UnixMs;
   isBot: boolean;
   botProfile?: {
-    strategy: "greedy-v1" | "chaos-v1";
+    strategy: "greedy-v1" | "chaos-v1" | "mischief-v1";
     forgetUnoRate: number;
   };
 }
@@ -85,7 +85,7 @@ export interface LeaveRoomResult {
 export interface AddBotParams {
   roomId: string;
   playerId: string;
-  botType: "strong" | "chaos";
+  botType: "strong" | "chaos" | "mischief";
 }
 
 export interface AddBotResult {

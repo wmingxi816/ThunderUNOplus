@@ -9,6 +9,7 @@ import type { Card, GameState } from "@thunder-uno/shared-types";
 import { decideGreedyBotAction } from "../bot/greedyBot";
 import { dispatchBotStrategy } from "../bot/strategies/dispatchBotStrategy";
 import { decideChaosBotAction } from "../bot/strategies/chaosStrategy";
+import { decideMischiefBotAction } from "../bot/strategies/mischiefStrategy";
 
 describe("dispatchBotStrategy", () => {
   it("uses greedy-v1 decisions unchanged", () => {
@@ -67,6 +68,31 @@ describe("dispatchBotStrategy", () => {
       playerId: "bot-1",
       cardId: "bot-red-reverse"
     });
+  });
+
+  it("uses mischief-v1 decisions unchanged", () => {
+    const state = createStrategyTestState();
+    setPlayerHand(state, "bot-1", [
+      createColoredActionCard("bot-red-skip", "red", "skip"),
+      createNumberCard("bot-red-9", "red", 9)
+    ]);
+    state.players.find((player) => player.id === "player-2")!.isBot = false;
+
+    const mischiefDecision = decideMischiefBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+    const dispatchedDecision = dispatchBotStrategy({
+      strategy: "mischief-v1",
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(dispatchedDecision).toEqual(mischiefDecision);
   });
 });
 

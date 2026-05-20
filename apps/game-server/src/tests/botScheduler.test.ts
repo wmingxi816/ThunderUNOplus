@@ -441,6 +441,65 @@ describe("BotScheduler", () => {
 
     expect(fixture.room.gameState!.topCard.id).toBe(reverseCard.id);
   });
+
+  it("uses mischief-v1 to route draw pressure through a relay bot toward a human", async () => {
+    const fixture = createWaitingRoomFixture(2, "no-challenge");
+    const mischiefBot = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      botType: "mischief"
+    }).botPlayer;
+    const relayBot = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      botType: "strong"
+    }).botPlayer;
+
+    fixture.roomManager.startGame({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      seed: 1001
+    });
+
+    const state = fixture.room.gameState!;
+    state.initialDirectionChoice = {
+      active: false,
+      chooserPlayerId: null
+    };
+    state.direction = "clockwise";
+    const topCard = createNumberCard("mischief-top-red-5", "red", 5);
+    const plusTwo = createColoredActionCard("mischief-red-plus2", "red", "draw-two");
+    const plusFour = createColoredActionCard("mischief-red-plus4", "red", "draw-four");
+    const relayPlusFour = createColoredActionCard("relay-blue-plus4", "blue", "draw-four");
+    const mischiefGamePlayer = state.players.find((player) => player.id === mischiefBot.playerId)!;
+    const relayGamePlayer = state.players.find((player) => player.id === relayBot.playerId)!;
+    const finalHuman = state.players.find((player) => player.id === fixture.room.ownerPlayerId)!;
+
+    state.topCard = topCard;
+    state.currentColor = "red";
+    state.discardPile = [topCard];
+    state.currentPlayerId = mischiefBot.playerId;
+    mischiefGamePlayer.hand = [plusTwo, plusFour];
+    mischiefGamePlayer.handCount = mischiefGamePlayer.hand.length;
+    relayGamePlayer.hand = [relayPlusFour];
+    relayGamePlayer.handCount = relayGamePlayer.hand.length;
+    finalHuman.hand = [createNumberCard("human-green-9", "green", 9)];
+    finalHuman.handCount = finalHuman.hand.length;
+
+    const scheduler = new BotScheduler({
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry,
+      thinkMs: 1,
+      random: () => 0
+    });
+
+    scheduler.scheduleRoom(fixture.room.roomId);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    scheduler.dispose();
+
+    expect(fixture.room.gameState!.discardPile.map((card) => card.id)).toContain(plusFour.id);
+    expect(fixture.room.gameState!.topCard.id).toBe(relayPlusFour.id);
+  });
 });
 
 function createPendingBotUnoFixture() {

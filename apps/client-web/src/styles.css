@@ -1238,7 +1238,7 @@ label span {
 .player-pill-compact span {
   margin: 0;
   align-self: center;
-  font-size: var(--lobby-player-name-size, 0.96rem);
+  font-size: calc(var(--lobby-player-name-size, 0.96rem) * 0.8);
   font-weight: 800;
   line-height: 1.08;
   overflow: hidden;
@@ -1304,8 +1304,8 @@ label span {
 
 .battle-immersive .seat-bot-tag {
   position: absolute;
-  top: var(--seat-detail-top);
-  left: var(--seat-detail-left);
+  top: 0.45rem;
+  left: 0.45rem;
   z-index: 3;
   margin: 0;
 }
@@ -2061,7 +2061,7 @@ label span {
 .lobby-seat-name {
   min-width: 0;
   color: #f4f9ff;
-  font-size: var(--lobby-player-name-size, clamp(0.72rem, 7.2cqi, 1.08rem));
+  font-size: calc(var(--lobby-player-name-size, clamp(0.72rem, 7.2cqi, 1.08rem)) * 0.8);
   font-weight: 850;
   line-height: 1.05;
   overflow: hidden;
@@ -2201,7 +2201,7 @@ label span {
 
 @container lobby-seat (max-width: 9.5rem) {
   .lobby-seat-name {
-    font-size: min(var(--lobby-player-name-size, 0.78rem), 0.78rem);
+    font-size: min(calc(var(--lobby-player-name-size, 0.78rem) * 0.8), 0.62rem);
   }
 
   .lobby-seat-status {
@@ -2594,6 +2594,8 @@ label span {
   --battle-seat-y-offset: 0%;
   --battle-center-adjust-y: 0%;
   --hand-card-scale: 1;
+  --battle-hud-bottom-limit: calc(max(0.35rem, env(safe-area-inset-top)) + 4rem);
+  --battle-action-dock-top-limit: calc(100% - max(0.65rem, env(safe-area-inset-bottom)) - clamp(17rem, 34vh, 22.5rem));
 }
 
 /* UI name: battle-debug-grid. 临时尺度调试网格线。 */
@@ -2937,7 +2939,9 @@ label span {
 .settings-modal {
   width: min(22rem, calc(100vw - 1.3rem));
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0.85rem;
+  height: min(50svh, 28rem);
   padding: 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
@@ -2945,6 +2949,7 @@ label span {
   color: #f6f1e8;
   box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(12px);
+  overflow: hidden;
 }
 
 .settings-modal-header {
@@ -2963,6 +2968,32 @@ label span {
   height: 2.1rem;
   min-height: 2.1rem;
   padding: 0;
+}
+
+.settings-modal-body {
+  display: grid;
+  gap: 0.85rem;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248, 214, 78, 0.45) rgba(255, 255, 255, 0.06);
+}
+
+.settings-modal-body::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.settings-modal-body::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.settings-modal-body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(248, 214, 78, 0.45);
 }
 
 .settings-segment {
@@ -3469,6 +3500,11 @@ label span {
   font-weight: 900;
 }
 
+.battle-immersive .seat .seat-badge {
+  top: var(--seat-status-top, 50%);
+  transform: translateY(-50%);
+}
+
 .seat-badge.success {
   background: rgba(99, 221, 139, 0.16);
   color: #63dd8b;
@@ -3534,6 +3570,7 @@ label span {
   z-index: 3;
   max-width: calc(100% - 4.8rem);
   margin: 0;
+  transform: translateY(-50%);
 }
 
 /* UI name: battle-seat-count. 玩家卡片手牌数量 label。 */
@@ -3688,10 +3725,11 @@ label span {
   --seat-name-bottom: 0;
   --seat-count-top: 0;
   --seat-count-right: 0;
+  --seat-status-top: 50%;
   --seat-action-right: 0;
   --seat-action-bottom: 0;
   --seat-detail-left: 0.45rem;
-  --seat-detail-top: 0.45rem;
+  --seat-detail-top: 50%;
 }
 
 .battle-immersive .seat-side-left {

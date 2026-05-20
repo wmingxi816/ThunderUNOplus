@@ -218,6 +218,10 @@ function scorePressure(
     return 0;
   }
 
+  if (isDrawTenChainCancellation(state, topCard)) {
+    return 0;
+  }
+
   const dangerBonus =
     nextPlayer.handCount === 1
       ? weights.nextPlayerOneCardDangerBonus
@@ -245,6 +249,14 @@ function scorePressure(
   }
 
   return scoreDrawCardPressure(topCard, weights);
+}
+
+function isDrawTenChainCancellation(state: GameState, topCard: Card): boolean {
+  return (
+    state.drawStack.active &&
+    state.drawStack.previousDrawKind === "wild-draw-ten" &&
+    topCard.kind === "wild-draw-ten"
+  );
 }
 
 function scoreDrawCardPressure(card: Card, weights: BotScoringWeights): number {

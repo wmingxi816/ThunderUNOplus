@@ -480,12 +480,14 @@ const DRAW_STACK_OTHER_SOUND_VOLUME = 0.546;
 const DRAW_STACK_PLAY_SOUND_VOLUME = 0.936;
 const ELIMINATION_MUSIC_PATH = "/sounds/%E5%87%BA%E5%B1%80%E9%9F%B3%E6%95%88.mp3";
 const ELIMINATION_MUSIC_VOLUME = 0.34;
+const ELIMINATION_BACKGROUND_MUSIC_DUCK_FACTOR = 0.4;
 let lobbyBackgroundMusic: HTMLAudioElement | null = null;
 let battleBackgroundMusic: HTMLAudioElement | null = null;
 let eliminationMusic: HTMLAudioElement | null = null;
 let eliminationMusicActive = false;
 let backgroundMusicUnlockInstalled = false;
 let updateLogDragState: { offsetX: number; offsetY: number } | null = null;
+let settingsModalBodyScrollTop = 0;
 
 if (root === null) {
   throw new Error("App root was not found.");
@@ -598,7 +600,10 @@ render();
 installBackgroundMusicUnlock();
 connectUsingCurrentInputs();
 window.addEventListener("resize", () => {
-  window.requestAnimationFrame(syncHandOverlapLayout);
+  window.requestAnimationFrame(() => {
+    syncHandOverlapLayout();
+    syncBattleLayoutLimits();
+  });
 });
 
 function handleServerMessage(message: ServerMessage): void {
@@ -682,6 +687,8 @@ function render(): void {
     return;
   }
 
+  captureSettingsModalScrollPosition();
+
   const snapshot = state.snapshot;
   const isBattleView = snapshot !== null;
   document.body.classList.toggle("battle-active", isBattleView);
@@ -739,10 +746,40 @@ function render(): void {
   bindBattlePanel();
   bindRuleControls();
   syncLobbyChatScroll();
+  restoreSettingsModalScrollPosition();
 
   if (isBattleView) {
-    window.requestAnimationFrame(syncHandOverlapLayout);
+    syncBattleLayoutLimits();
+    window.requestAnimationFrame(() => {
+      syncHandOverlapLayout();
+      syncBattleLayoutLimits();
+    });
   }
+}
+
+function captureSettingsModalScrollPosition(): void {
+  const settingsBody = document.querySelector<HTMLElement>("[data-testid='settings-modal-body']");
+
+  if (settingsBody === null) {
+    return;
+  }
+
+  settingsModalBodyScrollTop = settingsBody.scrollTop;
+}
+
+function restoreSettingsModalScrollPosition(): void {
+  if (!state.settingsModalOpen) {
+    settingsModalBodyScrollTop = 0;
+    return;
+  }
+
+  const settingsBody = document.querySelector<HTMLElement>("[data-testid='settings-modal-body']");
+
+  if (settingsBody === null) {
+    return;
+  }
+
+  settingsBody.scrollTop = settingsModalBodyScrollTop;
 }
 
 function renderLobbyStormBackdrop(): string {
@@ -1971,22 +2008,23 @@ function renderAddBotMenu(canAddBot: boolean, room: PlayerRoomSnapshot): string 
         aria-expanded="${state.addBotMenuOpen ? "true" : "false"}"
         ${disabledAttrs}
       >添加机器人</button>
-      ${
-        state.addBotMenuOpen && canAddBot
-          ? `
+              ${
+                state.addBotMenuOpen && canAddBot
+                  ? `
             <div class="add-bot-menu-panel" data-testid="add-bot-menu-panel">
               ${renderAddBotMenuRow("strong", "最强bot", canAddBot)}
               ${renderAddBotMenuRow("chaos", "混沌bot", canAddBot)}
+              ${renderAddBotMenuRow("mischief", "胡闹bot", canAddBot)}
             </div>
           `
-          : ""
-      }
+                  : ""
+              }
     </div>
   `;
 }
 
 function renderAddBotMenuRow(
-  botType: "strong" | "chaos",
+  botType: "strong" | "chaos" | "mischief",
   label: string,
   canAddBot: boolean
 ): string {
@@ -3192,6 +3230,7 @@ function renderSettingsModal(): string {
             <strong id="settings-modal-title">设置</strong>
             <button id="close-settings-modal-button" class="secondary" aria-label="关闭设置">×</button>
           </div>
+          <div class="settings-modal-body" data-testid="settings-modal-body">
           ${renderUiScaleSegment("UI 缩放", state.uiScalePercent)}
           ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
           ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
@@ -3205,6 +3244,7 @@ function renderSettingsModal(): string {
           <div class="settings-contact-row">
             <div class="settings-contact-line" id="settings-contact-content">QQ：2753345388</div>
             ${renderSettingsUpdateLogBlock()}
+          </div>
           </div>
         </div>
       </div>
@@ -3997,7 +4037,7 @@ function getSpecialCardRuleText(card: Card): string | null {
     case "wild-draw-six":
       return "变色 +6：可叠加加牌链，下一家累计摸牌。";
     case "wild-draw-ten":
-      return "变色 +10：强力加牌牌；+10叠加+10，也可抵消已有 +10 压力。";
+      return "变色 +10：强力加牌牌；若当前链顶也是 +10，则会清空整条当前加牌链，只保留变色。";
     case "draw-four":
       return "普通 +4：只能接普通 +4 加牌链。";
     case "draw-two":
@@ -5433,10 +5473,6 @@ function getEliminationMusic(): HTMLAudioElement | null {
       ELIMINATION_MUSIC_PATH,
       ELIMINATION_MUSIC_VOLUME
     );
-
-    if (eliminationMusic !== null) {
-      eliminationMusic.playbackRate = 2;
-    }
   }
 
   return eliminationMusic;
@@ -5449,7 +5485,7 @@ function syncBackgroundMusic(): void {
   const isBattleView = state.snapshot !== null;
 
   if (lobbyAudio !== null) {
-    lobbyAudio.volume = getBackgroundMusicVolume(LOBBY_BACKGROUND_MUSIC_VOLUME);
+    lobbyAudio.volume = getEffectiveBackgroundMusicVolume(LOBBY_BACKGROUND_MUSIC_VOLUME);
     if (isBattleView) {
       lobbyAudio.pause();
     } else if (lobbyAudio.paused) {
@@ -5458,7 +5494,7 @@ function syncBackgroundMusic(): void {
   }
 
   if (battleAudio !== null) {
-    battleAudio.volume = getBackgroundMusicVolume(BATTLE_BACKGROUND_MUSIC_VOLUME);
+    battleAudio.volume = getEffectiveBackgroundMusicVolume(BATTLE_BACKGROUND_MUSIC_VOLUME);
     if (isBattleView) {
       if (battleAudio.paused) {
         playAudioElement(battleAudio);
@@ -5512,19 +5548,21 @@ function disablePitchPreservation(audio: HTMLAudioElement): void {
 }
 
 function playEliminationMusicOncePerRound(): void {
-  if (eliminationMusicActive) {
-    return;
-  }
-
   const audio = getEliminationMusic();
 
   if (audio === null) {
     return;
   }
 
+  if (eliminationMusicActive && !audio.paused) {
+    return;
+  }
+
   eliminationMusicActive = true;
   audio.currentTime = 0;
+  audio.playbackRate = 1;
   audio.volume = getBackgroundMusicVolume(ELIMINATION_MUSIC_VOLUME);
+  syncBackgroundMusic();
   playAudioElement(audio);
 }
 
@@ -5537,6 +5575,17 @@ function stopEliminationMusic(): void {
 
   eliminationMusic.pause();
   eliminationMusic.currentTime = 0;
+  syncBackgroundMusic();
+}
+
+function getEffectiveBackgroundMusicVolume(baseVolume: number): number {
+  const base = getBackgroundMusicVolume(baseVolume);
+
+  if (!eliminationMusicActive) {
+    return base;
+  }
+
+  return clampAudioVolume(base * ELIMINATION_BACKGROUND_MUSIC_DUCK_FACTOR);
 }
 
 function playPenaltyDrawResultSound(
@@ -5897,11 +5946,17 @@ function handleGameEvents(events: readonly GameEvent[]): void {
       showToast(getCardsPlayedToastMessage(event), "success");
     }
 
-    if (event.type === "draw-stack-cleared" && event.reason === "resolved") {
-      state.drawStackBreakTopCardId = event.topCardId ?? state.snapshot?.topCard.id ?? null;
+    if (event.type === "draw-stack-cleared") {
       state.latestPlayGroupEvent = null;
       state.latestPlayGroupAnimationKey = null;
-      startDrawStackBurstAnimation();
+
+      if (event.reason === "resolved") {
+        state.drawStackBreakTopCardId = event.topCardId ?? state.snapshot?.topCard.id ?? null;
+        startDrawStackBurstAnimation();
+      } else if (event.reason === "canceled-by-draw-ten") {
+        state.drawStackBreakTopCardId = null;
+        showToast("变色 +10 抵消了整条加牌链，只保留变色效果。", "info");
+      }
     }
 
     if (event.type === "cards-drawn") {
@@ -6024,7 +6079,7 @@ function getCardsPlayedToastMessage(event: Extract<GameEvent, { type: "cards-pla
     case "wild-draw-six":
       return `${playerName} 打出变色 +6，下一家承受加牌压力。`;
     case "wild-draw-ten":
-      return `${playerName} 打出变色 +10，加牌压力大幅提升。`;
+      return `${playerName} 打出变色 +10，重新指定了颜色。`;
     case "draw-four":
       return `${playerName} 打出 +4，加牌链继续。`;
     case "draw-two":
@@ -6254,7 +6309,7 @@ function bindLobbyPanel(): void {
 
       const botType = button.dataset.addBotType;
 
-      if (botType !== "strong" && botType !== "chaos") {
+      if (botType !== "strong" && botType !== "chaos" && botType !== "mischief") {
         return;
       }
 
@@ -6336,6 +6391,7 @@ function bindLobbyPanel(): void {
   });
 
   document.querySelector("#lobby-settings-button")?.addEventListener("click", () => {
+    settingsModalBodyScrollTop = 0;
     state.settingsModalOpen = true;
     render();
   });
@@ -6365,6 +6421,7 @@ function bindLobbyPanel(): void {
 
 function bindBattlePanel(): void {
   document.querySelector("#battle-settings-button")?.addEventListener("click", () => {
+    settingsModalBodyScrollTop = 0;
     state.settingsModalOpen = true;
     render();
   });
@@ -6374,12 +6431,14 @@ function bindBattlePanel(): void {
       return;
     }
 
+    settingsModalBodyScrollTop = 0;
     state.settingsModalOpen = false;
     closeUpdateLogDialog({ shouldRender: false });
     render();
   });
 
   document.querySelector("#close-settings-modal-button")?.addEventListener("click", () => {
+    settingsModalBodyScrollTop = 0;
     state.settingsModalOpen = false;
     closeUpdateLogDialog({ shouldRender: false });
     render();
@@ -6907,6 +6966,31 @@ function applyInterfaceAdjustSetting(setting: string | undefined, value: number)
     output.value = `${String(value)}%`;
     output.textContent = `${String(value)}%`;
   }
+
+  syncBattleLayoutLimits();
+}
+
+function syncBattleLayoutLimits(): void {
+  const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
+  const battleHud = document.querySelector<HTMLElement>(".battle-immersive .battle-hud");
+  const actionDock = document.querySelector<HTMLElement>(".battle-immersive .battle-action-dock");
+
+  if (battleRoot === null || battleHud === null || actionDock === null) {
+    return;
+  }
+
+  const rootRect = battleRoot.getBoundingClientRect();
+  const hudRect = battleHud.getBoundingClientRect();
+  const actionDockRect = actionDock.getBoundingClientRect();
+  const scale = Math.max(
+    0.0001,
+    Number.parseFloat(getComputedStyle(battleRoot).getPropertyValue("--battle-ui-scale")) || 1
+  );
+  const hudBottomLimit = (hudRect.bottom - rootRect.top) / scale;
+  const actionDockTopLimit = (actionDockRect.top - rootRect.top) / scale;
+
+  battleRoot.style.setProperty("--battle-hud-bottom-limit", `${hudBottomLimit.toFixed(2)}px`);
+  battleRoot.style.setProperty("--battle-action-dock-top-limit", `${actionDockTopLimit.toFixed(2)}px`);
 }
 
 function bindRuleControls(): void {

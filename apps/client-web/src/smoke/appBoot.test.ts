@@ -154,6 +154,7 @@ describe("client-web smoke", () => {
     ).toEqual(["20%", "40%", "60%", "80%", "100%"]);
     expect(document.querySelector("#settings-contact-button")).toBeNull();
     expect(document.querySelector("#settings-contact-content")?.textContent).toBe("QQ：2753345388");
+    expect(document.querySelector("[data-testid='settings-modal-body']")).not.toBeNull();
     const adjustButton = document.querySelector("#settings-adjust-toggle-button");
     const contactRow = document.querySelector(".settings-contact-row");
     expect(adjustButton).not.toBeNull();
@@ -161,6 +162,188 @@ describe("client-web smoke", () => {
     if (adjustButton !== null && contactRow !== null) {
       expect(Boolean(adjustButton.compareDocumentPosition(contactRow) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
     }
+  });
+
+  it("keeps the settings modal at a fixed size and scrolls inside the body", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain(".settings-modal");
+    expect(styleText).toContain("height: min(50svh, 28rem);");
+    expect(styleText).toContain("overflow: hidden;");
+    expect(styleText).toContain(".settings-modal-body");
+    expect(styleText).toContain("overflow-y: auto;");
+    expect(styleText).toContain("scrollbar-gutter: stable;");
+  });
+
+  it("preserves the settings modal scroll position across live battle rerenders", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    document.querySelector<HTMLButtonElement>("#battle-settings-button")?.click();
+    const settingsBody = document.querySelector<HTMLElement>("[data-testid='settings-modal-body']");
+    expect(settingsBody).not.toBeNull();
+    if (settingsBody === null) {
+      return;
+    }
+
+    settingsBody.scrollTop = 188;
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 2,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 2,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-2",
+        currentColor: "blue",
+        direction: "clockwise",
+        topCard: {
+          ...topCard,
+          id: "blue-5",
+          color: "blue",
+          number: 5,
+          displayName: "blue 5"
+        },
+        discardPile: [topCard],
+        drawPileCount: 79,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: false
+        },
+        opponents: [
+          {
+            playerId: "player-2",
+            displayName: "player-2",
+            avatarUrl: null,
+            handCount: 2,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: true,
+            isBot: false
+          }
+        ]
+      }
+    });
+
+    const rerenderedBody = document.querySelector<HTMLElement>("[data-testid='settings-modal-body']");
+    expect(rerenderedBody).not.toBeNull();
+    expect(rerenderedBody?.scrollTop).toBe(188);
   });
 
   it("places restore default next to debug grid and resets interface adjustments", async () => {
@@ -379,7 +562,7 @@ describe("client-web smoke", () => {
 
     expect(styleText).toContain("grid-template-columns: auto minmax(0, 1fr);");
     expect(styleText).toContain("width: clamp(1.76rem, 18cqi, 2.72rem);");
-    expect(styleText).toContain("font-size: var(--lobby-player-name-size, clamp(0.72rem, 7.2cqi, 1.08rem));");
+    expect(styleText).toContain("font-size: calc(var(--lobby-player-name-size, clamp(0.72rem, 7.2cqi, 1.08rem)) * 0.8);");
     expect(styleText).toContain("font-size: clamp(0.54rem, 5.6cqi, 0.82rem);");
     expect(styleText).toContain("white-space: nowrap;");
   });
@@ -1187,6 +1370,93 @@ describe("client-web smoke", () => {
     expect(battleRoot?.style.getPropertyValue("--battle-ui-scale")).toBe("0.80");
   });
 
+  it("exposes explicit battle layout limit variables on the battle root", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain("--battle-hud-bottom-limit");
+    expect(styleText).toContain("--battle-action-dock-top-limit");
+    expect(battleRoot?.style.getPropertyValue("--battle-hud-bottom-limit")).toContain("px");
+    expect(battleRoot?.style.getPropertyValue("--battle-action-dock-top-limit")).toContain("px");
+  });
+
   it("keeps the current battle seat fully lit instead of dimming it under the active overlay", async () => {
     const styleText = await readFile("src/styles.css", "utf8");
 
@@ -1196,6 +1466,23 @@ describe("client-web smoke", () => {
     expect(styleText).toContain("rgba(9, 12, 18, 0.22)");
     expect(styleText).toContain(".seat.current small");
     expect(styleText).toContain("color: #dde8fb;");
+  });
+
+  it("anchors battle seat status labels around the middle of the player card", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain("--seat-status-top: 50%;");
+    expect(styleText).toContain("--seat-detail-top: 50%;");
+    expect(styleText).toContain(".battle-immersive .seat .seat-badge");
+    expect(styleText).toContain("transform: translateY(-50%);");
+  });
+
+  it("pins the BOT tag to the top-left corner of the battle player card", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain(".battle-immersive .seat-bot-tag");
+    expect(styleText).toContain("top: 0.45rem;");
+    expect(styleText).toContain("left: 0.45rem;");
   });
 
   it("plays a one-shot sweep across the bottom dock when the turn moves to the local player", async () => {
@@ -1958,9 +2245,102 @@ describe("client-web smoke", () => {
       ]
     });
 
-    expect(document.querySelector("[data-testid='draw-stack-explosion']")).not.toBeNull();
-    expect(document.querySelector("[data-testid='draw-stack-explosion']")?.getAttribute("data-draw-count")).toBe("8");
+  expect(document.querySelector("[data-testid='draw-stack-explosion']")).not.toBeNull();
+  expect(document.querySelector("[data-testid='draw-stack-explosion']")?.getAttribute("data-draw-count")).toBe("8");
+});
+
+it("shows a dedicated toast when draw-ten cancels the whole draw stack", async () => {
+  await import("../main");
+
+  const socket = FakeWebSocket.instances[0];
+  socket?.triggerOpen();
+
+  const blackDrawTen = {
+    id: "black-draw-ten",
+    kind: "wild-draw-ten",
+    drawValue: 10,
+    isBlack: true,
+    displayName: "black +10"
+  };
+
+  socket?.triggerMessage({
+    protocolVersion: "0.1.0",
+    type: "snapshot",
+    roomId: "ROOM1",
+    playerId: "player-1",
+    snapshotVersion: 1,
+    snapshot: {
+      roomId: "ROOM1",
+      snapshotVersion: 1,
+      status: "in-progress",
+      mode: "no-challenge",
+      currentPlayerId: "player-1",
+      currentColor: "red",
+      direction: "clockwise",
+      topCard: blackDrawTen,
+      discardPile: [blackDrawTen],
+      drawPileCount: 80,
+      drawStack: {
+        active: true,
+        amount: 22,
+        previousDrawValue: 10,
+        previousDrawKind: "wild-draw-ten",
+        targetPlayerId: "player-1"
+      },
+      drawUntilColor: {
+        active: false,
+        color: null,
+        targetPlayerId: null
+      },
+      normalDrawOffer: {
+        active: false,
+        playerId: null,
+        cardId: null
+      },
+      initialDirectionChoice: {
+        active: false,
+        chooserPlayerId: null
+      },
+      challengeWindow: {
+        active: false,
+        targetPlayerId: null
+      },
+      roundDecisionPending: false,
+      winnerPlayerIds: [],
+      self: {
+        playerId: "player-1",
+        displayName: "player-1",
+        avatarUrl: null,
+        hand: [blackDrawTen],
+        handCount: 1,
+        hasCalledUno: false,
+        unoPendingSinceMs: null,
+        unoProtectionStartedAtMs: null,
+        unoProtectionEndsAtMs: null,
+        isEliminated: false,
+        isCurrentPlayer: true
+      },
+      opponents: []
+    }
   });
+
+  socket?.triggerMessage({
+    protocolVersion: "0.1.0",
+    type: "events",
+    roomId: "ROOM1",
+    snapshotVersion: 2,
+    events: [
+      {
+        type: "draw-stack-cleared",
+        reason: "canceled-by-draw-ten",
+        topCardId: "black-draw-ten"
+      }
+    ]
+  });
+
+  expect(document.querySelector(".ui-toast")?.textContent).toContain("抵消了整条加牌链");
+  expect(document.querySelector("[data-testid='draw-stack-burst']")).toBeNull();
+});
 
   it("does not highlight colored +4 after black reverse +4 draw stack", async () => {
     await import("../main");
@@ -2138,7 +2518,7 @@ describe("client-web smoke", () => {
     const drawTenButton = document.querySelector<HTMLElement>("[data-card-id='black-wild-draw-ten']");
 
     expect(penaltyButton?.dataset.cardTooltip).toContain("罚抽叠加罚抽");
-    expect(drawTenButton?.dataset.cardTooltip).toContain("+10叠加+10");
+    expect(drawTenButton?.dataset.cardTooltip).toContain("若当前链顶也是 +10");
   });
 
   it("sends rename-player from the lobby rename button and blocks overlong names", async () => {
@@ -2310,11 +2690,12 @@ describe("client-web smoke", () => {
     addBotMenuButton?.click();
 
     const botRows = Array.from(document.querySelectorAll<HTMLElement>("[data-testid='add-bot-menu-row']"));
-    expect(botRows).toHaveLength(2);
+    expect(botRows).toHaveLength(3);
     expect(botRows[0]?.textContent).toContain("最强bot");
     expect(botRows[1]?.textContent).toContain("混沌bot");
+    expect(botRows[2]?.textContent).toContain("胡闹bot");
 
-    document.querySelector<HTMLButtonElement>("[data-add-bot-type='chaos']")?.click();
+    document.querySelector<HTMLButtonElement>("[data-add-bot-type='mischief']")?.click();
 
     const addBotMessage = socket?.sentMessages
       .map((message) => JSON.parse(message))
@@ -2324,7 +2705,7 @@ describe("client-web smoke", () => {
       type: "add-bot",
       roomId: "ROOM1",
       playerId: "player-host",
-      botType: "chaos"
+      botType: "mischief"
     });
     expect(document.querySelector("[data-testid='add-bot-menu-panel']")).not.toBeNull();
     expect(styleText).toContain(".add-bot-menu-panel");
@@ -2383,7 +2764,7 @@ describe("client-web smoke", () => {
     expect(document.querySelector("[data-testid='add-bot-menu-panel']")).toBeNull();
   });
 
-  it("disables pitch preservation for penalty sounds and stops elimination music after the round decision ends", async () => {
+  it("disables pitch preservation for penalty sounds, ducks background music for elimination audio, and stops it after the round decision ends", async () => {
     Object.defineProperty(window.navigator, "userAgent", {
       value: "unit-test-browser",
       configurable: true
@@ -2509,6 +2890,12 @@ describe("client-web smoke", () => {
     const penaltyAudio = FakeAudio.instances.find((audio) =>
       audio.src.includes("%E7%BD%9A%E6%8A%BD%E5%BC%80%E5%A7%8B.mp3")
     );
+    const battleAudio = FakeAudio.instances.find((audio) =>
+      decodeURIComponent(audio.src).includes("对战音乐.mp3")
+    );
+    const normalizedEliminationAudio = FakeAudio.instances.find((audio) =>
+      audio.src.includes("%E5%87%BA%E5%B1%80%E9%9F%B3%E6%95%88.mp3")
+    );
     const eliminationAudio = FakeAudio.instances.find((audio) =>
       decodeURIComponent(audio.src).includes("出局音效.mp3")
     );
@@ -2517,8 +2904,12 @@ describe("client-web smoke", () => {
     expect(penaltyAudio?.preservesPitch).toBe(false);
     expect(penaltyAudio?.webkitPreservesPitch).toBe(false);
     expect(penaltyAudio?.mozPreservesPitch).toBe(false);
-    expect(eliminationAudio).not.toBeUndefined();
-    expect(eliminationAudio?.playCount).toBe(1);
+    expect(battleAudio).not.toBeUndefined();
+    expect(eliminationAudio).toBe(normalizedEliminationAudio);
+    expect(normalizedEliminationAudio).not.toBeUndefined();
+    expect(normalizedEliminationAudio?.playCount).toBe(1);
+    expect(normalizedEliminationAudio?.playbackRate).toBe(1);
+    expect(battleAudio?.volume).toBeCloseTo(0.256 * 0.4, 5);
 
     socket?.triggerMessage({
       protocolVersion: "0.1.0",
@@ -2581,8 +2972,9 @@ describe("client-web smoke", () => {
       }
     });
 
-    expect(eliminationAudio?.paused).toBe(true);
-    expect(eliminationAudio?.currentTime).toBe(0);
+    expect(normalizedEliminationAudio?.paused).toBe(true);
+    expect(normalizedEliminationAudio?.currentTime).toBe(0);
+    expect(battleAudio?.volume).toBeCloseTo(0.256, 5);
   });
 
   it("counts penalty draw toast messages and resets when resolved", async () => {

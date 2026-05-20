@@ -148,6 +148,10 @@ function analyzeChaosCandidate(
 
   let score = 0;
   const reasons: string[] = [];
+  const isDrawTenCancellation =
+    playedCard.kind === "wild-draw-ten" &&
+    state.drawStack.active &&
+    state.drawStack.previousDrawKind === "wild-draw-ten";
 
   if (
     playedCard.kind === "wild" &&
@@ -160,6 +164,7 @@ function analyzeChaosCandidate(
 
   if (
     isDrawCard(playedCard) &&
+    !isDrawTenCancellation &&
     nextPlayerCannotStackResponse(nextPlayer.hand, playedCard, candidate.declaredColor)
   ) {
     score += 1000;
@@ -195,6 +200,7 @@ function analyzeChaosCandidate(
 
   if (
     playedCard.kind === "wild-draw-ten" &&
+    !isDrawTenCancellation &&
     handContainsKind(player.hand.filter((card) => card.id !== playedCard.id), "swap-hands")
   ) {
     score += 720;
