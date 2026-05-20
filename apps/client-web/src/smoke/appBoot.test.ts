@@ -154,6 +154,121 @@ describe("client-web smoke", () => {
     ).toEqual(["20%", "40%", "60%", "80%", "100%"]);
     expect(document.querySelector("#settings-contact-button")).toBeNull();
     expect(document.querySelector("#settings-contact-content")?.textContent).toBe("QQ：2753345388");
+    const adjustButton = document.querySelector("#settings-adjust-toggle-button");
+    const contactRow = document.querySelector(".settings-contact-row");
+    expect(adjustButton).not.toBeNull();
+    expect(contactRow).not.toBeNull();
+    if (adjustButton !== null && contactRow !== null) {
+      expect(Boolean(adjustButton.compareDocumentPosition(contactRow) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    }
+  });
+
+  it("places restore default next to debug grid and resets interface adjustments", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    document.querySelector<HTMLButtonElement>("#battle-settings-button")?.click();
+    document.querySelector<HTMLButtonElement>("#settings-adjust-toggle-button")?.click();
+
+    const actionButtons = Array.from(document.querySelectorAll<HTMLElement>(".settings-adjust-actions > button")).map((button) =>
+      button.textContent?.trim()
+    );
+    const legends = Array.from(document.querySelectorAll(".settings-adjust-panel fieldset legend")).map((legend) => legend.textContent?.trim());
+
+    expect(actionButtons).toEqual(["显示网格", "恢复默认"]);
+    expect(legends).toContain("旋转图标大小");
+
+    document.querySelector<HTMLButtonElement>("#debug-grid-toggle-button")?.click();
+    const turnOrbitSlider = document.querySelector<HTMLInputElement>("#settings-turn-orbit-scale-slider");
+    const battleTableSlider = document.querySelector<HTMLInputElement>("#settings-battle-table-y-slider");
+    turnOrbitSlider!.value = "120";
+    turnOrbitSlider!.dispatchEvent(new Event("input", { bubbles: true }));
+    battleTableSlider!.value = "18";
+    battleTableSlider!.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(document.querySelector<HTMLButtonElement>("#debug-grid-toggle-button")?.textContent).toContain("关闭网格");
+    expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='turn-orbit-scale']")?.textContent).toBe("120%");
+    expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='battle-table-y']")?.textContent).toBe("18%");
+    expect(document.querySelector<HTMLElement>(".battle-immersive")?.style.getPropertyValue("--battle-center-adjust-y")).toBe("18%");
+
+    document.querySelector<HTMLButtonElement>("#settings-adjust-reset-button")?.click();
+
+    expect(document.querySelector<HTMLButtonElement>("#debug-grid-toggle-button")?.textContent).toContain("显示网格");
+    expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='turn-orbit-scale']")?.textContent).toBe("100%");
+    expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='battle-table-y']")?.textContent).toBe("0%");
+    expect(document.querySelector<HTMLElement>(".battle-immersive")?.style.getPropertyValue("--battle-center-adjust-y")).toBe("0%");
   });
 
   it("scales lobby chrome and controls together instead of only shrinking text", async () => {
@@ -189,6 +304,7 @@ describe("client-web smoke", () => {
     document.querySelector<HTMLButtonElement>("#settings-update-log-button")?.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    expect(document.querySelector("[data-testid='settings-update-log-panel']")).toBeNull();
     expect(document.querySelector("[data-testid='update-log-dialog']")).not.toBeNull();
     expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("2026-05-19");
     expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("添加混沌bot");
@@ -2123,7 +2239,7 @@ describe("client-web smoke", () => {
           },
           {
             playerId: "bot-1",
-            displayName: "最强bot",
+            displayName: "最强bot1",
             avatarUrl: null,
             seatIndex: 2,
             isHost: false,
@@ -2138,7 +2254,7 @@ describe("client-web smoke", () => {
     const botPill = document.querySelector<HTMLElement>(".lobby-identity-card [data-room-bot='true']");
 
     expect(botPill).not.toBeNull();
-    expect(botPill?.querySelector(".lobby-seat-name")?.textContent).toContain("最强bot");
+    expect(botPill?.querySelector(".lobby-seat-name")?.textContent).toContain("最强bot1");
     expect(botPill?.textContent).not.toContain("BOT");
     expect(botPill?.querySelector(".lobby-seat-status")?.textContent).toContain("机器人");
   });

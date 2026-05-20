@@ -268,21 +268,35 @@ describe("RoomManager", () => {
   it("addBot 会根据 botType 写入不同昵称和策略", () => {
     const fixture = createWaitingRoomFixture(1, "no-challenge");
 
-    const strongBot = fixture.roomManager.addBot({
+    const strongBot1 = fixture.roomManager.addBot({
       roomId: fixture.room.roomId,
       playerId: fixture.room.ownerPlayerId,
       botType: "strong"
     }).botPlayer;
-    const chaosBot = fixture.roomManager.addBot({
+    const chaosBot1 = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      botType: "chaos"
+    }).botPlayer;
+    const strongBot2 = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      botType: "strong"
+    }).botPlayer;
+    const chaosBot2 = fixture.roomManager.addBot({
       roomId: fixture.room.roomId,
       playerId: fixture.room.ownerPlayerId,
       botType: "chaos"
     }).botPlayer;
 
-    expect(strongBot.nickname).toBe("最强bot");
-    expect(strongBot.botProfile?.strategy).toBe("greedy-v1");
-    expect(chaosBot.nickname).toBe("混沌bot");
-    expect(chaosBot.botProfile?.strategy).toBe("chaos-v1");
+    expect(strongBot1.nickname).toBe("最强bot1");
+    expect(strongBot1.botProfile?.strategy).toBe("greedy-v1");
+    expect(chaosBot1.nickname).toBe("混沌bot1");
+    expect(chaosBot1.botProfile?.strategy).toBe("chaos-v1");
+    expect(strongBot2.nickname).toBe("最强bot2");
+    expect(strongBot2.botProfile?.strategy).toBe("greedy-v1");
+    expect(chaosBot2.nickname).toBe("混沌bot2");
+    expect(chaosBot2.botProfile?.strategy).toBe("chaos-v1");
   });
 
   it("有质疑模式不能添加机器人", () => {

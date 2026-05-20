@@ -521,12 +521,17 @@ export class RoomManager {
     const joinedAt = this.now();
     const botIndex = room.players.filter((player) => player.isBot).length + 1;
     const isChaosBot = params.botType === "chaos";
+    const strategy = isChaosBot ? "chaos-v1" : "greedy-v1";
+    const botBaseName = isChaosBot ? "混沌bot" : "最强bot";
+    const botTypeIndex = room.players.filter(
+      (player) => player.isBot && player.botProfile?.strategy === strategy
+    ).length + 1;
     const botPlayer: ServerRoomPlayer = {
       userId: `bot-${room.roomId}-${String(botIndex)}`,
       playerId: this.createPlayerId(),
       connectionId: null,
       seatIndex: room.players.length,
-      nickname: isChaosBot ? "混沌bot" : "最强bot",
+      nickname: `${botBaseName}${String(botTypeIndex)}`,
       avatarUrl: this.resolveAvatarUrl(room.players, null),
       connected: true,
       hasLeftRoom: false,
@@ -534,7 +539,7 @@ export class RoomManager {
       joinedAt,
       isBot: true,
       botProfile: {
-        strategy: isChaosBot ? "chaos-v1" : "greedy-v1",
+        strategy,
         forgetUnoRate: BOT_FORGET_UNO_RATE
       }
     };
