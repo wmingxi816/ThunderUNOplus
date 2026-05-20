@@ -10,7 +10,7 @@ Phase 7C 记录的是一次“把半成品改动真正收成闭环”的收口�
 2. 房主/非房主在回合决策弹窗中的权限切换。
 3. 大厅机器人从单一入口扩展为 `最强bot / 混沌bot` 双入口。
 4. 设置里的独立更新日志入口，以及 `update-log.md` 资源。
-5. 淘汰音乐、罚抽减速音效和相关文档说明的统一收口。
+5. 出局音效、罚抽减速音效和相关文档说明的统一收口。
 
 ## 与旧阶段文档的关系
 
@@ -18,7 +18,7 @@ Phase 7C 记录的是一次“把半成品改动真正收成闭环”的收口�
 
 - 它覆盖了 Phase 5A 里“普通玩家在结束弹窗中可以选择 `留在房间 / 离开房间`”的旧口径。现在普通玩家只显示“等待房主决定重开/继续游戏”，不再拥有那两个按钮。
 - 它扩展了 Phase 6A 里单一 `greedy-v1` 机器人的设计。当前大厅机器人入口已经分成 `strong -> greedy-v1` 和 `chaos -> chaos-v1`。
-- 它补充了 Phase 7A 的音频与设置能力，把“淘汰音乐、更新日志面板、pitch 保持关闭”这些新行为正式写入记录。
+- 它补充了 Phase 7A 的音频与设置能力，把“出局音效、更新日志面板、pitch 保持关闭”这些新行为正式写入记录。
 
 阅读顺序建议：
 
@@ -77,12 +77,12 @@ Phase 7C 记录的是一次“把半成品改动真正收成闭环”的收口�
 - 设置面板新增独立“日志”按钮，不复用规则弹窗。
 - 前端读取 `apps/client-web/public/update-log.md`，只解析 `##` 标题和 `-` 列表项。
 - 文件不存在、拉取失败或内容为空时，面板显示空状态文案“暂无更新日志”。
-- 新增淘汰音乐资源 `apps/client-web/public/sounds/see-you-again-2x.mp3`：
+- 新增出局音效资源 `apps/client-web/public/sounds/出局音效.mp3`：
   - 首次收到本轮 `player-eliminated` 事件时启动。
   - 循环播放。
   - 跟随背景音乐音量滑杆。
   - 继续游戏、重开、离房、自动继续成功时停止并重置。
-  - 同一轮淘汰音乐只允许启动一次。
+  - 同一轮出局音效只允许启动一次。
 - 罚抽减速音效播放前，统一关闭：
   - `preservesPitch`
   - `webkitPreservesPitch`
@@ -113,7 +113,7 @@ Phase 7C 记录的是一次“把半成品改动真正收成闭环”的收口�
 - `apps/client-web/src/styles.css`
 - `apps/client-web/src/protocol/clientMessages.ts`
 - `apps/client-web/public/update-log.md`
-- `apps/client-web/public/sounds/see-you-again-2x.mp3`
+- `apps/client-web/public/sounds/出局音效.mp3`
 
 ### 文档与验证
 
@@ -150,7 +150,7 @@ corepack pnpm test:e2e
 4. 大厅机器人入口支持 `最强bot / 混沌bot`。
 5. 服务端具备 `greedy-v1 / chaos-v1` 两套策略入口。
 6. 更新日志按钮与 `update-log.md` 加载链路可用。
-7. 淘汰音乐和罚抽减速音效生命周期正确。
+7. 出局音效和罚抽减速音效生命周期正确。
 8. `next-step.md` 与 `README.md` 已同步本轮行为。
 
 ## 后续建议

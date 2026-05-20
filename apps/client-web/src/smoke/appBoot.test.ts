@@ -108,11 +108,18 @@ describe("client-web smoke", () => {
     expect(document.querySelector("#create-room-button")).not.toBeNull();
     expect(document.querySelector("#create-custom-room-button")).toBeNull();
     expect(document.querySelector("#join-room-button")).not.toBeNull();
+    expect(Array.from(document.querySelectorAll<HTMLSelectElement>("#mode option")).map((option) => option.textContent)).toEqual([
+      "无质疑",
+      "敬请期待"
+    ]);
+    expect(document.querySelector<HTMLOptionElement>("#mode option[value='with-challenge']")?.disabled).toBe(true);
     expect(document.querySelector("#rename-player-button")).not.toBeNull();
     expect(document.querySelector("#lobby-settings-button")).not.toBeNull();
     expect(document.querySelector("#room-id-input")).not.toBeNull();
+    expect(document.querySelector<HTMLInputElement>("#nickname")?.maxLength).toBe(10);
     expect(document.querySelectorAll(".room-code-digit")).toHaveLength(6);
     expect(document.querySelector("#lobby-chat-input")).not.toBeNull();
+    expect(document.querySelector<HTMLInputElement>("#lobby-chat-input")?.maxLength).toBe(30);
     expect(document.querySelector("#lobby-chat-send-button")).not.toBeNull();
     expect(document.querySelector("[data-testid='lobby-rule-button']")?.textContent).toContain("规则");
     expect(document.querySelectorAll(".rule-entry-button")).toHaveLength(0);
@@ -149,7 +156,25 @@ describe("client-web smoke", () => {
     expect(document.querySelector("#settings-contact-content")?.textContent).toBe("QQ：2753345388");
   });
 
-  it("loads update-log.md into a dedicated settings panel", async () => {
+  it("scales lobby chrome and controls together instead of only shrinking text", async () => {
+    await import("../main");
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    document.querySelector<HTMLButtonElement>("#lobby-settings-button")?.click();
+    document
+      .querySelector<HTMLButtonElement>("[data-setting-button='ui-scale'][data-setting-value='20']")
+      ?.click();
+
+    const lobbyScaleContent = document.querySelector<HTMLElement>("[data-testid='lobby-scale-content']");
+
+    expect(lobbyScaleContent).not.toBeNull();
+    expect(lobbyScaleContent?.style.getPropertyValue("--lobby-ui-scale")).toBe("0.20");
+    expect(styleText).not.toContain("font-size: calc(1rem * var(--lobby-ui-scale, 1));");
+    expect(styleText).toContain(".lobby-scale-content");
+    expect(styleText).toContain("transform: scale(var(--lobby-ui-scale, 1));");
+  });
+
+  it("opens update log in a centered closable dialog", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -164,9 +189,13 @@ describe("client-web smoke", () => {
     document.querySelector<HTMLButtonElement>("#settings-update-log-button")?.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(document.querySelector("[data-testid='settings-update-log-panel']")?.textContent).toContain("2026-05-19");
-    expect(document.querySelector("[data-testid='settings-update-log-panel']")?.textContent).toContain("添加混沌bot");
-    expect(document.querySelector("[data-testid='settings-update-log-panel']")?.textContent).toContain("增加更新日志入口");
+    expect(document.querySelector("[data-testid='update-log-dialog']")).not.toBeNull();
+    expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("2026-05-19");
+    expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("添加混沌bot");
+    expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("增加更新日志入口");
+
+    document.querySelector<HTMLButtonElement>("#close-update-log-button")?.click();
+    expect(document.querySelector("[data-testid='update-log-dialog']")).toBeNull();
   });
 
   it("shows an empty update log state when update-log.md cannot be loaded", async () => {
@@ -181,7 +210,7 @@ describe("client-web smoke", () => {
     document.querySelector<HTMLButtonElement>("#settings-update-log-button")?.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(document.querySelector("[data-testid='settings-update-log-panel']")?.textContent).toContain("暂无更新日志");
+    expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("暂无更新日志");
   });
 
   it("keeps the lobby rule and settings buttons in the right group and enlarges player cards", async () => {
@@ -197,13 +226,45 @@ describe("client-web smoke", () => {
     expect(styleText).toContain("min-height: 3.64rem");
   });
 
+  it("brightens the lobby background instead of keeping the backdrop too dark", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain(".shell::before");
+    expect(styleText).toContain("opacity: 0.68;");
+    expect(styleText).toContain("filter: brightness(1.08) saturate(1.04);");
+    expect(styleText).toContain(".lobby-storm-vignette");
+    expect(styleText).toContain("rgba(2, 9, 22, 0.22)");
+  });
+
+  it("keeps lobby chat scrolling inside the panel instead of turning the whole page into a scroller", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain(".lobby-scale-frame");
+    expect(styleText).toContain("overflow: hidden;");
+    expect(styleText).toContain(".lobby-chat-feed");
+    expect(styleText).toContain("overflow-y: auto;");
+    expect(styleText).toContain(".lobby-chat-panel");
+    expect(styleText).toContain("grid-template-rows: minmax(0, 1fr) auto;");
+  });
+
+  it("keeps lobby chat avatars and message content side by side", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+    const mainText = await readFile("src/main.ts", "utf8");
+
+    expect(styleText).toContain(".lobby-feed-item-player");
+    expect(styleText).toContain("display: grid;");
+    expect(styleText).toContain("grid-template-columns: 3rem minmax(0, 1fr);");
+    expect(styleText).toContain(".lobby-feed-bubble");
+    expect(mainText).toContain('class="lobby-feed-speaker"');
+  });
+
   it("keeps lobby seat avatars and text adaptive on a single line", async () => {
     const styleText = await readFile("src/styles.css", "utf8");
 
     expect(styleText).toContain("grid-template-columns: auto minmax(0, 1fr);");
-    expect(styleText).toContain("width: clamp(1.56rem, 16cqi, 2.48rem);");
-    expect(styleText).toContain("font-size: clamp(0.62rem, 6.8cqi, 0.98rem);");
-    expect(styleText).toContain("font-size: clamp(0.48rem, 5.2cqi, 0.76rem);");
+    expect(styleText).toContain("width: clamp(1.76rem, 18cqi, 2.72rem);");
+    expect(styleText).toContain("font-size: var(--lobby-player-name-size, clamp(0.72rem, 7.2cqi, 1.08rem));");
+    expect(styleText).toContain("font-size: clamp(0.54rem, 5.6cqi, 0.82rem);");
     expect(styleText).toContain("white-space: nowrap;");
   });
 
@@ -558,6 +619,7 @@ describe("client-web smoke", () => {
 
     expect(document.querySelector("#create-custom-room-button")).toBeNull();
     expect(createRoomMessage).toMatchObject({ type: "create-room" });
+    expect(createRoomMessage?.mode).toBe("no-challenge");
     expect(createRoomMessage).not.toHaveProperty("roomId");
     expect(messages.find((message) => message.type === "join-room")).toMatchObject({
       type: "join-room",
@@ -920,6 +982,278 @@ describe("client-web smoke", () => {
     expect(document.querySelector(".lobby-identity-card [data-testid='room-player']")?.classList.contains("left")).toBe(true);
     expect(document.querySelector<HTMLInputElement>("#room-id-input")?.value).toBe("123456");
     expect(document.querySelector<HTMLButtonElement>("#join-room-button")?.disabled).toBe(false);
+  });
+
+  it("maps battle UI 100% to the previous 80% overall scale", async () => {
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#lobby-settings-button")?.click();
+    document
+      .querySelector<HTMLButtonElement>("[data-setting-button='ui-scale'][data-setting-value='100']")
+      ?.click();
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
+
+    expect(battleRoot).not.toBeNull();
+    expect(battleRoot?.style.getPropertyValue("--battle-ui-scale")).toBe("0.80");
+  });
+
+  it("keeps the current battle seat fully lit instead of dimming it under the active overlay", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain(".seat.current::before");
+    expect(styleText).toContain("filter: brightness(1.12) saturate(1.08);");
+    expect(styleText).toContain(".seat.current::after");
+    expect(styleText).toContain("rgba(9, 12, 18, 0.22)");
+    expect(styleText).toContain(".seat.current small");
+    expect(styleText).toContain("color: #dde8fb;");
+  });
+
+  it("plays a one-shot sweep across the bottom dock when the turn moves to the local player", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-2",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: false
+        },
+        opponents: [
+          {
+            playerId: "player-2",
+            displayName: "player-2",
+            avatarUrl: null,
+            handCount: 5,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: true
+          }
+        ]
+      }
+    });
+
+    expect(document.querySelector(".battle-action-dock")?.classList.contains("turn-sweep-active")).toBe(false);
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 2,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 2,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: [
+          {
+            playerId: "player-2",
+            displayName: "player-2",
+            avatarUrl: null,
+            handCount: 5,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: false
+          }
+        ]
+      }
+    });
+
+    const actionDock = document.querySelector<HTMLElement>(".battle-action-dock");
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(actionDock?.classList.contains("turn-sweep-active")).toBe(true);
+    expect(actionDock?.style.getPropertyValue("--battle-turn-sweep-delay-ms")).toContain("-");
+    expect(styleText).toContain(".battle-action-dock.turn-sweep-active::before");
+    expect(styleText).toContain("@keyframes battle-turn-sweep");
   });
 
   it("sends set-ready when a non-host clicks the ready button", async () => {
@@ -1594,6 +1928,103 @@ describe("client-web smoke", () => {
     expect(cardButton?.dataset.cardState).toBe("disabled");
     expect(cardButton?.classList.contains("playable")).toBe(false);
   });
+
+  it("adds stacking notes to penalty-draw and +10 tooltips", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+    const penaltyDrawCard = {
+      id: "black-penalty-draw",
+      kind: "penalty-draw",
+      isBlack: true,
+      displayName: "black penalty draw"
+    };
+    const wildDrawTenCard = {
+      id: "black-wild-draw-ten",
+      kind: "wild-draw-ten",
+      drawValue: 10,
+      isBlack: true,
+      displayName: "black wild draw ten"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [penaltyDrawCard, wildDrawTenCard],
+          handCount: 2,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: []
+      }
+    });
+
+    const penaltyButton = document.querySelector<HTMLElement>("[data-card-id='black-penalty-draw']");
+    const drawTenButton = document.querySelector<HTMLElement>("[data-card-id='black-wild-draw-ten']");
+
+    expect(penaltyButton?.dataset.cardTooltip).toContain("罚抽叠加罚抽");
+    expect(drawTenButton?.dataset.cardTooltip).toContain("+10叠加+10");
+  });
+
   it("sends rename-player from the lobby rename button and blocks overlong names", async () => {
     await import("../main");
 
@@ -1643,11 +2074,11 @@ describe("client-web smoke", () => {
     });
 
     const sentCount = socket?.sentMessages.length ?? 0;
-    nicknameInput.value = "123456789012345678901";
+    nicknameInput.value = "12345678901";
     document.querySelector<HTMLButtonElement>("#rename-player-button")?.click();
 
     expect(socket?.sentMessages).toHaveLength(sentCount);
-    expect(document.querySelector(".ui-toast")?.textContent).toContain("20");
+    expect(document.querySelector(".ui-toast")?.textContent).toContain("10");
   });
 
   it("simplifies lobby bot display and hides the seed input", async () => {
@@ -1692,7 +2123,7 @@ describe("client-web smoke", () => {
           },
           {
             playerId: "bot-1",
-            displayName: "雷霆bot1",
+            displayName: "最强bot",
             avatarUrl: null,
             seatIndex: 2,
             isHost: false,
@@ -1707,12 +2138,84 @@ describe("client-web smoke", () => {
     const botPill = document.querySelector<HTMLElement>(".lobby-identity-card [data-room-bot='true']");
 
     expect(botPill).not.toBeNull();
-    expect(botPill?.querySelector(".lobby-seat-name")?.textContent).toContain("雷霆bot1");
+    expect(botPill?.querySelector(".lobby-seat-name")?.textContent).toContain("最强bot");
     expect(botPill?.textContent).not.toContain("BOT");
     expect(botPill?.querySelector(".lobby-seat-status")?.textContent).toContain("机器人");
   });
 
-  it("lets the host choose strong or chaos bot from the add-bot controls", async () => {
+  it("opens a single add-bot menu and adds the chosen bot from the matching row", async () => {
+    await import("../main");
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-host",
+      snapshotVersion: 1,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "lobby",
+        mode: "no-challenge",
+        hostPlayerId: "player-host",
+        snapshotVersion: 1,
+        players: [
+          {
+            playerId: "player-host",
+            displayName: "Host",
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            isBot: false,
+            connectionStatus: "connected"
+          },
+          {
+            playerId: "player-2",
+            displayName: "Guest",
+            avatarUrl: null,
+            seatIndex: 1,
+            isHost: false,
+            isReady: true,
+            isBot: false,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const addBotMenuButton = document.querySelector<HTMLButtonElement>("[data-testid='add-bot-menu-button']");
+    expect(addBotMenuButton?.textContent).toContain("添加机器人");
+
+    addBotMenuButton?.click();
+
+    const botRows = Array.from(document.querySelectorAll<HTMLElement>("[data-testid='add-bot-menu-row']"));
+    expect(botRows).toHaveLength(2);
+    expect(botRows[0]?.textContent).toContain("最强bot");
+    expect(botRows[1]?.textContent).toContain("混沌bot");
+
+    document.querySelector<HTMLButtonElement>("[data-add-bot-type='chaos']")?.click();
+
+    const addBotMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "add-bot");
+
+    expect(addBotMessage).toMatchObject({
+      type: "add-bot",
+      roomId: "ROOM1",
+      playerId: "player-host",
+      botType: "chaos"
+    });
+    expect(document.querySelector("[data-testid='add-bot-menu-panel']")).not.toBeNull();
+    expect(styleText).toContain(".add-bot-menu-panel");
+    expect(styleText).toContain("position: absolute;");
+  });
+
+  it("closes the add-bot menu when clicking outside the menu", async () => {
     await import("../main");
 
     const socket = FakeWebSocket.instances[0];
@@ -1756,27 +2259,12 @@ describe("client-web smoke", () => {
       }
     });
 
-    const botTypeSelect = document.querySelector<HTMLSelectElement>("[data-testid='add-bot-type-select']");
-    expect(botTypeSelect).not.toBeNull();
-    expect(Array.from(botTypeSelect?.options ?? []).map((option) => option.textContent)).toEqual([
-      "最强bot",
-      "混沌bot"
-    ]);
+    document.querySelector<HTMLButtonElement>("[data-testid='add-bot-menu-button']")?.click();
+    expect(document.querySelector("[data-testid='add-bot-menu-panel']")).not.toBeNull();
 
-    botTypeSelect!.value = "chaos";
-    botTypeSelect!.dispatchEvent(new Event("change"));
-    document.querySelector<HTMLButtonElement>("#add-bot-button")?.click();
+    document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    const addBotMessage = socket?.sentMessages
-      .map((message) => JSON.parse(message))
-      .find((message) => message.type === "add-bot");
-
-    expect(addBotMessage).toMatchObject({
-      type: "add-bot",
-      roomId: "ROOM1",
-      playerId: "player-host",
-      botType: "chaos"
-    });
+    expect(document.querySelector("[data-testid='add-bot-menu-panel']")).toBeNull();
   });
 
   it("disables pitch preservation for penalty sounds and stops elimination music after the round decision ends", async () => {
@@ -1906,7 +2394,7 @@ describe("client-web smoke", () => {
       audio.src.includes("%E7%BD%9A%E6%8A%BD%E5%BC%80%E5%A7%8B.mp3")
     );
     const eliminationAudio = FakeAudio.instances.find((audio) =>
-      audio.src.includes("see-you-again-2x.mp3")
+      decodeURIComponent(audio.src).includes("出局音效.mp3")
     );
 
     expect(penaltyAudio).not.toBeUndefined();

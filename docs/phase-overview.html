@@ -2423,10 +2423,10 @@ finished=180 stuck=0 rejected=0</code></pre>
 <h2>阶段目标</h2>
 <p>Phase 7C 记录的是一次“把半成品改动真正收成闭环”的收口阶段。重点不是再铺一层新系统，而是把已经开始推进的共享状态、房间生命周期、机器人入口、音频反馈、设置入口和文档说明整理成一致的最终行为。</p>
 <p>这一轮最终落地了 5 组变化：</p>
-<ol><li>房主在回合决策阶段主动离房后的顺位与自动继续。</li><li>房主/非房主在回合决策弹窗中的权限切换。</li><li>大厅机器人从单一入口扩展为 <code>最强bot / 混沌bot</code> 双入口。</li><li>设置里的独立更新日志入口，以及 <code>update-log.md</code> 资源。</li><li>淘汰音乐、罚抽减速音效和相关文档说明的统一收口。</li></ol>
+<ol><li>房主在回合决策阶段主动离房后的顺位与自动继续。</li><li>房主/非房主在回合决策弹窗中的权限切换。</li><li>大厅机器人从单一入口扩展为 <code>最强bot / 混沌bot</code> 双入口。</li><li>设置里的独立更新日志入口，以及 <code>update-log.md</code> 资源。</li><li>出局音效、罚抽减速音效和相关文档说明的统一收口。</li></ol>
 <h2>与旧阶段文档的关系</h2>
 <p>本阶段是对旧行为说明的覆盖，不是并存规则。</p>
-<ul><li>它覆盖了 Phase 5A 里“普通玩家在结束弹窗中可以选择 <code>留在房间 / 离开房间</code>”的旧口径。现在普通玩家只显示“等待房主决定重开/继续游戏”，不再拥有那两个按钮。</li><li>它扩展了 Phase 6A 里单一 <code>greedy-v1</code> 机器人的设计。当前大厅机器人入口已经分成 <code>strong -&gt; greedy-v1</code> 和 <code>chaos -&gt; chaos-v1</code>。</li><li>它补充了 Phase 7A 的音频与设置能力，把“淘汰音乐、更新日志面板、pitch 保持关闭”这些新行为正式写入记录。</li></ul>
+<ul><li>它覆盖了 Phase 5A 里“普通玩家在结束弹窗中可以选择 <code>留在房间 / 离开房间</code>”的旧口径。现在普通玩家只显示“等待房主决定重开/继续游戏”，不再拥有那两个按钮。</li><li>它扩展了 Phase 6A 里单一 <code>greedy-v1</code> 机器人的设计。当前大厅机器人入口已经分成 <code>strong -&gt; greedy-v1</code> 和 <code>chaos -&gt; chaos-v1</code>。</li><li>它补充了 Phase 7A 的音频与设置能力，把“出局音效、更新日志面板、pitch 保持关闭”这些新行为正式写入记录。</li></ul>
 <p>阅读顺序建议：</p>
 <ol><li>如果你想看机器人最初是怎么引入的，先看 <code>PHASE6A</code>。</li><li>如果你想看这轮最终行为是什么，以本阶段文档为准。</li></ol>
 <h2>核心变更</h2>
@@ -2439,14 +2439,14 @@ finished=180 stuck=0 rejected=0</code></pre>
 <h3>4. chaos-v1 的核心决策</h3>
 <ul><li><code>chaos-v1</code> 先复用现有候选生成器拿到所有合法动作，再计算 <code>chaosScore</code>。</li><li>只要存在 <code>chaosScore &gt; 0</code> 的候选，就优先选 chaos 分最高者；如果全不命中，则回退到 greedy。</li><li>当前已经写进实现和测试的高优先级规则包括：</li><li><code>wild</code> 指向下家唯一缺色。</li><li>不可叠加回应的加牌压制。</li><li><code>swap-hands</code> 针对短手牌玩家或持有 <code>+10</code> 的对手。</li><li><code>reverse</code> 命中“上家接不了这个颜色”。</li><li><code>+10</code> 配合自己手里的 <code>swap-hands</code>。</li><li>黑牌偏多且手牌过大时优先打 <code>+6</code> / <code>+10</code>。</li><li><code>penalty-draw</code> 针对超大手牌对手。</li><li>“上家接不了某颜色”没有进公共协议，而是保存在服务端房间私有状态 <code>lastUnanswerableColorByPlayerId</code> 中。</li></ul>
 <h3>5. 更新日志与音频</h3>
-<ul><li>设置面板新增独立“日志”按钮，不复用规则弹窗。</li><li>前端读取 <code>apps/client-web/public/update-log.md</code>，只解析 <code>##</code> 标题和 <code>-</code> 列表项。</li><li>文件不存在、拉取失败或内容为空时，面板显示空状态文案“暂无更新日志”。</li><li>新增淘汰音乐资源 <code>apps/client-web/public/sounds/see-you-again-2x.mp3</code>：</li><li>首次收到本轮 <code>player-eliminated</code> 事件时启动。</li><li>循环播放。</li><li>跟随背景音乐音量滑杆。</li><li>继续游戏、重开、离房、自动继续成功时停止并重置。</li><li>同一轮淘汰音乐只允许启动一次。</li><li>罚抽减速音效播放前，统一关闭：</li><li><code>preservesPitch</code></li><li><code>webkitPreservesPitch</code></li><li><code>mozPreservesPitch</code></li></ul>
+<ul><li>设置面板新增独立“日志”按钮，不复用规则弹窗。</li><li>前端读取 <code>apps/client-web/public/update-log.md</code>，只解析 <code>##</code> 标题和 <code>-</code> 列表项。</li><li>文件不存在、拉取失败或内容为空时，面板显示空状态文案“暂无更新日志”。</li><li>新增出局音效资源 <code>apps/client-web/public/sounds/出局音效.mp3</code>：</li><li>首次收到本轮 <code>player-eliminated</code> 事件时启动。</li><li>循环播放。</li><li>跟随背景音乐音量滑杆。</li><li>继续游戏、重开、离房、自动继续成功时停止并重置。</li><li>同一轮出局音效只允许启动一次。</li><li>罚抽减速音效播放前，统一关闭：</li><li><code>preservesPitch</code></li><li><code>webkitPreservesPitch</code></li><li><code>mozPreservesPitch</code></li></ul>
 <h2>影响文件</h2>
 <h3>共享类型与核心状态</h3>
 <ul><li><code>packages/shared-types/src/game.ts</code></li><li><code>packages/shared-types/src/snapshot.ts</code></li><li><code>packages/protocol/src/messages.ts</code></li><li><code>packages/uno-core/src/reducer/effects.ts</code></li><li><code>packages/uno-core/src/view/createPlayerGameSnapshot.ts</code></li></ul>
 <h3>服务端</h3>
 <ul><li><code>apps/game-server/src/room/roomManager.ts</code></li><li><code>apps/game-server/src/room/roomTypes.ts</code></li><li><code>apps/game-server/src/dispatch/dispatchCommand.ts</code></li><li><code>apps/game-server/src/bot/strategies/</code></li><li><code>apps/game-server/src/bot/botScheduler.ts</code></li><li><code>apps/game-server/src/dev/botSelfPlay.ts</code></li></ul>
 <h3>前端</h3>
-<ul><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/client-web/src/protocol/clientMessages.ts</code></li><li><code>apps/client-web/public/update-log.md</code></li><li><code>apps/client-web/public/sounds/see-you-again-2x.mp3</code></li></ul>
+<ul><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/client-web/src/protocol/clientMessages.ts</code></li><li><code>apps/client-web/public/update-log.md</code></li><li><code>apps/client-web/public/sounds/出局音效.mp3</code></li></ul>
 <h3>文档与验证</h3>
 <ul><li><code>next-step.md</code></li><li><code>README.md</code></li><li><code>apps/client-web/e2e/round-decision-host-transfer.spec.ts</code></li><li><code>apps/game-server/src/tests/dispatchBotStrategy.test.ts</code></li><li><code>apps/game-server/src/tests/chaosStrategy.test.ts</code></li></ul>
 <h2>验证记录</h2>
@@ -2458,7 +2458,7 @@ corepack pnpm test:e2e</code></pre>
 <ul><li>共享类型、协议、前端、服务端、模拟器全量 typecheck。</li><li><code>protocol</code>、<code>uno-core</code>、<code>game-server</code>、<code>client-web</code> 的全量单测。</li><li>全量 Playwright e2e，包括新增的：</li><li><code>round-decision-host-transfer.spec.ts</code></li></ul>
 <h2>验收标准</h2>
 <p>本阶段完成后应满足：</p>
-<ol><li><code>roundDecisionPending</code> 已成为共享快照正式字段。</li><li>非房主在回合决策阶段只显示等待文案。</li><li>房主淘汰并离房后，房主顺位与自动继续行为正确。</li><li>大厅机器人入口支持 <code>最强bot / 混沌bot</code>。</li><li>服务端具备 <code>greedy-v1 / chaos-v1</code> 两套策略入口。</li><li>更新日志按钮与 <code>update-log.md</code> 加载链路可用。</li><li>淘汰音乐和罚抽减速音效生命周期正确。</li><li><code>next-step.md</code> 与 <code>README.md</code> 已同步本轮行为。</li></ol>
+<ol><li><code>roundDecisionPending</code> 已成为共享快照正式字段。</li><li>非房主在回合决策阶段只显示等待文案。</li><li>房主淘汰并离房后，房主顺位与自动继续行为正确。</li><li>大厅机器人入口支持 <code>最强bot / 混沌bot</code>。</li><li>服务端具备 <code>greedy-v1 / chaos-v1</code> 两套策略入口。</li><li>更新日志按钮与 <code>update-log.md</code> 加载链路可用。</li><li>出局音效和罚抽减速音效生命周期正确。</li><li><code>next-step.md</code> 与 <code>README.md</code> 已同步本轮行为。</li></ol>
 <h2>后续建议</h2>
 <p>后续如果继续写日志，建议按下面的边界拆：</p>
 <ol><li>如果是继续打磨 <code>chaos-v1</code> 权重和策略，记到机器人调优阶段。</li><li>如果是继续打磨回合决策、观战、房内重开之类房间生命周期，单独开新 Phase。</li><li>如果是继续打磨设置、更新日志、音频和 UI 面板，再开一篇 UI/UX 补充 Phase。</li></ol>

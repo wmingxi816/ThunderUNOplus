@@ -54,23 +54,24 @@ test("host transfer switches round-decision controls and auto-continue closes th
   await context.close();
 });
 
-test("settings exposes the update log panel without breaking the modal", async ({ browser }) => {
+test("settings exposes the update log dialog in the center of the screen", async ({ browser }) => {
   const { context, page } = await bootInstrumentedPlayer(browser, "Settings Guest");
 
   await page.locator("#lobby-settings-button").click();
   await expect(page.locator(".settings-modal")).toBeVisible();
   await page.getByTestId("settings-update-log-button").click();
 
-  await expect(page.getByTestId("settings-update-log-panel")).toBeVisible();
-  await expect(page.getByTestId("settings-update-log-panel")).toContainText("房主淘汰并主动离房");
+  await expect(page.getByTestId("update-log-dialog")).toBeVisible();
+  await expect(page.getByTestId("update-log-dialog")).toContainText("房主淘汰并主动离房");
   await expect(page.locator(".settings-modal")).toContainText("更新日志入口");
 
-  const modalBox = await page.locator(".settings-modal").boundingBox();
-  const panelBox = await page.getByTestId("settings-update-log-panel").boundingBox();
+  const dialogBox = await page.getByTestId("update-log-dialog").boundingBox();
 
-  expect(modalBox).not.toBeNull();
-  expect(panelBox).not.toBeNull();
-  expect(panelBox!.width).toBeLessThanOrEqual(modalBox!.width);
+  expect(dialogBox).not.toBeNull();
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  expect(Math.abs(dialogBox!.x + dialogBox!.width / 2 - viewport!.width / 2)).toBeLessThan(48);
+  expect(Math.abs(dialogBox!.y + dialogBox!.height / 2 - viewport!.height / 2)).toBeLessThan(48);
 
   await context.close();
 });

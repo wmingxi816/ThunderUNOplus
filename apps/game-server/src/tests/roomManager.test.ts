@@ -160,7 +160,7 @@ describe("RoomManager", () => {
       roomId: fixture.room.roomId,
       userId: reconnectConnection.userId,
       connectionId: reconnectConnection.connectionId,
-      nickname: "Player 2 Reconnected",
+      nickname: "玩家2重连",
       avatarUrl: null
     });
 
@@ -279,9 +279,9 @@ describe("RoomManager", () => {
       botType: "chaos"
     }).botPlayer;
 
-    expect(strongBot.nickname).toContain("最强bot");
+    expect(strongBot.nickname).toBe("最强bot");
     expect(strongBot.botProfile?.strategy).toBe("greedy-v1");
-    expect(chaosBot.nickname).toContain("混沌bot");
+    expect(chaosBot.nickname).toBe("混沌bot");
     expect(chaosBot.botProfile?.strategy).toBe("chaos-v1");
   });
 
@@ -501,7 +501,7 @@ describe("RoomManager", () => {
       roomId: fixture.room.roomId,
       userId: leaver.userId,
       connectionId: newConnection.connectionId,
-      nickname: "Returned Player",
+      nickname: "回归玩家",
       avatarUrl: null
     });
     const restoredGamePlayer = fixture.room.gameState!.players.find(
@@ -512,7 +512,7 @@ describe("RoomManager", () => {
     expect(result.player.playerId).toBe(originalPlayerId);
     expect(result.player.hasLeftRoom).toBe(false);
     expect(restoredGamePlayer.hasLeftRoom).toBe(false);
-    expect(restoredGamePlayer.displayName).toBe("Returned Player");
+    expect(restoredGamePlayer.displayName).toBe("回归玩家");
     expect(restoredGamePlayer.hand.map((card) => card.id)).toEqual(originalHandIds);
     expect(fixture.room.players).toHaveLength(3);
   });
@@ -569,7 +569,7 @@ describe("RoomManager", () => {
       roomId: fixture.room.roomId,
       userId: winnerRoomPlayer.userId,
       connectionId: newConnection.connectionId,
-      nickname: "Returned Winner",
+      nickname: "回归赢家",
       avatarUrl: null
     });
     const restoredWinner = fixture.room.gameState!.players.find(
@@ -650,14 +650,14 @@ describe("RoomManager", () => {
     fixture.roomManager.renamePlayer({
       roomId: fixture.room.roomId,
       playerId: player.playerId,
-      nickname: "Battle Name"
+      nickname: "战斗名"
     });
 
-    expect(fixture.room.players[1]!.nickname).toBe("Battle Name");
+    expect(fixture.room.players[1]!.nickname).toBe("战斗名");
     expect(
       fixture.room.gameState!.players.find((candidate) => candidate.id === player.playerId)
         ?.displayName
-    ).toBe("Battle Name");
+    ).toBe("战斗名");
   });
 
   it("renamePlayer rejects bot and overlong nicknames", () => {
@@ -679,7 +679,7 @@ describe("RoomManager", () => {
       fixture.roomManager.renamePlayer({
         roomId: fixture.room.roomId,
         playerId: fixture.room.players[1]!.playerId,
-        nickname: "123456789012345678901"
+        nickname: "12345678901"
       });
     }).toThrowError(GameServerError);
   });

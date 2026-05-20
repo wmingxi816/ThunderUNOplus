@@ -72,9 +72,11 @@ interface AppState {
   ruleModal: RuleModalView | null;
   settingsModalOpen: boolean;
   settingsAdjustPanelOpen: boolean;
+  addBotMenuOpen: boolean;
   updateLogOpen: boolean;
   updateLogStatus: "idle" | "loading" | "ready" | "error";
   updateLogSections: UpdateLogSection[];
+  updateLogDialogPosition: UpdateLogDialogPosition | null;
   uiScalePercent: UiScalePercent;
   backgroundMusicPercent: UiSettingPercent;
   soundEffectPercent: UiSettingPercent;
@@ -87,12 +89,12 @@ interface AppState {
   handCardScalePercent: number;
   turnOrbitAnimationStartedAtMs: number;
   turnOrbitAnimationDirection: TurnDirection | null;
+  battleTurnSweepStartedAtMs: number | null;
   uiToast: UiToastState | null;
   dismissedFinishedNoticeKey: string | null;
   snapshotRecoveryRoomId: RoomId | null;
   roomCodeDigits: string[];
   lobbyMode: GameMode;
-  selectedBotType: "strong" | "chaos";
   lobbyChatDraft: string;
   lobbyChatFeed: LobbyChatEntry[];
 }
@@ -109,6 +111,11 @@ interface LobbyChatEntry {
 interface UpdateLogSection {
   title: string;
   items: string[];
+}
+
+interface UpdateLogDialogPosition {
+  left: number;
+  top: number;
 }
 
 interface CardsPlayedAnimationEvent {
@@ -260,6 +267,7 @@ const SEAT_Y_OFFSET_STORAGE_KEY = "thunder-uno.seat-y-offset-percent";
 const BATTLE_TABLE_Y_OFFSET_STORAGE_KEY = "thunder-uno.battle-table-y-offset-percent";
 const HAND_CARD_SCALE_STORAGE_KEY = "thunder-uno.hand-card-scale-percent";
 const UPDATE_LOG_PATH = "/update-log.md";
+const BATTLE_UI_BASE_SCALE = 0.8;
 const DEFAULT_UI_SETTING_PERCENT = 80;
 const UI_SCALE_OPTIONS = [20, 40, 60, 80, 100] as const;
 type UiScalePercent = typeof UI_SCALE_OPTIONS[number];
@@ -267,7 +275,7 @@ const DEFAULT_UI_SCALE_PERCENT: UiScalePercent = 80;
 const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
-const MAX_PLAYER_NICKNAME_LENGTH = 20;
+const MAX_PLAYER_NICKNAME_LENGTH = 10;
 const MAX_DISCARD_LAYOUT_CARDS = 15;
 const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
   {
@@ -440,12 +448,14 @@ const RULE_CARD_INTROS: RuleCardIntro[] = [
 ];
 const root = document.querySelector<HTMLDivElement>("#app");
 let unoProtectionRenderTimer: number | null = null;
+let battleTurnSweepClearTimer: number | null = null;
 const PENALTY_DRAW_START_SOUND_PATH = "/sounds/%E7%BD%9A%E6%8A%BD%E5%BC%80%E5%A7%8B.mp3";
 const PENALTY_DRAW_END_SOUND_PATH = "/sounds/%E7%BD%9A%E6%8A%BD%E7%BB%93%E6%9D%9F.mp3";
 const DRAW_STACK_PLAY_SMALL_SOUND_PATH = "/sounds/%E8%BF%9B%E8%A1%8C%E5%8A%A0%E7%89%8C1.mp3";
 const DRAW_STACK_PLAY_BIG_SOUND_PATH = "/sounds/%E8%BF%9B%E8%A1%8C%E5%8A%A0%E7%89%8C2.mp3";
 const DRAW_STACK_RESOLVE_BIG_SOUND_PATH = "/sounds/%E8%A2%AB%E5%8A%A0%E7%89%8C1.mp3";
 const DRAW_STACK_RESOLVE_SMALL_SOUND_PATH = "/sounds/%E8%A2%AB%E5%8A%A0%E7%89%8C2.mp3";
+const BATTLE_TURN_SWEEP_MS = 1_150;
 const LOBBY_BACKGROUND_MUSIC_PATHS = [
   "/sounds/%E5%A4%A7%E5%8E%851.mp3",
   "/sounds/%E5%A4%A7%E5%8E%852.mp3",
@@ -464,13 +474,14 @@ const PENALTY_DRAW_OTHER_SOUND_VOLUME = 0.7;
 const DRAW_STACK_TARGET_SOUND_VOLUME = 1;
 const DRAW_STACK_OTHER_SOUND_VOLUME = 0.546;
 const DRAW_STACK_PLAY_SOUND_VOLUME = 0.936;
-const ELIMINATION_MUSIC_PATH = "/sounds/see-you-again-2x.mp3";
+const ELIMINATION_MUSIC_PATH = "/sounds/%E5%87%BA%E5%B1%80%E9%9F%B3%E6%95%88.mp3";
 const ELIMINATION_MUSIC_VOLUME = 0.34;
 let lobbyBackgroundMusic: HTMLAudioElement | null = null;
 let battleBackgroundMusic: HTMLAudioElement | null = null;
 let eliminationMusic: HTMLAudioElement | null = null;
 let eliminationMusicActive = false;
 let backgroundMusicUnlockInstalled = false;
+let updateLogDragState: { offsetX: number; offsetY: number } | null = null;
 
 if (root === null) {
   throw new Error("App root was not found.");
@@ -516,9 +527,11 @@ const state: AppState = {
   ruleModal: null,
   settingsModalOpen: false,
   settingsAdjustPanelOpen: false,
+  addBotMenuOpen: false,
   updateLogOpen: false,
   updateLogStatus: "idle",
   updateLogSections: [],
+  updateLogDialogPosition: null,
   uiScalePercent: readStoredUiScalePercent(UI_SCALE_STORAGE_KEY),
   backgroundMusicPercent: readStoredUiSettingPercent(BACKGROUND_MUSIC_STORAGE_KEY),
   soundEffectPercent: readStoredUiSettingPercent(SOUND_EFFECT_STORAGE_KEY),
@@ -531,12 +544,12 @@ const state: AppState = {
   handCardScalePercent: readStoredNumber(HAND_CARD_SCALE_STORAGE_KEY, 100, 60, 140),
   turnOrbitAnimationStartedAtMs: Date.now(),
   turnOrbitAnimationDirection: null,
+  battleTurnSweepStartedAtMs: null,
   uiToast: null,
   dismissedFinishedNoticeKey: null,
   snapshotRecoveryRoomId: null,
   roomCodeDigits: ["", "", "", "", "", ""],
   lobbyMode: "no-challenge",
-  selectedBotType: "strong",
   lobbyChatDraft: "",
   lobbyChatFeed: [],
 };
@@ -574,6 +587,9 @@ const wsClient = new WsClient({
   }
 });
 
+let globalLobbyInteractionsInstalled = false;
+installGlobalLobbyInteractions();
+
 render();
 installBackgroundMusicUnlock();
 connectUsingCurrentInputs();
@@ -610,6 +626,7 @@ function handleServerMessage(message: ServerMessage): void {
       syncRecentDrawnCards(previousSnapshot, snapshot);
       syncFlyingCardAnimation(snapshot);
       syncPenaltyDrawProgress(snapshot);
+      syncBattleTurnSweep(previousSnapshot, snapshot, message.playerId);
       state.roomId = message.roomId;
       state.playerId = message.playerId;
       state.snapshot = snapshot;
@@ -667,11 +684,13 @@ function render(): void {
   syncBackgroundMusic();
 
   appRoot.innerHTML = `
-    <main class="shell ${isBattleView ? "shell-battle" : ""}" style="${isBattleView ? "" : renderLobbyUiScaleStyle()}">
+    <main class="shell ${isBattleView ? "shell-battle" : ""}">
       ${
         isBattleView
           ? renderBattlePanel(snapshot)
           : `
+            <div class="lobby-scale-frame">
+              <div class="lobby-scale-content" data-testid="lobby-scale-content" style="${renderLobbyUiScaleStyle()}">
             ${renderLobbyStormBackdrop()}
             <section class="topbar">
               <span
@@ -700,10 +719,13 @@ function render(): void {
 
             ${renderToastPanel()}
             ${renderLobbyPanel()}
+              </div>
+            </div>
           `
       }
       ${renderRuleModal()}
       ${renderSettingsModal()}
+      ${renderUpdateLogDialog()}
       ${renderCardHoverTooltip()}
     </main>
   `;
@@ -1080,13 +1102,7 @@ function renderLobbyPanel(): string {
                 >离开房间</button>
                 ${room !== null && isHost
                   ? `
-                    ${renderAddBotTypeSelect(canAddBot)}
-                    <button
-                      id="add-bot-button"
-                      data-testid="add-bot-button"
-                      class="secondary room-add-bot-button ${canAddBot ? "is-active" : "is-inactive"}"
-                      ${canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`}
-                    >添加机器人</button>
+                    ${renderAddBotMenu(canAddBot, room)}
                   `
                   : room !== null
                     ? `
@@ -1110,8 +1126,8 @@ function renderLobbyPanel(): string {
               <div class="lobby-field lobby-mode-field">
                 <span>质疑模式</span>
                 <select id="mode">
-                  <option value="no-challenge" ${getLobbyMode() === "no-challenge" ? "selected" : ""}>无质疑</option>
-                  <option value="with-challenge" ${getLobbyMode() === "with-challenge" ? "selected" : ""}>有质疑</option>
+                  <option value="no-challenge" selected>无质疑</option>
+                  <option value="with-challenge" disabled>敬请期待</option>
                 </select>
               </div>
               <div class="lobby-room-status-pill ${room === null ? "is-alert" : readyStatusTone(room)}">
@@ -1490,7 +1506,10 @@ function renderLobbyMembersPanel(room: PlayerRoomSnapshot): string {
                     alt="${escapeHtml(player.displayName ?? player.playerId)}"
                   />
                   <div class="lobby-seat-text">
-                    <strong class="lobby-seat-name">${escapeHtml(player.displayName ?? player.playerId)}</strong>
+                    <strong
+                      class="lobby-seat-name"
+                      style="${escapeHtml(getLobbyPlayerNameStyle(player.displayName ?? player.playerId, "seat"))}"
+                    >${escapeHtml(player.displayName ?? player.playerId)}</strong>
                     <small class="lobby-seat-status">${escapeHtml(getRoomPlayerReadyLabel(player))}</small>
                   </div>
                 </div>
@@ -1554,7 +1573,7 @@ function renderLobbyChatFeed(room: PlayerRoomSnapshot | null): string {
                     alt="${escapeHtml(entry.speakerName)}"
                   />
                   <div class="lobby-feed-bubble-wrap">
-                    <strong>${escapeHtml(entry.speakerName)}</strong>
+                    <strong class="lobby-feed-speaker">${escapeHtml(entry.speakerName)}</strong>
                     <div class="lobby-feed-bubble">${escapeHtml(entry.text)}</div>
                   </div>
                 </div>
@@ -1568,6 +1587,59 @@ function renderLobbyChatFeed(room: PlayerRoomSnapshot | null): string {
 
 function appendLobbyChatDraft(nextValue: string): void {
   state.lobbyChatDraft = nextValue.slice(0, 30);
+}
+
+function getLobbyPlayerNameStyle(
+  name: string,
+  variant: "seat" | "compact"
+): string {
+  const length = Array.from(name.trim()).length;
+  const sizeRem =
+    variant === "seat"
+      ? getLobbySeatNameFontSizeRem(length)
+      : getLobbyCompactNameFontSizeRem(length);
+
+  return `--lobby-player-name-size: ${sizeRem.toFixed(2)}rem;`;
+}
+
+function getLobbySeatNameFontSizeRem(length: number): number {
+  if (length <= 4) {
+    return 1.08;
+  }
+
+  if (length <= 6) {
+    return 1.00;
+  }
+
+  if (length <= 8) {
+    return 0.90;
+  }
+
+  if (length <= MAX_PLAYER_NICKNAME_LENGTH) {
+    return 0.78;
+  }
+
+  return 0.72;
+}
+
+function getLobbyCompactNameFontSizeRem(length: number): number {
+  if (length <= 4) {
+    return 0.98;
+  }
+
+  if (length <= 6) {
+    return 0.90;
+  }
+
+  if (length <= 8) {
+    return 0.82;
+  }
+
+  if (length <= MAX_PLAYER_NICKNAME_LENGTH) {
+    return 0.72;
+  }
+
+  return 0.68;
 }
 
 function focusLobbyChatInput(): void {
@@ -1710,8 +1782,7 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
       ${
         isHost
           ? `<div class="room-meta-actions">
-              ${renderAddBotTypeSelect(canAddBot)}
-              <button id="add-bot-button" data-testid="add-bot-button" class="secondary room-add-bot-button" ${canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`}>添加机器人</button>
+              ${renderAddBotMenu(canAddBot, room)}
             </div>`
           : ""
       }
@@ -1731,7 +1802,7 @@ function renderRoomState(room: PlayerRoomSnapshot): string {
               src="${escapeHtml(resolvePlayerAvatar(player.playerId, player.avatarUrl))}"
               alt="${escapeHtml(player.displayName ?? player.playerId)}"
             />
-            <span>${escapeHtml(player.displayName ?? player.playerId)}</span>
+            <span style="${escapeHtml(getLobbyPlayerNameStyle(player.displayName ?? player.playerId, "compact"))}">${escapeHtml(player.displayName ?? player.playerId)}</span>
           </div>
         `)
         .join("")}
@@ -1883,17 +1954,50 @@ function getAddBotDisabledReason(room: PlayerRoomSnapshot): string {
   return "当前不能添加机器人。";
 }
 
-function renderAddBotTypeSelect(canAddBot: boolean): string {
+function renderAddBotMenu(canAddBot: boolean, room: PlayerRoomSnapshot): string {
+  const disabledAttrs = canAddBot ? "" : `disabled title="${escapeHtml(getAddBotDisabledReason(room))}"`;
+
   return `
-    <select
-      class="room-add-bot-select"
-      data-testid="add-bot-type-select"
-      data-add-bot-type-select="true"
-      ${canAddBot ? "" : "disabled"}
-    >
-      <option value="strong" ${state.selectedBotType === "strong" ? "selected" : ""}>最强bot</option>
-      <option value="chaos" ${state.selectedBotType === "chaos" ? "selected" : ""}>混沌bot</option>
-    </select>
+    <div class="add-bot-menu" data-add-bot-menu-root="true">
+      <button
+        id="add-bot-menu-button"
+        type="button"
+        data-testid="add-bot-menu-button"
+        class="secondary add-bot-menu-button ${canAddBot ? "is-active" : "is-inactive"}"
+        aria-expanded="${state.addBotMenuOpen ? "true" : "false"}"
+        ${disabledAttrs}
+      >添加机器人</button>
+      ${
+        state.addBotMenuOpen && canAddBot
+          ? `
+            <div class="add-bot-menu-panel" data-testid="add-bot-menu-panel">
+              ${renderAddBotMenuRow("strong", "最强bot", canAddBot)}
+              ${renderAddBotMenuRow("chaos", "混沌bot", canAddBot)}
+            </div>
+          `
+          : ""
+      }
+    </div>
+  `;
+}
+
+function renderAddBotMenuRow(
+  botType: "strong" | "chaos",
+  label: string,
+  canAddBot: boolean
+): string {
+  return `
+    <div class="add-bot-menu-row" data-testid="add-bot-menu-row">
+      <span class="add-bot-menu-label">${escapeHtml(label)}</span>
+      <button
+        type="button"
+        class="secondary add-bot-menu-add-button"
+        data-add-bot-type="${botType}"
+        ${canAddBot ? "" : "disabled"}
+        aria-label="添加${escapeHtml(label)}"
+        title="添加${escapeHtml(label)}"
+      >+</button>
+    </div>
   `;
 }
 
@@ -1939,6 +2043,8 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
   });
   const challengePrompt = getVisibleChallengePrompt(snapshot, isConnected, isGameFinished);
   const initialDirectionModal = renderInitialDirectionChoiceModal(snapshot, isConnected);
+  const battleTurnSweepActive = isBattleTurnSweepActive();
+  const battleTurnSweepStyle = renderBattleTurnSweepStyle();
 
   return `
     <section
@@ -1993,7 +2099,10 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
           ${challengePrompt === null ? "" : renderChallengePrompt(snapshot, challengePrompt)}
           ${renderSelfSeat(snapshot)}
         </div>
-        <div class="battle-action-dock">
+        <div
+          class="battle-action-dock ${battleTurnSweepActive ? "turn-sweep-active" : ""}"
+          ${battleTurnSweepStyle === "" ? "" : `style="${escapeHtml(battleTurnSweepStyle)}"`}
+        >
           <div class="actions ${canTakeTurnAction ? "is-active" : ""}">
             <button
               id="say-uno-button"
@@ -3035,8 +3144,8 @@ function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): strin
 }
 
 function renderBattleUiScaleStyle(): string {
-  const scale = state.uiScalePercent / 100;
-  const inverseScale = 100 / state.uiScalePercent;
+  const scale = (state.uiScalePercent / 100) * BATTLE_UI_BASE_SCALE;
+  const inverseScale = 1 / scale;
 
   return [
     `--battle-ui-scale: ${scale.toFixed(2)}`,
@@ -3049,7 +3158,10 @@ function renderBattleUiScaleStyle(): string {
 }
 
 function renderLobbyUiScaleStyle(): string {
-  return `--lobby-ui-scale: ${(state.uiScalePercent / 100).toFixed(2)}`;
+  return [
+    `--lobby-ui-scale: ${(state.uiScalePercent / 100).toFixed(2)}`,
+    `--lobby-ui-scale-inverse: ${(100 / state.uiScalePercent).toFixed(2)}`
+  ].join("; ");
 }
 
 function renderCardHoverTooltip(): string {
@@ -3079,8 +3191,10 @@ function renderSettingsModal(): string {
         ${renderUiScaleSegment("UI 缩放", state.uiScalePercent)}
         ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
         ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
-        <div class="settings-contact-line" id="settings-contact-content">QQ：2753345388</div>
-        ${renderSettingsUpdateLogBlock()}
+        <div class="settings-contact-row">
+          <div class="settings-contact-line" id="settings-contact-content">QQ：2753345388</div>
+          ${renderSettingsUpdateLogBlock()}
+        </div>
         <button
           id="settings-adjust-toggle-button"
           ${isBattleSettings ? "" : "hidden"}
@@ -3102,7 +3216,7 @@ function renderSettingsUpdateLogBlock(): string {
         class="secondary settings-update-log-button ${state.updateLogOpen ? "active" : ""}"
         aria-expanded="${state.updateLogOpen ? "true" : "false"}"
         aria-controls="settings-update-log-panel"
-      >日志</button>
+      >更新日志</button>
       ${state.updateLogOpen ? renderSettingsUpdateLogPanel() : ""}
     </div>
   `;
@@ -3138,6 +3252,39 @@ function renderSettingsUpdateLogPanel(): string {
       ${content}
     </div>
   `;
+}
+
+function renderUpdateLogDialog(): string {
+  if (!state.updateLogOpen) {
+    return "";
+  }
+
+  return `
+    <div class="update-log-backdrop" data-update-log-backdrop="true">
+      <section class="update-log-dialog" data-testid="update-log-dialog" style="${renderUpdateLogDialogStyle()}">
+        <header class="update-log-dialog-header" data-update-log-drag-handle="true">
+          <div class="update-log-dialog-title-wrap">
+            <span class="update-log-dialog-dragbar" aria-hidden="true"></span>
+            <strong>更新日志</strong>
+          </div>
+          <button id="close-update-log-button" class="secondary update-log-dialog-close" aria-label="关闭更新日志">×</button>
+        </header>
+        ${renderSettingsUpdateLogPanel()}
+      </section>
+    </div>
+  `;
+}
+
+function renderUpdateLogDialogStyle(): string {
+  if (state.updateLogDialogPosition === null) {
+    return "";
+  }
+
+  return [
+    `left: ${String(state.updateLogDialogPosition.left)}px`,
+    `top: ${String(state.updateLogDialogPosition.top)}px`,
+    "transform: none"
+  ].join("; ");
 }
 
 async function loadUpdateLog(): Promise<void> {
@@ -3817,13 +3964,13 @@ function getSpecialCardRuleText(card: Card): string | null {
     case "wild":
       return "变色牌：打出后指定下一轮颜色。";
     case "penalty-draw":
-      return "罚抽牌：指定颜色后，下家一直摸到目标颜色。";
+      return "罚抽牌：指定颜色后，下家一直摸到目标颜色；罚抽叠加罚抽。";
     case "wild-reverse-draw-four":
       return "反转 +4：反转方向并把加牌压力打向上一家。";
     case "wild-draw-six":
       return "变色 +6：可叠加加牌链，下一家累计摸牌。";
     case "wild-draw-ten":
-      return "变色 +10：强力加牌牌，可抵消已有 +10 压力。";
+      return "变色 +10：强力加牌牌；+10叠加+10，也可抵消已有 +10 压力。";
     case "draw-four":
       return "普通 +4：只能接普通 +4 加牌链。";
     case "draw-two":
@@ -5043,6 +5190,87 @@ function syncPenaltyDrawProgress(snapshot: PlayerGameSnapshot): void {
   };
 }
 
+function syncBattleTurnSweep(
+  previousSnapshot: PlayerGameSnapshot | null,
+  nextSnapshot: PlayerGameSnapshot,
+  viewerPlayerId: PlayerId
+): void {
+  if (!canShowBattleTurnSweep(nextSnapshot, viewerPlayerId)) {
+    clearBattleTurnSweep(false);
+    return;
+  }
+
+  if (previousSnapshot !== null && previousSnapshot.currentPlayerId === viewerPlayerId) {
+    return;
+  }
+
+  startBattleTurnSweep();
+}
+
+function canShowBattleTurnSweep(
+  snapshot: PlayerGameSnapshot,
+  viewerPlayerId: PlayerId
+): boolean {
+  return (
+    snapshot.currentPlayerId === viewerPlayerId &&
+    snapshot.status !== "finished" &&
+    !snapshot.roundDecisionPending &&
+    !snapshot.initialDirectionChoice.active &&
+    !snapshot.self.isEliminated &&
+    !snapshot.self.isRoundWinner
+  );
+}
+
+function startBattleTurnSweep(): void {
+  const startedAtMs = Date.now();
+
+  if (battleTurnSweepClearTimer !== null) {
+    window.clearTimeout(battleTurnSweepClearTimer);
+  }
+
+  state.battleTurnSweepStartedAtMs = startedAtMs;
+  battleTurnSweepClearTimer = window.setTimeout(() => {
+    if (state.battleTurnSweepStartedAtMs === startedAtMs) {
+      state.battleTurnSweepStartedAtMs = null;
+      battleTurnSweepClearTimer = null;
+      render();
+    }
+  }, BATTLE_TURN_SWEEP_MS + 40);
+}
+
+function clearBattleTurnSweep(shouldRender = false): void {
+  if (battleTurnSweepClearTimer !== null) {
+    window.clearTimeout(battleTurnSweepClearTimer);
+    battleTurnSweepClearTimer = null;
+  }
+
+  if (state.battleTurnSweepStartedAtMs === null) {
+    return;
+  }
+
+  state.battleTurnSweepStartedAtMs = null;
+
+  if (shouldRender) {
+    render();
+  }
+}
+
+function isBattleTurnSweepActive(): boolean {
+  return (
+    state.battleTurnSweepStartedAtMs !== null &&
+    Date.now() - state.battleTurnSweepStartedAtMs < BATTLE_TURN_SWEEP_MS
+  );
+}
+
+function renderBattleTurnSweepStyle(): string {
+  if (!isBattleTurnSweepActive() || state.battleTurnSweepStartedAtMs === null) {
+    return "";
+  }
+
+  const elapsedMs = Math.max(0, Date.now() - state.battleTurnSweepStartedAtMs);
+  return `--battle-turn-sweep-delay-ms: -${String(elapsedMs)}ms;`;
+}
+
 function getPenaltyDrawDisplayIndex(
   event: Extract<GameEvent, { type: "cards-drawn" }>
 ): number {
@@ -5869,6 +6097,7 @@ function renameCurrentPlayer(): void {
 
   const nicknameInput = document.querySelector<HTMLInputElement>("#nickname");
   const nickname = nicknameInput?.value.trim() ?? "";
+  const nicknameLength = getNicknameCharacterCount(nickname);
 
   if (nickname.length === 0) {
     showToast("昵称不能为空。", "warning");
@@ -5876,7 +6105,7 @@ function renameCurrentPlayer(): void {
     return;
   }
 
-  if (nickname.length > MAX_PLAYER_NICKNAME_LENGTH) {
+  if (nicknameLength > MAX_PLAYER_NICKNAME_LENGTH) {
     showToast(`昵称不能超过 ${String(MAX_PLAYER_NICKNAME_LENGTH)} 字。`, "warning");
     render();
     return;
@@ -5898,7 +6127,7 @@ function bindLobbyPanel(): void {
   bindRoomCodeInputs();
 
   document.querySelector("#create-room-button")?.addEventListener("click", () => {
-    const mode = readSelectValue("#mode", state.lobbyMode) as GameMode;
+    const mode: GameMode = "no-challenge";
     state.lobbyMode = mode;
     const message = buildCreateRoomMessage({
       userId: state.userId,
@@ -5914,7 +6143,8 @@ function bindLobbyPanel(): void {
       return;
     }
 
-    state.nickname = input.value;
+    state.nickname = ensureNicknameValue(input.value);
+    input.value = state.nickname;
   });
 
   document.querySelector("#mode")?.addEventListener("change", (event) => {
@@ -5923,7 +6153,8 @@ function bindLobbyPanel(): void {
       return;
     }
 
-    state.lobbyMode = select.value === "with-challenge" ? "with-challenge" : "no-challenge";
+    select.value = "no-challenge";
+    state.lobbyMode = "no-challenge";
     render();
   });
 
@@ -5981,20 +6212,22 @@ function bindLobbyPanel(): void {
     );
   });
 
-  document
-    .querySelectorAll<HTMLSelectElement>("[data-add-bot-type-select]")
-    .forEach((select) => {
-      select.addEventListener("change", () => {
-        if (select.value === "strong" || select.value === "chaos") {
-          state.selectedBotType = select.value;
-          render();
-        }
-      });
+  document.querySelectorAll("#add-bot-menu-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.addBotMenuOpen = !state.addBotMenuOpen;
+      render();
     });
+  });
 
-  document.querySelectorAll("#add-bot-button").forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>("[data-add-bot-type]").forEach((button) => {
     button.addEventListener("click", () => {
       if (state.roomId === null || state.playerId === null) {
+        return;
+      }
+
+      const botType = button.dataset.addBotType;
+
+      if (botType !== "strong" && botType !== "chaos") {
         return;
       }
 
@@ -6002,9 +6235,10 @@ function bindLobbyPanel(): void {
         buildAddBotMessage({
           roomId: state.roomId,
           playerId: state.playerId,
-          botType: state.selectedBotType
+          botType
         })
       );
+      render();
     });
   });
 
@@ -6114,21 +6348,61 @@ function bindBattlePanel(): void {
     }
 
     state.settingsModalOpen = false;
+    closeUpdateLogDialog({ shouldRender: false });
     render();
   });
 
   document.querySelector("#close-settings-modal-button")?.addEventListener("click", () => {
     state.settingsModalOpen = false;
+    closeUpdateLogDialog({ shouldRender: false });
     render();
   });
 
   document.querySelector("#settings-update-log-button")?.addEventListener("click", () => {
     state.updateLogOpen = !state.updateLogOpen;
+    if (!state.updateLogOpen) {
+      state.updateLogDialogPosition = null;
+    }
     render();
 
     if (state.updateLogOpen && state.updateLogStatus !== "ready") {
       void loadUpdateLog();
     }
+  });
+
+  document.querySelector("[data-update-log-backdrop]")?.addEventListener("click", (event) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
+    closeUpdateLogDialog();
+  });
+
+  document.querySelector("#close-update-log-button")?.addEventListener("click", () => {
+    closeUpdateLogDialog();
+  });
+
+  document.querySelector("[data-update-log-drag-handle='true']")?.addEventListener("pointerdown", (event) => {
+    if (!(event instanceof PointerEvent)) {
+      return;
+    }
+
+    const dialog = document.querySelector<HTMLElement>("[data-testid='update-log-dialog']");
+
+    if (dialog === null) {
+      return;
+    }
+
+    const rect = dialog.getBoundingClientRect();
+    state.updateLogDialogPosition = {
+      left: rect.left,
+      top: rect.top
+    };
+    updateLogDragState = {
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top
+    };
+    render();
   });
 
   document.querySelector("#settings-adjust-toggle-button")?.addEventListener("click", () => {
@@ -7293,6 +7567,7 @@ function resetRoomContext(): void {
     unoProtectionRenderTimer = null;
   }
 
+  clearBattleTurnSweep(false);
   stopEliminationMusic();
   state.room = null;
   state.snapshot = null;
@@ -7315,6 +7590,8 @@ function resetRoomContext(): void {
   state.penaltyDrawProgress = null;
   state.eventModal = null;
   state.ruleModal = null;
+  state.updateLogOpen = false;
+  state.updateLogDialogPosition = null;
   state.lobbyChatFeed = [];
   state.lobbyChatDraft = "";
 
@@ -7330,6 +7607,7 @@ function returnToLobbyAfterLeavingBattle(
     unoProtectionRenderTimer = null;
   }
 
+  clearBattleTurnSweep(false);
   stopEliminationMusic();
   const preservedRoomCode =
     state.room !== null && state.room.roomId === roomId ? state.room.roomCode : roomId;
@@ -7543,6 +7821,66 @@ function readStoredUiScalePercent(key: string): UiScalePercent {
   return parseUiScalePercent(getStoredValue(key)) ?? DEFAULT_UI_SCALE_PERCENT;
 }
 
+function installGlobalLobbyInteractions(): void {
+  if (globalLobbyInteractionsInstalled) {
+    return;
+  }
+
+  globalLobbyInteractionsInstalled = true;
+  const closeAddBotMenu = (event: Event) => {
+    if (!state.addBotMenuOpen) {
+      return;
+    }
+
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    if (event.target.closest("[data-add-bot-menu-root='true']") !== null) {
+      return;
+    }
+
+    state.addBotMenuOpen = false;
+    render();
+  };
+
+  document.addEventListener("click", closeAddBotMenu);
+  window.addEventListener("click", closeAddBotMenu);
+  document.addEventListener("pointermove", (event) => {
+    if (updateLogDragState === null || state.updateLogOpen === false) {
+      return;
+    }
+
+    state.updateLogDialogPosition = {
+      left: event.clientX - updateLogDragState.offsetX,
+      top: event.clientY - updateLogDragState.offsetY
+    };
+
+    const dialog = document.querySelector<HTMLElement>("[data-testid='update-log-dialog']");
+
+    if (dialog !== null) {
+      dialog.style.left = `${String(state.updateLogDialogPosition.left)}px`;
+      dialog.style.top = `${String(state.updateLogDialogPosition.top)}px`;
+      dialog.style.transform = "none";
+    }
+  });
+  document.addEventListener("pointerup", () => {
+    updateLogDragState = null;
+  });
+}
+
+function closeUpdateLogDialog(
+  options: { shouldRender?: boolean } = {}
+): void {
+  state.updateLogOpen = false;
+  state.updateLogDialogPosition = null;
+  updateLogDragState = null;
+
+  if (options.shouldRender !== false) {
+    render();
+  }
+}
+
 function parseUiScalePercent(value: string | undefined | null): UiScalePercent | null {
   const parsed = parseVolumeSettingPercent(value);
 
@@ -7682,8 +8020,12 @@ function removeSessionStoredValue(key: string): void {
 }
 
 function ensureNicknameValue(value: string): string {
-  const trimmed = value.trim();
+  const trimmed = Array.from(value.trim()).slice(0, MAX_PLAYER_NICKNAME_LENGTH).join("");
   return trimmed.length === 0 ? createRandomNickname() : trimmed;
+}
+
+function getNicknameCharacterCount(value: string): number {
+  return Array.from(value).length;
 }
 
 function createRandomNickname(): string {

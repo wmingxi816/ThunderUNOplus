@@ -99,7 +99,7 @@ test("long nicknames keep lobby cards readable on mobile", async ({ browser }) =
 
   await expect(host.getByTestId("room-player")).toHaveCount(2);
   await expect(guest.getByTestId("room-player")).toHaveCount(2);
-  await expect(host.getByTestId("room-player").first()).toContainText("player-with-a-very-v");
+  await expect(host.getByTestId("room-player").first()).toContainText("player-wit");
   await expect(guest.getByTestId("room-player").nth(1)).toContainText("超级无敌霹雳长昵称");
   await expectNoHorizontalOverflow(host);
   await expectNoHorizontalOverflow(guest);

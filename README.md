@@ -92,123 +92,29 @@
 
 ## 本地启动
 
-需要先安装 Node.js 20.11 或更高版本，并启用 corepack。
+只保留最基础的本地运行方式。
 
-安装依赖：
-
+1. 安装依赖：
 ```bash
 corepack pnpm install
 ```
 
-启动服务端：
-
+2. 启动服务端：
 ```bash
 corepack pnpm --filter @thunder-uno/game-server dev
 ```
 
-启动网页端：
-
+3. 新开一个终端，启动网页端：
 ```bash
 corepack pnpm --filter @thunder-uno/client-web dev
 ```
 
-默认访问地址：
-
+4. 浏览器打开：
 ```txt
 http://localhost:5173
 ```
 
-默认 WebSocket 地址：
-
+默认情况下，网页端会连接：
 ```txt
 ws://localhost:8787
 ```
-
-如果网页端端口被占用，Vite 可能会自动改用 `5174` 等端口，以终端实际输出为准。
-
-## 局域网联机
-
-电脑和手机必须在同一个局域网内。
-
-服务端监听所有网卡：
-
-```bash
-HOST=0.0.0.0 PORT=8787 corepack pnpm --filter @thunder-uno/game-server dev
-```
-
-网页端监听所有网卡：
-
-```bash
-corepack pnpm --filter @thunder-uno/client-web dev -- --host 0.0.0.0
-```
-
-其他设备访问：
-
-```txt
-http://电脑局域网IP:5173?ws=电脑局域网IP:8787
-```
-
-示例：
-
-```txt
-http://192.168.1.23:5173?ws=192.168.1.23:8787
-```
-
-如果无法连接，优先检查：
-
-- 手机和电脑是否在同一局域网。
-- Windows 防火墙是否放行 5173 和 8787。
-- 网页 URL 里的 `?ws=` 是否指向正确电脑 IP。
-- 服务端是否真的启动在 8787。
-
-## 生产预览
-
-构建网页端：
-
-```bash
-corepack pnpm --filter @thunder-uno/client-web build
-```
-
-启动预览：
-
-```bash
-corepack pnpm --filter @thunder-uno/client-web preview
-```
-
-`preview` 默认端口通常是 4173：
-
-```txt
-http://localhost:4173
-```
-
-局域网访问时同样需要带上服务端地址：
-
-```txt
-http://电脑局域网IP:4173?ws=电脑局域网IP:8787
-```
-
-## 常见问题
-
-### 点击按钮没有反应
-
-先确认页面左上角连接状态是否为“已连接”。如果显示“重新连接”，说明网页端没有连上服务端。
-
-### 加入房间失败
-
-房间号必须是 6 位数字，并且服务端里确实存在该房间。确认房主没有关闭服务端或刷新导致房间丢失。
-
-### 添加机器人报 Unknown client message type
-
-这通常说明你连接的是旧服务端。关闭占用 8787 的旧 Node 进程后，重新启动服务端。
-
-### 别人打不开网页
-
-本机的 `localhost` 只能自己访问。其他设备要用电脑的局域网 IP，例如：
-
-```txt
-http://192.168.1.23:5173?ws=192.168.1.23:8787
-```
-
-### 规则和标准 UNO 不一样
-
-这是正常情况。《雷霆 UNOplus》使用自定义规则，尤其是加牌链、罚抽、同色丢弃、顺子、连对、质疑玩法都和标准 UNO 不同。

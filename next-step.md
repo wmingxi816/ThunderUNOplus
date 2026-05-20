@@ -11,7 +11,7 @@
 涉及 5 个子系统：
 
 - 房主淘汰/离房后的弹窗与房主顺位
-- 罚抽音效与淘汰音乐
+- 罚抽音效与出局音效
 - 机器人入口与独立策略层
 - 设置里的更新日志入口
 - README 规则差异版说明
@@ -20,7 +20,7 @@
 ### 阶段 1：先补测试
 - 客户端 smoke：
   - `apps/client-web/src/smoke/appBoot.test.ts`
-  - 覆盖非房主等待房主决策、房主重开/继续按钮、房主淘汰离房后的新房主切换、更新日志面板、`update-log.md` 成功/失败、bot 类型下拉、罚抽减速音效关闭 `preservesPitch`、淘汰音乐只启动一次并在继续/重开/离房后停止。
+  - 覆盖非房主等待房主决策、房主重开/继续按钮、房主淘汰离房后的新房主切换、更新日志面板、`update-log.md` 成功/失败、bot 类型下拉、罚抽减速音效关闭 `preservesPitch`、出局音效只启动一次并在继续/重开/离房后停止。
 - 前端 e2e：
   - `apps/client-web/e2e/round-decision-host-transfer.spec.ts`
   - 覆盖房主顺移后的弹窗控制切换，以及设置里的更新日志按钮与面板。
@@ -58,10 +58,10 @@
 - 自动继续成功后，等待弹窗自动关闭。
 - 房主顺移后，客户端依据新的 `hostPlayerId` 立即切换弹窗内容。
 
-### 3. 音频与淘汰音乐
+### 3. 音频与出局音效
 - 罚抽减速播放前统一关闭 `preservesPitch` / `webkitPreservesPitch` / `mozPreservesPitch`。
 - 自己被罚抽音量调整为 `1.0`，他人被罚抽音量调整为 `0.85`。
-- `apps/client-web/public/sounds/see-you-again-2x.mp3` 作为淘汰音乐资源，首次收到本轮 `player-eliminated` 时启动，循环播放，跟随背景音乐音量。
+- `apps/client-web/public/sounds/出局音效.mp3` 作为出局音效资源，首次收到本轮 `player-eliminated` 时启动，循环播放，跟随背景音乐音量。
 - 继续游戏、重开、离房、自动继续成功时停止并重置。
 
 ### 4. 机器人入口与协议
@@ -89,7 +89,7 @@
 - `dispatchBotStrategy()` 正确分发 `greedy-v1` / `chaos-v1`。
 - `chaosStrategy` 的关键规则可命中，且无命中时回退到 greedy。
 - 更新日志按钮、面板和 `update-log.md` 加载行为正确。
-- 淘汰音乐与罚抽减速音效的生命周期正确。
+- 出局音效与罚抽减速音效的生命周期正确。
 
 ## README 更新要求
 - 保留 `快速开始 / 本地启动 / 局域网联机 / 生产预览 / 常见问题` 主结构。

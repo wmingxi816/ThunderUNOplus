@@ -44,7 +44,7 @@ interface RoomManagerOptions {
 
 const MIN_ROOM_PLAYER_COUNT = 3;
 const MAX_ROOM_PLAYER_COUNT = 8;
-const MAX_PLAYER_NICKNAME_LENGTH = 20;
+const MAX_PLAYER_NICKNAME_LENGTH = 10;
 const BOT_FORGET_UNO_RATE = 0.2;
 const CUSTOM_ROOM_ID_PATTERN = /^\d{6}$/;
 const ROOM_AVATAR_POOL = Array.from(
@@ -393,7 +393,7 @@ export class RoomManager {
     player.hasLeftRoom = false;
     player.isReady =
       player.playerId === room.ownerPlayerId ? true : player.isReady;
-    player.nickname = params.nickname;
+    player.nickname = this.normalizeNickname(params.nickname, room.roomId);
     player.avatarUrl = params.avatarUrl ?? player.avatarUrl;
 
     const gamePlayer = room.gameState?.players.find(
@@ -468,15 +468,7 @@ export class RoomManager {
       );
     }
 
-    const nickname = params.nickname.trim();
-
-    if (nickname.length === 0 || nickname.length > MAX_PLAYER_NICKNAME_LENGTH) {
-      throw new GameServerError(
-        "invalid-nickname",
-        `Nickname must be between 1 and ${String(MAX_PLAYER_NICKNAME_LENGTH)} characters.`,
-        params.roomId
-      );
-    }
+    const nickname = this.normalizeNickname(params.nickname, params.roomId);
 
     player.nickname = nickname;
 
@@ -534,7 +526,7 @@ export class RoomManager {
       playerId: this.createPlayerId(),
       connectionId: null,
       seatIndex: room.players.length,
-      nickname: `${isChaosBot ? "混沌bot" : "最强bot"}${String(botIndex)}`,
+      nickname: isChaosBot ? "混沌bot" : "最强bot",
       avatarUrl: this.resolveAvatarUrl(room.players, null),
       connected: true,
       hasLeftRoom: false,
@@ -893,12 +885,14 @@ export class RoomManager {
     avatarUrl: string | null;
     joinedAt: number;
   }): ServerRoomPlayer {
+    const nickname = this.normalizeNickname(params.nickname);
+
     return {
       userId: params.userId,
       playerId: this.createPlayerId(),
       connectionId: params.connectionId,
       seatIndex: params.seatIndex,
-      nickname: params.nickname,
+      nickname,
       avatarUrl: params.avatarUrl,
       connected: true,
       hasLeftRoom: false,
@@ -906,6 +900,21 @@ export class RoomManager {
       joinedAt: params.joinedAt,
       isBot: false
     };
+  }
+
+  private normalizeNickname(nickname: string, roomId?: string): string {
+    const trimmed = nickname.trim();
+    const nicknameLength = Array.from(trimmed).length;
+
+    if (nicknameLength === 0 || nicknameLength > MAX_PLAYER_NICKNAME_LENGTH) {
+      throw new GameServerError(
+        "invalid-nickname",
+        `Nickname must be between 1 and ${String(MAX_PLAYER_NICKNAME_LENGTH)} characters.`,
+        roomId
+      );
+    }
+
+    return trimmed;
   }
 
   private resolveAvatarUrl(

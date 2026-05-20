@@ -543,19 +543,19 @@ describe("messageHandler", () => {
         requestId: "req-rename-1",
         roomId: fixture.room.roomId,
         playerId: player.playerId,
-        nickname: "Renamed Player",
+        nickname: "改名成功",
         timestampMs: 1000
       }),
       roomManager: fixture.roomManager,
       connectionRegistry: fixture.connectionRegistry
     });
 
-    expect(player.nickname).toBe("Renamed Player");
+    expect(player.nickname).toBe("改名成功");
     expect(connection.sentMessages.some((message) => {
       return message.type === "room-state" &&
         message.room.players.some((roomPlayer) => {
           return roomPlayer.playerId === player.playerId &&
-            roomPlayer.displayName === "Renamed Player";
+            roomPlayer.displayName === "改名成功";
         });
     })).toBe(true);
   });
