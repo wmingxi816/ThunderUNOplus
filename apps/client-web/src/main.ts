@@ -276,6 +276,10 @@ const CHALLENGE_PROMPT_MS = 5_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
 const MAX_PLAYER_NICKNAME_LENGTH = 10;
+const DEFAULT_TURN_ORBIT_SCALE_PERCENT = 100;
+const DEFAULT_SEAT_Y_OFFSET_PERCENT = 0;
+const DEFAULT_BATTLE_TABLE_Y_OFFSET_PERCENT = 0;
+const DEFAULT_HAND_CARD_SCALE_PERCENT = 100;
 const MAX_DISCARD_LAYOUT_CARDS = 15;
 const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
   {
@@ -538,10 +542,10 @@ const state: AppState = {
   backgroundMusicBeforeMutePercent: null,
   soundEffectBeforeMutePercent: null,
   showDebugGrid: readStoredBoolean(DEBUG_GRID_STORAGE_KEY),
-  turnOrbitScalePercent: readStoredNumber(TURN_ORBIT_SCALE_STORAGE_KEY, 100, 45, 145),
-  seatYOffsetPercent: readStoredNumber(SEAT_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
-  battleTableYOffsetPercent: readStoredNumber(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, 0, -30, 30),
-  handCardScalePercent: readStoredNumber(HAND_CARD_SCALE_STORAGE_KEY, 100, 60, 140),
+  turnOrbitScalePercent: readStoredNumber(TURN_ORBIT_SCALE_STORAGE_KEY, DEFAULT_TURN_ORBIT_SCALE_PERCENT, 45, 145),
+  seatYOffsetPercent: readStoredNumber(SEAT_Y_OFFSET_STORAGE_KEY, DEFAULT_SEAT_Y_OFFSET_PERCENT, -30, 30),
+  battleTableYOffsetPercent: readStoredNumber(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, DEFAULT_BATTLE_TABLE_Y_OFFSET_PERCENT, -30, 30),
+  handCardScalePercent: readStoredNumber(HAND_CARD_SCALE_STORAGE_KEY, DEFAULT_HAND_CARD_SCALE_PERCENT, 60, 140),
   turnOrbitAnimationStartedAtMs: Date.now(),
   turnOrbitAnimationDirection: null,
   battleTurnSweepStartedAtMs: null,
@@ -3152,7 +3156,7 @@ function renderBattleUiScaleStyle(): string {
     `--battle-ui-inverse-scale: ${inverseScale.toFixed(4)}`,
     `--turn-orbit-scale: ${(state.turnOrbitScalePercent / 100).toFixed(2)}`,
     `--battle-seat-y-offset: ${String(state.seatYOffsetPercent)}%`,
-    `--battle-table-adjust-y: ${String(state.battleTableYOffsetPercent)}%`,
+    `--battle-center-adjust-y: ${String(state.battleTableYOffsetPercent)}%`,
     `--hand-card-scale: ${(state.handCardScalePercent / 100).toFixed(2)}`
   ].join("; ");
 }
@@ -3183,28 +3187,28 @@ function renderSettingsModal(): string {
       aria-modal="true"
       aria-labelledby="settings-modal-title"
     >
-      <div class="settings-modal">
-        <div class="settings-modal-header">
-          <strong id="settings-modal-title">设置</strong>
-          <button id="close-settings-modal-button" class="secondary" aria-label="关闭设置">×</button>
+        <div class="settings-modal">
+          <div class="settings-modal-header">
+            <strong id="settings-modal-title">设置</strong>
+            <button id="close-settings-modal-button" class="secondary" aria-label="关闭设置">×</button>
+          </div>
+          ${renderUiScaleSegment("UI 缩放", state.uiScalePercent)}
+          ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
+          ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
+          <button
+            id="settings-adjust-toggle-button"
+            ${isBattleSettings ? "" : "hidden"}
+            class="secondary settings-adjust-toggle ${state.settingsAdjustPanelOpen ? "active" : ""}"
+            aria-expanded="${state.settingsAdjustPanelOpen ? "true" : "false"}"
+          >界面调整</button>
+          ${state.settingsAdjustPanelOpen ? renderInterfaceAdjustPanel() : ""}
+          <div class="settings-contact-row">
+            <div class="settings-contact-line" id="settings-contact-content">QQ：2753345388</div>
+            ${renderSettingsUpdateLogBlock()}
+          </div>
         </div>
-        ${renderUiScaleSegment("UI 缩放", state.uiScalePercent)}
-        ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
-        ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
-        <div class="settings-contact-row">
-          <div class="settings-contact-line" id="settings-contact-content">QQ：2753345388</div>
-          ${renderSettingsUpdateLogBlock()}
-        </div>
-        <button
-          id="settings-adjust-toggle-button"
-          ${isBattleSettings ? "" : "hidden"}
-          class="secondary settings-adjust-toggle ${state.settingsAdjustPanelOpen ? "active" : ""}"
-          aria-expanded="${state.settingsAdjustPanelOpen ? "true" : "false"}"
-        >界面调整</button>
-        ${state.settingsAdjustPanelOpen ? renderInterfaceAdjustPanel() : ""}
       </div>
-    </div>
-  `;
+    `;
 }
 
 function renderSettingsUpdateLogBlock(): string {
@@ -3215,14 +3219,17 @@ function renderSettingsUpdateLogBlock(): string {
         data-testid="settings-update-log-button"
         class="secondary settings-update-log-button ${state.updateLogOpen ? "active" : ""}"
         aria-expanded="${state.updateLogOpen ? "true" : "false"}"
-        aria-controls="settings-update-log-panel"
+        aria-haspopup="dialog"
+        aria-controls="update-log-dialog"
       >更新日志</button>
-      ${state.updateLogOpen ? renderSettingsUpdateLogPanel() : ""}
     </div>
   `;
 }
 
-function renderSettingsUpdateLogPanel(): string {
+function renderSettingsUpdateLogPanel(options?: {
+  id?: string;
+  testId?: string;
+}): string {
   const content =
     state.updateLogStatus === "loading"
       ? '<p class="settings-update-log-empty">加载中...</p>'
@@ -3245,8 +3252,8 @@ function renderSettingsUpdateLogPanel(): string {
 
   return `
     <div
-      id="settings-update-log-panel"
-      data-testid="settings-update-log-panel"
+      id="${escapeHtml(options?.id ?? "settings-update-log-panel")}"
+      data-testid="${escapeHtml(options?.testId ?? "settings-update-log-panel")}"
       class="settings-update-log-panel"
     >
       ${content}
@@ -3261,7 +3268,7 @@ function renderUpdateLogDialog(): string {
 
   return `
     <div class="update-log-backdrop" data-update-log-backdrop="true">
-      <section class="update-log-dialog" data-testid="update-log-dialog" style="${renderUpdateLogDialogStyle()}">
+      <section id="update-log-dialog" class="update-log-dialog" data-testid="update-log-dialog" style="${renderUpdateLogDialogStyle()}">
         <header class="update-log-dialog-header" data-update-log-drag-handle="true">
           <div class="update-log-dialog-title-wrap">
             <span class="update-log-dialog-dragbar" aria-hidden="true"></span>
@@ -3269,7 +3276,10 @@ function renderUpdateLogDialog(): string {
           </div>
           <button id="close-update-log-button" class="secondary update-log-dialog-close" aria-label="关闭更新日志">×</button>
         </header>
-        ${renderSettingsUpdateLogPanel()}
+        ${renderSettingsUpdateLogPanel({
+          id: "update-log-dialog-panel",
+          testId: "update-log-dialog-panel"
+        })}
       </section>
     </div>
   `;
@@ -3348,15 +3358,22 @@ function parseUpdateLogMarkdown(markdown: string): UpdateLogSection[] {
 function renderInterfaceAdjustPanel(): string {
   return `
     <div class="settings-adjust-panel">
-      <button
-        id="debug-grid-toggle-button"
-        class="secondary settings-grid-toggle ${state.showDebugGrid ? "active" : ""}"
-        aria-pressed="${state.showDebugGrid ? "true" : "false"}"
-      >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
+      <div class="settings-adjust-actions">
+        <button
+          id="debug-grid-toggle-button"
+          class="secondary settings-grid-toggle ${state.showDebugGrid ? "active" : ""}"
+          aria-pressed="${state.showDebugGrid ? "true" : "false"}"
+        >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
+        <button
+          id="settings-adjust-reset-button"
+          type="button"
+          class="secondary settings-reset-button"
+        >恢复默认</button>
+      </div>
       <fieldset class="settings-segment settings-slider-segment">
-        <legend>旋转图标上下</legend>
+        <legend>旋转图标大小</legend>
         <label class="settings-slider-row settings-orbit-slider-row" for="settings-turn-orbit-scale-slider">
-          <span class="settings-slider-icon" aria-hidden="true">↕</span>
+          <span class="settings-slider-icon" aria-hidden="true">↻</span>
           <input
             id="settings-turn-orbit-scale-slider"
             type="range"
@@ -3435,6 +3452,16 @@ function renderInterfaceAdjustSlider(params: {
       </label>
     </fieldset>
   `;
+}
+
+function resetInterfaceAdjustSettings(): void {
+  state.showDebugGrid = false;
+  setStoredValue(DEBUG_GRID_STORAGE_KEY, "false");
+  applyInterfaceAdjustSetting("turn-orbit-scale", DEFAULT_TURN_ORBIT_SCALE_PERCENT);
+  applyInterfaceAdjustSetting("seat-y", DEFAULT_SEAT_Y_OFFSET_PERCENT);
+  applyInterfaceAdjustSetting("battle-table-y", DEFAULT_BATTLE_TABLE_Y_OFFSET_PERCENT);
+  applyInterfaceAdjustSetting("hand-card-scale", DEFAULT_HAND_CARD_SCALE_PERCENT);
+  render();
 }
 
 function renderUiScaleSegment(
@@ -6416,6 +6443,10 @@ function bindBattlePanel(): void {
     render();
   });
 
+  document.querySelector("#settings-adjust-reset-button")?.addEventListener("click", () => {
+    resetInterfaceAdjustSettings();
+  });
+
   document.querySelectorAll<HTMLButtonElement>("[data-setting-button]").forEach((button) => {
     button.addEventListener("click", () => {
       const setting = button.dataset.settingButton;
@@ -6861,7 +6892,7 @@ function applyInterfaceAdjustSetting(setting: string | undefined, value: number)
     case "battle-table-y":
       state.battleTableYOffsetPercent = value;
       setStoredValue(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, String(value));
-      battleRoot?.style.setProperty("--battle-table-adjust-y", `${String(value)}%`);
+      battleRoot?.style.setProperty("--battle-center-adjust-y", `${String(value)}%`);
       break;
     case "hand-card-scale":
       state.handCardScalePercent = value;
