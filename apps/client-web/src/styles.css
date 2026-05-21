@@ -3173,7 +3173,9 @@ label span {
   z-index: 10005;
   width: min(30rem, calc(100vw - 2rem));
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0.65rem;
+  height: min(28rem, calc(100svh - 2rem));
   padding: 0.85rem;
   border: 1px solid rgba(125, 177, 255, 0.24);
   border-radius: 10px;
@@ -3182,6 +3184,7 @@ label span {
   box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(12px);
   transform: translate(-50%, -50%);
+  overflow: hidden;
 }
 
 .update-log-dialog-header {
@@ -3189,14 +3192,14 @@ label span {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  cursor: grab;
-  user-select: none;
 }
 
 .update-log-dialog-title-wrap {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  cursor: grab;
+  user-select: none;
 }
 
 .update-log-dialog-dragbar {
@@ -3215,14 +3218,32 @@ label span {
 
 .settings-update-log-panel {
   display: grid;
+  align-content: start;
   gap: 0.65rem;
   width: 100%;
+  min-height: 0;
   padding: 0.75rem;
   border: 1px solid rgba(125, 177, 255, 0.2);
   border-radius: 6px;
   background: rgba(125, 177, 255, 0.08);
   word-break: break-word;
   white-space: normal;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.settings-update-log-panel::-webkit-scrollbar {
+  width: 0.65rem;
+}
+
+.settings-update-log-panel::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.settings-update-log-panel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(201, 216, 234, 0.34);
 }
 
 .settings-update-log-section {

@@ -490,7 +490,7 @@ const DRAW_STACK_TARGET_SOUND_VOLUME = 1;
 const DRAW_STACK_OTHER_SOUND_VOLUME = 0.546;
 const DRAW_STACK_PLAY_SOUND_VOLUME = 0.936;
 const ELIMINATION_MUSIC_PATH = "/sounds/%E5%87%BA%E5%B1%80%E9%9F%B3%E6%95%88.mp3";
-const ELIMINATION_MUSIC_VOLUME = 0.34;
+const ELIMINATION_MUSIC_VOLUME = 0.8;
 const ELIMINATION_BACKGROUND_MUSIC_DUCK_FACTOR = 0.4;
 let lobbyBackgroundMusic: HTMLAudioElement | null = null;
 let battleBackgroundMusic: HTMLAudioElement | null = null;
@@ -3631,8 +3631,8 @@ function renderUpdateLogDialog(): string {
   return `
     <div class="update-log-backdrop" data-update-log-backdrop="true">
       <section id="update-log-dialog" class="update-log-dialog" data-testid="update-log-dialog" style="${renderUpdateLogDialogStyle()}">
-        <header class="update-log-dialog-header" data-update-log-drag-handle="true">
-          <div class="update-log-dialog-title-wrap">
+        <header class="update-log-dialog-header">
+          <div class="update-log-dialog-title-wrap" data-update-log-drag-handle="true">
             <span class="update-log-dialog-dragbar" aria-hidden="true"></span>
             <strong>更新日志</strong>
           </div>
@@ -3714,7 +3714,9 @@ function parseUpdateLogMarkdown(markdown: string): UpdateLogSection[] {
     }
   }
 
-  return sections.filter((section) => section.title.length > 0 && section.items.length > 0);
+  return sections
+    .filter((section) => section.title.length > 0 && section.items.length > 0)
+    .sort((left, right) => right.title.localeCompare(left.title, "zh-CN"));
 }
 
 function renderInterfaceAdjustPanel(): string {

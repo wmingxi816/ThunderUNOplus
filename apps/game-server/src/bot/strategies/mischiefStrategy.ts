@@ -9,6 +9,7 @@ import type {
 import { CARD_COLORS, canStackDrawCard, isDrawCard } from "@thunder-uno/uno-core";
 import { generateBotCandidates, type BotCandidateAction } from "../botCandidates";
 import {
+  shouldPrioritizeDrawTenSelfRescue,
   scoreBotCandidates,
   type BotScoringWeights,
   type ScoredBotAction
@@ -24,12 +25,16 @@ const MISCHIEF_DRAW_CHAIN_HUMAN_SCORE = 1_900;
 const MISCHIEF_DRAW_CHAIN_CURRENT_CARD_WEIGHT = 150;
 const MISCHIEF_DRAW_CHAIN_TOTAL_PRESSURE_WEIGHT = 20;
 const MISCHIEF_DRAW_CHAIN_STABILITY_WEIGHT = 45;
-const MISCHIEF_DRAW_CHAIN_RELAY_TEAM_BONUS = 220;
+const MISCHIEF_DRAW_CHAIN_RELAY_TEAM_BONUS = 340;
 const MISCHIEF_DRAW_CHAIN_ROBOT_PENALTY_FACTOR = 210;
 const MISCHIEF_PENALTY_DRAW_HUMAN_SCORE = 1_700;
 const MISCHIEF_PENALTY_DRAW_HANDCOUNT_WEIGHT = 42;
-const MISCHIEF_PENALTY_DRAW_RELAY_TEAM_BONUS = 180;
+const MISCHIEF_PENALTY_DRAW_RELAY_TEAM_BONUS = 280;
 const MISCHIEF_PENALTY_DRAW_ROBOT_PENALTY = 950;
+const MISCHIEF_UPSTREAM_DRAW_TWO_HUMAN_PRESSURE = 360;
+const MISCHIEF_UPSTREAM_DRAW_FOUR_HUMAN_PRESSURE = 430;
+const MISCHIEF_UPSTREAM_DRAW_RELAY_BONUS = 180;
+const MISCHIEF_UPSTREAM_DRAW_ROBOT_TRAP_PENALTY = 1_420;
 const MISCHIEF_HUMAN_MISSING_COLOR_SCORE = 240;
 const MISCHIEF_HUMAN_UNIQUE_MISSING_COLOR_BONUS = 90;
 const MISCHIEF_SELF_CARD_REDUCTION_SCORE = 220;
@@ -110,6 +115,24 @@ interface ThreatScoreSummary {
   total: number;
   highestSingle: number;
   handCount: number;
+}
+
+interface SwapHandsSimulationEntry {
+  playerId: PlayerId;
+  isHuman: boolean;
+  beforeHand: readonly Card[];
+  afterHand: readonly Card[];
+  beforeHandCount: number;
+  afterHandCount: number;
+}
+
+interface SwapHandsSimulation {
+  players: SwapHandsSimulationEntry[];
+}
+
+interface UpstreamDrawPressureAnalysis {
+  bonus: number;
+  reasons: string[];
 }
 
 export function decideMischiefBotAction(
@@ -301,8 +324,11 @@ function analyzeMischiefCandidate(
     playedCard.kind === "wild-draw-ten" &&
     state.drawStack.active &&
     state.drawStack.previousDrawKind === "wild-draw-ten";
+  const shouldSelfRescueDrawTen =
+    isDrawTenCancellation &&
+    shouldPrioritizeDrawTenSelfRescue(state, playerId);
 
-  if (isDrawTenCancellation) {
+  if (shouldSelfRescueDrawTen) {
     selfScore += state.drawStack.amount * MISCHIEF_SELF_DRAW_STACK_ESCAPE_WEIGHT;
     reasons.push("mischief:self:draw-ten-cancel");
   }
@@ -338,6 +364,7 @@ function analyzeMischiefCandidate(
   if (playedCard.kind === "swap-hands") {
     const humanThreat = summarizeThreatByGroup(state, playerId, "human");
     const robotThreat = summarizeThreatByGroup(state, playerId, "robot");
+    const swapSimulation = simulateSwapHandsOutcome(state, playerId, playedCard.id);
 
     if (humanThreat !== null && humanThreat.total > 0) {
       const swapThreatScore = getSwapHandsHumanThreatScore(humanThreat);
@@ -346,6 +373,13 @@ function analyzeMischiefCandidate(
         humanAttackScore += swapThreatScore;
         reasons.push("mischief:swap-human-big-black");
       }
+    }
+
+    if (swapSimulation !== null) {
+      const swing = scoreSwapHandsHumanSwing(swapSimulation);
+      humanAttackScore += swing.humanAttackDelta;
+      teamScore += swing.teamDelta;
+      reasons.push(...swing.reasons);
     }
 
     if (robotThreat !== null && robotThreat.total > 0) {
@@ -395,6 +429,7 @@ function analyzeMischiefCandidate(
 
   if (isDrawCard(playedCard) && !isDrawTenCancellation) {
     const drawChainOutcome = analyzeDrawChain(state, playerId, playedCard, candidate.declaredColor);
+    const upstreamPressure = analyzeHumanUpstreamDrawPressure(state, playerId, playedCard);
 
     if (drawChainOutcome !== null) {
       const safeDrawValue = drawValue ?? 0;
@@ -413,9 +448,19 @@ function analyzeMischiefCandidate(
     } else if (immediateTarget?.isBot === true && drawValue !== null) {
       teamScore -= drawValue * MISCHIEF_DRAW_CHAIN_ROBOT_PENALTY_FACTOR;
       reasons.push("mischief:avoid-draw-chain-robot");
-    } else if (isHumanPlayer(immediateTarget) && drawValue !== null) {
+    } else if (
+      isHumanPlayer(immediateTarget) &&
+      drawValue !== null &&
+      playedCard.kind !== "draw-two" &&
+      playedCard.kind !== "draw-four"
+    ) {
       humanAttackScore += drawValue * 55;
       reasons.push("mischief:draw-pressure-human");
+    }
+
+    if (upstreamPressure.bonus !== 0) {
+      teamScore += upstreamPressure.bonus;
+      reasons.push(...upstreamPressure.reasons);
     }
   }
 
@@ -443,7 +488,7 @@ function analyzeMischiefCandidate(
   if (
     !isDirectWinningAction(scoredAction, playerId) &&
     humanAttackScore <= 0 &&
-    !isDrawTenCancellation
+    !shouldSelfRescueDrawTen
   ) {
     selfScore -= getPunishReserveCost(playedCard);
   }
@@ -530,7 +575,7 @@ function isDirectWinningAction(
 
 function getNonPlaySelfScore(
   state: GameState,
-  _player: GameState["players"][number],
+  player: GameState["players"][number],
   _resultingPlayer: GameState["players"][number],
   candidate: BotCandidateAction,
   scoredAction: ScoredBotAction
@@ -539,7 +584,9 @@ function getNonPlaySelfScore(
     case "keep-drawn-card":
       return MISCHIEF_SELF_KEEP_DRAWN_SCORE + Math.round(scoredAction.score * 0.04);
     case "resolve-draw-stack":
-      return -state.drawStack.amount * MISCHIEF_SELF_DRAW_STACK_ESCAPE_WEIGHT;
+      return hasManageableDrawTenCancellation(state, player.id)
+        ? 0
+        : -state.drawStack.amount * MISCHIEF_SELF_DRAW_STACK_ESCAPE_WEIGHT;
     case "resolve-draw-until-color":
       return -MISCHIEF_SELF_DRAW_UNTIL_COLOR_ESCAPE_SCORE;
     case "draw-card":
@@ -547,6 +594,16 @@ function getNonPlaySelfScore(
     default:
       return 0;
   }
+}
+
+function hasManageableDrawTenCancellation(state: GameState, playerId: PlayerId): boolean {
+  return (
+    state.drawStack.active &&
+    state.drawStack.previousDrawKind === "wild-draw-ten" &&
+    state.drawStack.targetPlayerId === playerId &&
+    !shouldPrioritizeDrawTenSelfRescue(state, playerId) &&
+    state.players.find((candidate) => candidate.id === playerId)?.hand.some((card) => card.kind === "wild-draw-ten") === true
+  );
 }
 
 function getPlayCardSelfScore(
@@ -557,6 +614,12 @@ function getPlayCardSelfScore(
   scoredAction: ScoredBotAction,
   playedCard: Card
 ): number {
+  const isManageableDrawTenCancellation =
+    playedCard.kind === "wild-draw-ten" &&
+    state.drawStack.active &&
+    state.drawStack.previousDrawKind === "wild-draw-ten" &&
+    state.drawStack.targetPlayerId === player.id &&
+    !shouldPrioritizeDrawTenSelfRescue(state, player.id);
   let score =
     (player.handCount - resultingPlayer.handCount) * MISCHIEF_SELF_CARD_REDUCTION_SCORE +
     Math.round(scoredAction.score * 0.06);
@@ -567,7 +630,11 @@ function getPlayCardSelfScore(
     score += MISCHIEF_SELF_TWO_CARDS_SCORE;
   }
 
-  if (state.drawStack.active && state.drawStack.targetPlayerId === player.id) {
+  if (
+    state.drawStack.active &&
+    state.drawStack.targetPlayerId === player.id &&
+    !isManageableDrawTenCancellation
+  ) {
     score += state.drawStack.amount * MISCHIEF_SELF_DRAW_STACK_ESCAPE_WEIGHT;
   }
 
@@ -707,6 +774,10 @@ function getMischiefThreatWeight(card: Card): number {
   }
 }
 
+function countKind(hand: readonly Card[], kind: Card["kind"]): number {
+  return hand.filter((card) => card.kind === kind).length;
+}
+
 function getSwapHandsHumanThreatScore(summary: ThreatScoreSummary): number {
   if (summary.highestSingle >= 1_800) {
     return 1_600 + Math.round((summary.total - summary.highestSingle) * 0.18) +
@@ -723,6 +794,185 @@ function getSwapHandsHumanThreatScore(summary: ThreatScoreSummary): number {
   }
 
   return 0;
+}
+
+function simulateSwapHandsOutcome(
+  state: GameState,
+  actingPlayerId: PlayerId,
+  playedCardId: string
+): SwapHandsSimulation | null {
+  const orderedPlayers = state.playerOrder
+    .map((playerId) => state.players.find((player) => player.id === playerId))
+    .filter((player): player is NonNullable<typeof player> => player !== undefined)
+    .filter((player) => !player.isEliminated && !player.isRoundWinner);
+
+  if (orderedPlayers.length <= 1) {
+    return null;
+  }
+
+  const originalHands = new Map(
+    orderedPlayers.map((player) => [
+      player.id,
+      player.id === actingPlayerId
+        ? player.hand.filter((card) => card.id !== playedCardId)
+        : [...player.hand]
+    ] as const)
+  );
+  const entries: SwapHandsSimulationEntry[] = [];
+
+  for (let index = 0; index < orderedPlayers.length; index += 1) {
+    const receiver = orderedPlayers[index];
+
+    if (receiver === undefined) {
+      continue;
+    }
+
+    const sourceIndex =
+      state.direction === "clockwise"
+        ? (index - 1 + orderedPlayers.length) % orderedPlayers.length
+        : (index + 1) % orderedPlayers.length;
+    const sourcePlayer = orderedPlayers[sourceIndex];
+
+    if (sourcePlayer === undefined) {
+      continue;
+    }
+
+    const beforeHand = originalHands.get(receiver.id) ?? [];
+    const afterHand = originalHands.get(sourcePlayer.id) ?? [];
+
+    entries.push({
+      playerId: receiver.id,
+      isHuman: receiver.isBot !== true,
+      beforeHand,
+      afterHand,
+      beforeHandCount: beforeHand.length,
+      afterHandCount: afterHand.length
+    });
+  }
+
+  return {
+    players: entries
+  };
+}
+
+function scoreSwapHandsHumanSwing(
+  simulation: SwapHandsSimulation
+): { humanAttackDelta: number; teamDelta: number; reasons: string[] } {
+  let humanAttackDelta = 0;
+  let teamDelta = 0;
+  const reasons: string[] = [];
+  let anyHumanHadPlusTen = false;
+
+  for (const entry of simulation.players) {
+    if (!entry.isHuman) {
+      continue;
+    }
+
+    const beforePlusTen = countKind(entry.beforeHand, "wild-draw-ten");
+    const afterPlusTen = countKind(entry.afterHand, "wild-draw-ten");
+    const beforePlusSix = countKind(entry.beforeHand, "wild-draw-six");
+    const afterPlusSix = countKind(entry.afterHand, "wild-draw-six");
+    const beforeThreat = evaluateThreatScore(entry.beforeHand, entry.beforeHandCount).total;
+    const afterThreat = evaluateThreatScore(entry.afterHand, entry.afterHandCount).total;
+
+    if (beforePlusTen > 0) {
+      anyHumanHadPlusTen = true;
+      humanAttackDelta += 1_000 + beforePlusTen * 220;
+      reasons.push("mischief:swap-human-current-plus-ten");
+    }
+
+    if (beforePlusTen > afterPlusTen) {
+      humanAttackDelta += 1_450 * (beforePlusTen - afterPlusTen);
+      reasons.push("mischief:swap-removes-human-plus-ten");
+    }
+
+    if (beforePlusSix > afterPlusSix) {
+      humanAttackDelta += 520 * (beforePlusSix - afterPlusSix);
+      reasons.push("mischief:swap-removes-human-plus-six");
+    }
+
+    if (afterPlusTen > beforePlusTen) {
+      teamDelta -= 2_200 * (afterPlusTen - beforePlusTen);
+      reasons.push("mischief:avoid-giving-human-plus-ten");
+    }
+
+    if (afterPlusSix > beforePlusSix) {
+      teamDelta -= 1_250 * (afterPlusSix - beforePlusSix);
+      reasons.push("mischief:avoid-giving-human-plus-six");
+    }
+
+    if (entry.beforeHandCount >= 7 && entry.afterHandCount < entry.beforeHandCount) {
+      teamDelta -= (entry.beforeHandCount - entry.afterHandCount) * 180;
+      reasons.push("mischief:avoid-shrinking-large-human-hand");
+    }
+
+    if (afterThreat > beforeThreat) {
+      teamDelta -= Math.round((afterThreat - beforeThreat) * 0.45);
+      reasons.push("mischief:avoid-strengthening-human-team");
+    }
+  }
+
+  if (anyHumanHadPlusTen) {
+    teamDelta = Math.max(teamDelta, -420);
+  }
+
+  return {
+    humanAttackDelta,
+    teamDelta,
+    reasons
+  };
+}
+
+function analyzeHumanUpstreamDrawPressure(
+  state: GameState,
+  playerId: PlayerId,
+  playedCard: Card
+): UpstreamDrawPressureAnalysis {
+  if (playedCard.kind !== "draw-two" && playedCard.kind !== "draw-four") {
+    return { bonus: 0, reasons: [] };
+  }
+
+  const immediateTarget = getNextActivePlayer(state, playerId, state.direction);
+
+  if (!isHumanPlayer(immediateTarget)) {
+    return { bonus: 0, reasons: [] };
+  }
+
+  const responseKind = playedCard.kind;
+  const matchingResponses = immediateTarget.hand.filter((card) => card.kind === responseKind).length;
+  const nextAfterHuman = getNextActivePlayer(state, immediateTarget.id, state.direction);
+
+  let bonus =
+    playedCard.kind === "draw-two"
+      ? MISCHIEF_UPSTREAM_DRAW_TWO_HUMAN_PRESSURE
+      : MISCHIEF_UPSTREAM_DRAW_FOUR_HUMAN_PRESSURE;
+  const reasons = ["mischief:upstream-human-pressure"];
+
+  if (matchingResponses > 0) {
+    bonus += matchingResponses * 70;
+    reasons.push("mischief:force-human-plus-spend");
+  }
+
+  if (nextAfterHuman?.isBot === true) {
+    const robotCanContinue = nextAfterHuman.hand.some((card) =>
+      canStackDrawCard({
+        nextCard: card,
+        previousDrawValue: playedCard.drawValue ?? (playedCard.kind === "draw-four" ? 4 : 2),
+        previousDrawKind: playedCard.kind as DrawCardKind,
+        ...(playedCard.color === undefined ? {} : { currentColor: playedCard.color })
+      })
+    );
+
+    if (robotCanContinue) {
+      bonus += MISCHIEF_UPSTREAM_DRAW_RELAY_BONUS;
+      reasons.push("mischief:upstream-robot-can-relay");
+    } else if (matchingResponses > 0) {
+      bonus -= MISCHIEF_UPSTREAM_DRAW_ROBOT_TRAP_PENALTY;
+      reasons.push("mischief:avoid-upstream-robot-trap");
+    }
+  }
+
+  return { bonus, reasons };
 }
 
 function getPunishReserveCost(card: Card): number {

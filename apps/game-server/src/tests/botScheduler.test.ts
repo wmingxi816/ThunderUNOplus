@@ -494,7 +494,10 @@ describe("BotScheduler", () => {
     });
 
     scheduler.scheduleRoom(fixture.room.roomId);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    const waitUntil = Date.now() + 500;
+    while (fixture.room.gameState!.topCard.id !== relayPlusFour.id && Date.now() < waitUntil) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
     scheduler.dispose();
 
     expect(fixture.room.gameState!.discardPile.map((card) => card.id)).toContain(plusFour.id);

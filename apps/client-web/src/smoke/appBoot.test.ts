@@ -493,8 +493,32 @@ describe("client-web smoke", () => {
     expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("添加混沌bot");
     expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("增加更新日志入口");
 
+    const dragHandle = document.querySelector<HTMLElement>("[data-update-log-drag-handle='true']");
+    expect(dragHandle?.className).toContain("update-log-dialog-title-wrap");
+
     document.querySelector<HTMLButtonElement>("#close-update-log-button")?.click();
     expect(document.querySelector("[data-testid='update-log-dialog']")).toBeNull();
+  });
+
+  it("renders newer update log sections before older ones", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => "## 2026-05-19\n- old entry\n## 2026-05-21\n- new entry"
+      })
+    );
+
+    await import("../main");
+
+    document.querySelector<HTMLButtonElement>("#lobby-settings-button")?.click();
+    document.querySelector<HTMLButtonElement>("#settings-update-log-button")?.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const dialogText = document.querySelector("[data-testid='update-log-dialog']")?.textContent ?? "";
+    expect(dialogText).toContain("2026-05-19");
+    expect(dialogText).toContain("2026-05-21");
+    expect(dialogText.indexOf("2026-05-21")).toBeLessThan(dialogText.indexOf("2026-05-19"));
   });
 
   it("shows an empty update log state when update-log.md cannot be loaded", async () => {
@@ -510,6 +534,18 @@ describe("client-web smoke", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(document.querySelector("[data-testid='update-log-dialog']")?.textContent).toContain("暂无更新日志");
+  });
+
+  it("keeps the update log dialog at a fixed size and scrolls inside the content panel", async () => {
+    const styleText = await readFile("src/styles.css", "utf8");
+
+    expect(styleText).toContain(".update-log-dialog");
+    expect(styleText).toContain("grid-template-rows: auto minmax(0, 1fr);");
+    expect(styleText).toContain("height: min(28rem, calc(100svh - 2rem));");
+    expect(styleText).toContain("overflow: hidden;");
+    expect(styleText).toContain(".settings-update-log-panel");
+    expect(styleText).toContain("overflow-y: auto;");
+    expect(styleText).toContain("scrollbar-gutter: stable;");
   });
 
   it("keeps the lobby rule and settings buttons in the right group and enlarges player cards", async () => {
@@ -3314,6 +3350,7 @@ it("shows a dedicated toast when draw-ten cancels the whole draw stack", async (
     expect(normalizedEliminationAudio).not.toBeUndefined();
     expect(normalizedEliminationAudio?.playCount).toBe(1);
     expect(normalizedEliminationAudio?.playbackRate).toBe(1);
+    expect(normalizedEliminationAudio?.volume).toBeCloseTo(0.8, 5);
     expect(battleAudio?.volume).toBeCloseTo(0.256 * 0.4, 5);
 
     socket?.triggerMessage({
