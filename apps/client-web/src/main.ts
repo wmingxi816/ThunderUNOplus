@@ -24,6 +24,7 @@ import { WsClient, type ConnectionStatus } from "./network/wsClient";
 import {
   buildCommandMessage,
   buildAddBotMessage,
+  buildBattleChatMessage,
   buildLobbyChatMessage,
   buildContinueGameMessage,
   buildCreateRoomMessage,
@@ -97,6 +98,9 @@ interface AppState {
   lobbyMode: GameMode;
   lobbyChatDraft: string;
   lobbyChatFeed: LobbyChatEntry[];
+  battleChatDraft: string;
+  battleChatComposerOpen: boolean;
+  battleChatBubblesByPlayerId: Record<string, BattleChatBubbleState>;
 }
 
 interface LobbyChatEntry {
@@ -106,6 +110,13 @@ interface LobbyChatEntry {
   speakerName: string;
   text: string;
   timestampMs: number;
+}
+
+interface BattleChatBubbleState {
+  playerId: PlayerId;
+  text: string;
+  expiresAt: number;
+  messageId: string;
 }
 
 interface UpdateLogSection {
@@ -488,6 +499,7 @@ let eliminationMusicActive = false;
 let backgroundMusicUnlockInstalled = false;
 let updateLogDragState: { offsetX: number; offsetY: number } | null = null;
 let settingsModalBodyScrollTop = 0;
+const battleChatBubbleTimers = new Map<PlayerId, number>();
 
 if (root === null) {
   throw new Error("App root was not found.");
@@ -558,6 +570,9 @@ const state: AppState = {
   lobbyMode: "no-challenge",
   lobbyChatDraft: "",
   lobbyChatFeed: [],
+  battleChatDraft: "",
+  battleChatComposerOpen: false,
+  battleChatBubblesByPlayerId: {},
 };
 
 const wsClient = new WsClient({
@@ -669,7 +684,9 @@ function handleServerMessage(message: ServerMessage): void {
     case "room-closed":
       resetRoomContext();
       pushLog("房间已关闭");
+      return;
     case "battle-chat":
+      receiveBattleChatMessage(message);
       return;
     case "lobby-chat":
       receiveLobbyChatMessage(message);
@@ -1017,6 +1034,50 @@ function syncLobbyRoomFeed(
 function receiveLobbyChatMessage(message: Extract<ServerMessage, { type: "lobby-chat" }>): void {
   const name = getLobbyPlayerName(message.playerId);
   appendLobbyPlayerMessage(message.playerId, name, message.text, message.timestampMs);
+}
+
+function receiveBattleChatMessage(message: Extract<ServerMessage, { type: "battle-chat" }>): void {
+  if (state.snapshot === null || state.roomId !== message.roomId) {
+    return;
+  }
+
+  const text = message.text.trim();
+
+  if (text.length === 0) {
+    return;
+  }
+
+  const messageId = `${message.playerId}:${String(message.timestampMs)}:${Math.random().toString(36).slice(2, 7)}`;
+  state.battleChatBubblesByPlayerId = {
+    ...state.battleChatBubblesByPlayerId,
+    [message.playerId]: {
+      playerId: message.playerId,
+      text,
+      expiresAt: Date.now() + 8_000,
+      messageId
+    }
+  };
+
+  const previousTimer = battleChatBubbleTimers.get(message.playerId);
+  if (previousTimer !== undefined) {
+    window.clearTimeout(previousTimer);
+  }
+
+  const timer = window.setTimeout(() => {
+    const currentBubble = state.battleChatBubblesByPlayerId[message.playerId];
+
+    if (currentBubble?.messageId !== messageId) {
+      return;
+    }
+
+    const nextBubbles = { ...state.battleChatBubblesByPlayerId };
+    delete nextBubbles[message.playerId];
+    state.battleChatBubblesByPlayerId = nextBubbles;
+    battleChatBubbleTimers.delete(message.playerId);
+    render();
+  }, 8_000);
+
+  battleChatBubbleTimers.set(message.playerId, timer);
 }
 
 function getLobbyPlayerName(playerId: PlayerId): string {
@@ -1605,18 +1666,23 @@ function renderLobbyChatFeed(room: PlayerRoomSnapshot | null): string {
 
               const player = activeRoom.players.find((candidate) => candidate.playerId === entry.playerId);
               const isSelf = entry.playerId !== null && entry.playerId === state.playerId;
+              const avatarMarkup = `
+                <img
+                  class="lobby-feed-avatar"
+                  src="${escapeHtml(resolvePlayerAvatar(entry.playerId ?? entry.speakerName, player?.avatarUrl ?? null))}"
+                  alt="${escapeHtml(entry.speakerName)}"
+                />
+              `;
+              const bubbleMarkup = `
+                <div class="lobby-feed-bubble-wrap">
+                  <strong class="lobby-feed-speaker">${escapeHtml(entry.speakerName)}</strong>
+                  <div class="lobby-feed-bubble">${escapeHtml(entry.text)}</div>
+                </div>
+              `;
 
               return `
                 <div class="lobby-feed-item ${isSelf ? "lobby-feed-item-self" : "lobby-feed-item-player"}">
-                  <img
-                    class="lobby-feed-avatar"
-                    src="${escapeHtml(resolvePlayerAvatar(entry.playerId ?? entry.speakerName, player?.avatarUrl ?? null))}"
-                    alt="${escapeHtml(entry.speakerName)}"
-                  />
-                  <div class="lobby-feed-bubble-wrap">
-                    <strong class="lobby-feed-speaker">${escapeHtml(entry.speakerName)}</strong>
-                    <div class="lobby-feed-bubble">${escapeHtml(entry.text)}</div>
-                  </div>
+                  ${isSelf ? `${bubbleMarkup}${avatarMarkup}` : `${avatarMarkup}${bubbleMarkup}`}
                 </div>
               `;
             })
@@ -1730,6 +1796,120 @@ function sendLobbyChatMessage(): void {
   state.lobbyChatDraft = "";
   render();
   focusLobbyChatInput();
+}
+
+function appendBattleChatDraft(nextValue: string): void {
+  state.battleChatDraft = nextValue.slice(0, 30);
+}
+
+function focusBattleChatInput(): void {
+  const input = document.querySelector<HTMLInputElement>("#battle-chat-input");
+  input?.focus();
+}
+
+function syncBattleChatComposerControls(snapshot: PlayerGameSnapshot | null): void {
+  const input = document.querySelector<HTMLInputElement>("#battle-chat-input");
+  const button = document.querySelector<HTMLButtonElement>("#battle-chat-send-button");
+  const meta = document.querySelector<HTMLElement>("[data-testid='battle-chat-meta']");
+  const isConnected = state.connectionStatus === "open";
+  const disabledReason = snapshot === null ? "当前未在对战中。" : getBattleChatDisabledReason(snapshot, isConnected);
+  const canSend = disabledReason === null && state.battleChatDraft.trim().length > 0;
+
+  if (input !== null) {
+    input.value = state.battleChatDraft;
+    input.disabled = disabledReason !== null;
+    if (disabledReason === null) {
+      input.removeAttribute("title");
+    } else {
+      input.title = disabledReason;
+    }
+  }
+
+  if (button !== null) {
+    button.disabled = !canSend;
+    if (canSend) {
+      button.removeAttribute("title");
+    } else {
+      button.title = disabledReason ?? "输入消息后可发送";
+    }
+  }
+
+  if (meta !== null) {
+    meta.textContent = `${String(state.battleChatDraft.length)}/30 · 8秒`;
+  }
+}
+
+function getBattleChatDisabledReason(
+  snapshot: PlayerGameSnapshot,
+  isConnected: boolean
+): string | null {
+  if (!isConnected) {
+    return "未连接服务端。";
+  }
+
+  if (snapshot.status === "finished") {
+    return "本局已结束。";
+  }
+
+  if (state.roomId === null || state.playerId === null) {
+    return "当前未在对战中。";
+  }
+
+  return null;
+}
+
+function sendBattleChatMessage(): void {
+  const snapshot = state.snapshot;
+  const roomId = state.roomId;
+  const playerId = state.playerId;
+  const text = state.battleChatDraft.trim();
+
+  if (
+    snapshot === null ||
+    roomId === null ||
+    playerId === null ||
+    getBattleChatDisabledReason(snapshot, state.connectionStatus === "open") !== null ||
+    text.length === 0
+  ) {
+    syncBattleChatComposerControls(snapshot);
+    focusBattleChatInput();
+    return;
+  }
+
+  sendSafely(
+    buildBattleChatMessage({
+      roomId,
+      playerId,
+      text
+    })
+  );
+
+  state.battleChatDraft = "";
+  state.battleChatComposerOpen = false;
+  render();
+}
+
+function clearBattleChatBubble(playerId: PlayerId): void {
+  const nextBubbles = { ...state.battleChatBubblesByPlayerId };
+  delete nextBubbles[playerId];
+  state.battleChatBubblesByPlayerId = nextBubbles;
+  const timer = battleChatBubbleTimers.get(playerId);
+  if (timer !== undefined) {
+    window.clearTimeout(timer);
+    battleChatBubbleTimers.delete(playerId);
+  }
+}
+
+function clearAllBattleChatState(): void {
+  state.battleChatDraft = "";
+  state.battleChatComposerOpen = false;
+  state.battleChatBubblesByPlayerId = {};
+
+  for (const timer of battleChatBubbleTimers.values()) {
+    window.clearTimeout(timer);
+  }
+
+  battleChatBubbleTimers.clear();
 }
 
 function renderLobbyReadyStatusTags(room: PlayerRoomSnapshot | null): string {
@@ -2422,13 +2602,108 @@ function renderOpponent(
         >${escapeHtml(getReportUnoLabel(player))}</button>
       </div>
     </div>
+    ${renderOpponentBattleChatBubble(player, seatPlacement)}
   `;
 }
 
 // UI name: battle-self-seat. 自己的玩家卡片。
 function renderSelfSeat(snapshot: PlayerGameSnapshot): string {
-  void snapshot;
-  return "";
+  return renderSelfBattleChatBubble(snapshot);
+}
+
+function renderOpponentBattleChatBubble(
+  player: PlayerGameSnapshot["opponents"][number],
+  seatPlacement: OpponentSeatPlacement
+): string {
+  const bubble = getVisibleBattleChatBubble(player.playerId);
+
+  if (bubble === null) {
+    return "";
+  }
+
+  return `
+    <div
+      class="battle-chat-anchor battle-chat-anchor-opponent battle-chat-anchor-${getOpponentBubbleAnchorVariant(seatPlacement)}"
+      data-battle-chat-player="${escapeHtml(player.playerId)}"
+      style="${escapeHtml(`${seatPlacement.style} ${getBattleChatBubbleStyle(player.playerId, player.avatarUrl)}`)}"
+    >
+      <div class="battle-chat-bubble">${escapeHtml(bubble.text)}</div>
+    </div>
+  `;
+}
+
+function renderSelfBattleChatBubble(snapshot: PlayerGameSnapshot): string {
+  const bubble = getVisibleBattleChatBubble(snapshot.self.playerId);
+
+  if (bubble === null) {
+    return "";
+  }
+
+  return `
+    <div
+      class="battle-chat-anchor battle-chat-anchor-self self-seat-chat-anchor"
+      data-battle-chat-player="${escapeHtml(snapshot.self.playerId)}"
+      style="${escapeHtml(getBattleChatBubbleStyle(snapshot.self.playerId, snapshot.self.avatarUrl))}"
+    >
+      <div class="battle-chat-bubble">${escapeHtml(bubble.text)}</div>
+    </div>
+  `;
+}
+
+function getVisibleBattleChatBubble(playerId: PlayerId): BattleChatBubbleState | null {
+  const bubble = state.battleChatBubblesByPlayerId[playerId];
+
+  if (bubble === undefined) {
+    return null;
+  }
+
+  if (bubble.expiresAt <= Date.now()) {
+    clearBattleChatBubble(playerId);
+    return null;
+  }
+
+  return bubble;
+}
+
+function getOpponentBubbleAnchorVariant(seatPlacement: OpponentSeatPlacement): string {
+  if (seatPlacement.originClassName === "seat-top-left") {
+    return "top-left";
+  }
+
+  if (seatPlacement.originClassName === "seat-top-right") {
+    return "top-right";
+  }
+
+  return seatPlacement.side === "left" ? "side-left" : "side-right";
+}
+
+function getBattleChatBubbleStyle(
+  playerId: PlayerId,
+  avatarUrl: string | null | undefined
+): string {
+  const theme = getBattleChatBubbleTheme(playerId, avatarUrl);
+
+  switch (theme) {
+    case "yellow":
+      return "--battle-chat-bubble-bg: rgba(236, 203, 88, 0.70); --battle-chat-bubble-text: #2b2400; --battle-chat-bubble-shadow: rgba(236, 203, 88, 0.22);";
+    case "blue":
+      return "--battle-chat-bubble-bg: rgba(58, 118, 224, 0.70); --battle-chat-bubble-text: #f4f9ff; --battle-chat-bubble-shadow: rgba(58, 118, 224, 0.22);";
+    case "green":
+      return "--battle-chat-bubble-bg: rgba(44, 156, 108, 0.70); --battle-chat-bubble-text: #f3fff9; --battle-chat-bubble-shadow: rgba(44, 156, 108, 0.22);";
+    case "red":
+    default:
+      return "--battle-chat-bubble-bg: rgba(186, 70, 90, 0.70); --battle-chat-bubble-text: #fff4f6; --battle-chat-bubble-shadow: rgba(186, 70, 90, 0.22);";
+  }
+}
+
+function getBattleChatBubbleTheme(
+  playerId: PlayerId,
+  avatarUrl: string | null | undefined
+): "red" | "yellow" | "blue" | "green" {
+  const resolvedAvatarUrl = resolvePlayerAvatar(playerId, avatarUrl);
+  const themes = ["red", "yellow", "blue", "green"] as const;
+
+  return themes[hashString(resolvedAvatarUrl) % themes.length] ?? "red";
 }
 
 // UI name: battle-seat-status. 玩家卡片状态 label。
@@ -3154,6 +3429,8 @@ function renderChallengePrompt(
 
 // UI name: battle-top-hud. 顶部状态栏和规则/退出按钮。
 function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): string {
+  const isConnected = state.connectionStatus === "open";
+
   return `
     <div class="battle-hud">
       <span class="hud-primary">当前：${escapeHtml(isMyTurn ? "轮到你" : lookupPlayerName(snapshot, snapshot.currentPlayerId))}</span>
@@ -3165,22 +3442,67 @@ function renderBattleHud(snapshot: PlayerGameSnapshot, isMyTurn: boolean): strin
         data-testid="connection-status"
       >${state.connectionStatus}</span>
       ${renderBattleStatusChips(snapshot)}
+      <div class="battle-hud-actions">
+        ${renderBattleChatDock(snapshot, isConnected)}
+        <button
+          id="battle-settings-button"
+          data-testid="battle-settings-button"
+          class="secondary hud-settings-button"
+        >设置</button>
+        <button
+          id="battle-rule-button"
+          data-testid="battle-rule-button"
+          class="secondary hud-rule-button"
+        >规则</button>
+        <button
+          id="battle-leave-room-button"
+          data-testid="battle-leave-room-button"
+          class="secondary hud-leave-button"
+          ${isConnected ? "" : `disabled title="未连接服务端。"`}
+        >退出房间</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderBattleChatDock(snapshot: PlayerGameSnapshot, isConnected: boolean): string {
+  const sendDisabledReason = getBattleChatDisabledReason(snapshot, isConnected);
+  const canSend =
+    sendDisabledReason === null &&
+    state.roomId !== null &&
+    state.playerId !== null &&
+    state.battleChatDraft.trim().length > 0;
+
+  return `
+    <div
+      class="battle-chat-dock ${state.battleChatComposerOpen ? "open" : ""}"
+      data-battle-chat-root="true"
+    >
       <button
-        id="battle-settings-button"
-        data-testid="battle-settings-button"
-        class="secondary hud-settings-button"
-      >设置</button>
-      <button
-        id="battle-rule-button"
-        data-testid="battle-rule-button"
-        class="secondary hud-rule-button"
-      >规则</button>
-      <button
-        id="battle-leave-room-button"
-        data-testid="battle-leave-room-button"
-        class="secondary hud-leave-button"
-        ${state.connectionStatus === "open" ? "" : `disabled title="未连接服务端。"`}
-      >退出房间</button>
+        id="battle-chat-toggle-button"
+        data-testid="battle-chat-toggle-button"
+        class="secondary battle-chat-toggle-button"
+        aria-expanded="${state.battleChatComposerOpen ? "true" : "false"}"
+      >聊天</button>
+      <div class="battle-chat-composer ${state.battleChatComposerOpen ? "open" : ""}" data-testid="battle-chat-composer">
+        <input
+          id="battle-chat-input"
+          class="battle-chat-input"
+          maxlength="30"
+          value="${escapeHtml(state.battleChatDraft)}"
+          placeholder="输入聊天消息"
+          ${sendDisabledReason === null ? "" : `disabled title="${escapeHtml(sendDisabledReason)}"`}
+        />
+        <div class="battle-chat-composer-footer">
+          <span class="battle-chat-meta" data-testid="battle-chat-meta">${String(state.battleChatDraft.length)}/30 · 8秒</span>
+          <button
+            id="battle-chat-send-button"
+            class="secondary battle-chat-send-button"
+            data-testid="battle-chat-send-button"
+            ${canSend ? "" : `disabled title="${escapeHtml(sendDisabledReason ?? "输入消息后可发送")}"`}
+          >发送</button>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -6426,6 +6748,38 @@ function bindBattlePanel(): void {
     render();
   });
 
+  document.querySelector("#battle-chat-toggle-button")?.addEventListener("click", () => {
+    state.battleChatComposerOpen = !state.battleChatComposerOpen;
+    render();
+
+    if (state.battleChatComposerOpen) {
+      focusBattleChatInput();
+      syncBattleChatComposerControls(state.snapshot);
+    }
+  });
+
+  document.querySelector("#battle-chat-input")?.addEventListener("input", (event) => {
+    const input = event.currentTarget as HTMLInputElement | null;
+
+    if (input === null) {
+      return;
+    }
+
+    appendBattleChatDraft(input.value);
+    syncBattleChatComposerControls(state.snapshot);
+  });
+
+  document.querySelector("#battle-chat-input")?.addEventListener("keydown", (event) => {
+    if (isLobbyChatInputKeyboardEvent(event) && event.key === "Enter") {
+      event.preventDefault();
+      sendBattleChatMessage();
+    }
+  });
+
+  document.querySelector("#battle-chat-send-button")?.addEventListener("click", () => {
+    sendBattleChatMessage();
+  });
+
   document.querySelector("[data-settings-backdrop]")?.addEventListener("click", (event) => {
     if (event.target !== event.currentTarget) {
       return;
@@ -7709,6 +8063,7 @@ function resetRoomContext(): void {
   state.updateLogDialogPosition = null;
   state.lobbyChatFeed = [];
   state.lobbyChatDraft = "";
+  clearAllBattleChatState();
 
   removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);
 }
@@ -7764,6 +8119,7 @@ function returnToLobbyAfterLeavingBattle(
   state.eventModal = null;
   state.ruleModal = null;
   state.dismissedFinishedNoticeKey = null;
+  clearAllBattleChatState();
   setRoomCodeFromText(preservedRoomCode);
   clearSelectedCards();
   removeSessionStoredValue(LAST_ROOM_STORAGE_KEY);
@@ -7959,8 +8315,27 @@ function installGlobalLobbyInteractions(): void {
     render();
   };
 
+  const closeBattleChatComposer = (event: Event) => {
+    if (!state.battleChatComposerOpen) {
+      return;
+    }
+
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    if (event.target.closest("[data-battle-chat-root='true']") !== null) {
+      return;
+    }
+
+    state.battleChatComposerOpen = false;
+    render();
+  };
+
   document.addEventListener("click", closeAddBotMenu);
   window.addEventListener("click", closeAddBotMenu);
+  document.addEventListener("click", closeBattleChatComposer);
+  window.addEventListener("click", closeBattleChatComposer);
   document.addEventListener("pointermove", (event) => {
     if (updateLogDragState === null || state.updateLogOpen === false) {
       return;

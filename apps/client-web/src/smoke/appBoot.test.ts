@@ -553,8 +553,59 @@ describe("client-web smoke", () => {
     expect(styleText).toContain(".lobby-feed-item-player");
     expect(styleText).toContain("display: grid;");
     expect(styleText).toContain("grid-template-columns: 3rem minmax(0, 1fr);");
+    expect(styleText).toContain("grid-template-columns: minmax(0, 1fr) 3rem;");
     expect(styleText).toContain(".lobby-feed-bubble");
+    expect(styleText).toContain("overflow-wrap: break-word;");
     expect(mainText).toContain('class="lobby-feed-speaker"');
+  });
+
+  it("renders self lobby chat with the bubble before the avatar so the message stays aligned to the right", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "lobby",
+        mode: "no-challenge",
+        hostPlayerId: "player-1",
+        snapshotVersion: 1,
+        players: [
+          {
+            playerId: "player-1",
+            displayName: "我方",
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "lobby-chat",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      text: "自己发的消息不该跑偏",
+      timestampMs: 1000
+    });
+
+    const selfItem = document.querySelector(".lobby-feed-item-self");
+    expect(selfItem).not.toBeNull();
+    expect(selfItem?.firstElementChild?.className).toContain("lobby-feed-bubble-wrap");
+    expect(selfItem?.lastElementChild?.className).toContain("lobby-feed-avatar");
+    expect(selfItem?.textContent).toContain("自己发的消息不该跑偏");
   });
 
   it("keeps lobby seat avatars and text adaptive on a single line", async () => {
@@ -752,6 +803,360 @@ describe("client-web smoke", () => {
     expect(document.querySelector<HTMLButtonElement>("#rule-next-card-button")?.textContent).toBe("›");
     expect(document.querySelector("#rule-prev-button")).toBeNull();
     expect(document.querySelector("#rule-next-button")).toBeNull();
+  });
+
+  it("opens a battle chat composer, caps input at 30 characters, and sends battle-chat messages", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "red-1",
+      kind: "number",
+      color: "red",
+      number: 1,
+      isBlack: false,
+      displayName: "red 1"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "red",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: [
+          {
+            playerId: "player-2",
+            displayName: "player-2",
+            avatarUrl: null,
+            handCount: 3,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: false,
+            isBot: false
+          }
+        ]
+      }
+    });
+
+    document.querySelector<HTMLButtonElement>("[data-testid='battle-chat-toggle-button']")?.click();
+    const input = document.querySelector<HTMLInputElement>("#battle-chat-input");
+    expect(input).not.toBeNull();
+    expect(input?.maxLength).toBe(30);
+
+    if (input === null) {
+      return;
+    }
+
+    input.value = "123456789012345678901234567890EXTRA";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(input.value).toBe("123456789012345678901234567890");
+    expect(document.querySelector("[data-testid='battle-chat-meta']")?.textContent).toContain("30/30");
+
+    document.querySelector<HTMLButtonElement>("[data-testid='battle-chat-send-button']")?.click();
+
+    const battleChatMessage = socket?.sentMessages
+      .map((message) => JSON.parse(message))
+      .find((message) => message.type === "battle-chat");
+
+    expect(battleChatMessage).toMatchObject({
+      type: "battle-chat",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      text: "123456789012345678901234567890"
+    });
+    expect(document.querySelector("[data-testid='battle-chat-composer']")?.classList.contains("open")).toBe(false);
+  });
+
+  it("renders battle chat bubbles beside player cards, replaces older text, survives rerenders, and expires after 8 seconds", async () => {
+    vi.useFakeTimers();
+    try {
+      await import("../main");
+
+      const socket = FakeWebSocket.instances[0];
+      socket?.triggerOpen();
+
+      const topCard = {
+        id: "red-1",
+        kind: "number",
+        color: "red",
+        number: 1,
+        isBlack: false,
+        displayName: "red 1"
+      };
+
+      socket?.triggerMessage({
+        protocolVersion: "0.1.0",
+        type: "snapshot",
+        roomId: "ROOM1",
+        playerId: "player-1",
+        snapshotVersion: 1,
+        snapshot: {
+          roomId: "ROOM1",
+          snapshotVersion: 1,
+          status: "in-progress",
+          mode: "no-challenge",
+          currentPlayerId: "player-1",
+          currentColor: "red",
+          direction: "clockwise",
+          topCard,
+          discardPile: [topCard],
+          drawPileCount: 80,
+          drawStack: {
+            active: false,
+            amount: 0,
+            previousDrawValue: null,
+            previousDrawKind: null,
+            targetPlayerId: null
+          },
+          roundDecisionPending: false,
+          drawUntilColor: {
+            active: false,
+            color: null,
+            targetPlayerId: null
+          },
+          normalDrawOffer: {
+            active: false,
+            playerId: null,
+            cardId: null
+          },
+          initialDirectionChoice: {
+            active: false,
+            chooserPlayerId: null
+          },
+          challengeWindow: {
+            active: false,
+            targetPlayerId: null
+          },
+          winnerPlayerIds: [],
+          self: {
+            playerId: "player-1",
+            displayName: "player-1",
+            avatarUrl: null,
+            hand: [],
+            handCount: 0,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: true
+          },
+          opponents: [
+            {
+              playerId: "player-2",
+              displayName: "player-2",
+              avatarUrl: null,
+              handCount: 3,
+              hasCalledUno: false,
+              unoPendingSinceMs: null,
+              unoProtectionStartedAtMs: null,
+              unoProtectionEndsAtMs: null,
+              isEliminated: false,
+              isCurrentPlayer: false,
+              isBot: false
+            },
+            {
+              playerId: "player-3",
+              displayName: "player-3",
+              avatarUrl: null,
+              handCount: 4,
+              hasCalledUno: false,
+              unoPendingSinceMs: null,
+              unoProtectionStartedAtMs: null,
+              unoProtectionEndsAtMs: null,
+              isEliminated: false,
+              isCurrentPlayer: false,
+              isBot: false
+            }
+          ]
+        }
+      });
+
+      socket?.triggerMessage({
+        protocolVersion: "0.1.0",
+        type: "battle-chat",
+        roomId: "ROOM1",
+        playerId: "player-2",
+        text: "先别打黑牌",
+        timestampMs: 1000
+      });
+
+      const leftBubble = document.querySelector<HTMLElement>("[data-battle-chat-player='player-2']");
+      expect(leftBubble).not.toBeNull();
+      expect(leftBubble?.className).toContain("battle-chat-anchor-side-left");
+      expect(leftBubble?.textContent).toContain("先别打黑牌");
+
+      socket?.triggerMessage({
+        protocolVersion: "0.1.0",
+        type: "battle-chat",
+        roomId: "ROOM1",
+        playerId: "player-2",
+        text: "我改主意了",
+        timestampMs: 2000
+      });
+
+      expect(document.querySelectorAll("[data-battle-chat-player='player-2']")).toHaveLength(1);
+      expect(document.querySelector("[data-battle-chat-player='player-2']")?.textContent).toContain("我改主意了");
+
+      socket?.triggerMessage({
+        protocolVersion: "0.1.0",
+        type: "snapshot",
+        roomId: "ROOM1",
+        playerId: "player-1",
+        snapshotVersion: 2,
+        snapshot: {
+          roomId: "ROOM1",
+          snapshotVersion: 2,
+          status: "in-progress",
+          mode: "no-challenge",
+          currentPlayerId: "player-2",
+          currentColor: "blue",
+          direction: "clockwise",
+          topCard: {
+            ...topCard,
+            id: "blue-5",
+            color: "blue",
+            number: 5,
+            displayName: "blue 5"
+          },
+          discardPile: [topCard],
+          drawPileCount: 79,
+          drawStack: {
+            active: false,
+            amount: 0,
+            previousDrawValue: null,
+            previousDrawKind: null,
+            targetPlayerId: null
+          },
+          roundDecisionPending: false,
+          drawUntilColor: {
+            active: false,
+            color: null,
+            targetPlayerId: null
+          },
+          normalDrawOffer: {
+            active: false,
+            playerId: null,
+            cardId: null
+          },
+          initialDirectionChoice: {
+            active: false,
+            chooserPlayerId: null
+          },
+          challengeWindow: {
+            active: false,
+            targetPlayerId: null
+          },
+          winnerPlayerIds: [],
+          self: {
+            playerId: "player-1",
+            displayName: "player-1",
+            avatarUrl: null,
+            hand: [],
+            handCount: 0,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: false
+          },
+          opponents: [
+            {
+              playerId: "player-2",
+              displayName: "player-2",
+              avatarUrl: null,
+              handCount: 3,
+              hasCalledUno: false,
+              unoPendingSinceMs: null,
+              unoProtectionStartedAtMs: null,
+              unoProtectionEndsAtMs: null,
+              isEliminated: false,
+              isCurrentPlayer: true,
+              isBot: false
+            },
+            {
+              playerId: "player-3",
+              displayName: "player-3",
+              avatarUrl: null,
+              handCount: 4,
+              hasCalledUno: false,
+              unoPendingSinceMs: null,
+              unoProtectionStartedAtMs: null,
+              unoProtectionEndsAtMs: null,
+              isEliminated: false,
+              isCurrentPlayer: false,
+              isBot: false
+            }
+          ]
+        }
+      });
+
+      expect(document.querySelector("[data-battle-chat-player='player-2']")?.textContent).toContain("我改主意了");
+
+      await vi.advanceTimersByTimeAsync(8001);
+
+      expect(document.querySelector("[data-battle-chat-player='player-2']")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows a waiting message for non-host players in the finished game modal", async () => {
