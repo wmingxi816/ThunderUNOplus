@@ -6,7 +6,6 @@ import {
   createNumberCard
 } from "@thunder-uno/uno-core";
 import type { Card, GameState, InitialGamePlayerInput } from "@thunder-uno/shared-types";
-import { decideGreedyBotAction } from "../bot/greedyBot";
 import { decideMischiefBotAction } from "../bot/strategies/mischiefStrategy";
 
 describe("decideMischiefBotAction", () => {
@@ -178,12 +177,6 @@ describe("decideMischiefBotAction", () => {
       createNumberCard("p2-green-2", "green", 2)
     ]);
 
-    const greedyDecision = decideGreedyBotAction({
-      state,
-      playerId: "bot-1",
-      forgetUnoRate: 0.2,
-      random: () => 0
-    });
     const mischiefDecision = decideMischiefBotAction({
       state,
       playerId: "bot-1",
@@ -191,7 +184,11 @@ describe("decideMischiefBotAction", () => {
       random: () => 0
     });
 
-    expect(mischiefDecision?.command).toEqual(greedyDecision?.command);
+    expect(mischiefDecision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: "bot-red-9"
+    });
   });
 
   it("prefers penalty-draw and declares a color the human target is missing", () => {
@@ -262,7 +259,7 @@ describe("decideMischiefBotAction", () => {
     });
   });
 
-  it("falls back to greedy when +10 is only canceling an existing +10 chain", () => {
+  it("uses +10 to cancel a lethal +10 chain instead of eating the full draw stack", () => {
     const state = createMischiefTestState([
       { id: "bot-1", isBot: true },
       { id: "bot-2", isBot: true },
@@ -284,12 +281,6 @@ describe("decideMischiefBotAction", () => {
       createBlackCard("bot-plus10-response", "wild-draw-ten")
     ]);
 
-    const greedyDecision = decideGreedyBotAction({
-      state,
-      playerId: "bot-1",
-      forgetUnoRate: 0.2,
-      random: () => 0
-    });
     const mischiefDecision = decideMischiefBotAction({
       state,
       playerId: "bot-1",
@@ -297,10 +288,15 @@ describe("decideMischiefBotAction", () => {
       random: () => 0
     });
 
-    expect(mischiefDecision).toEqual(greedyDecision);
+    expect(mischiefDecision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: "bot-plus10-response",
+      declaredColor: "red"
+    });
   });
 
-  it("falls back to greedy when only a robot-targeted chaos opportunity exists", () => {
+  it("does not overvalue a robot-targeted reverse when a neutral number card is available", () => {
     const state = createMischiefTestState([
       { id: "bot-1", isBot: true },
       { id: "player-2" },
@@ -312,12 +308,6 @@ describe("decideMischiefBotAction", () => {
       createNumberCard("bot-red-9", "red", 9)
     ]);
 
-    const greedyDecision = decideGreedyBotAction({
-      state,
-      playerId: "bot-1",
-      forgetUnoRate: 0.2,
-      random: () => 0
-    });
     const mischiefDecision = decideMischiefBotAction({
       state,
       playerId: "bot-1",
@@ -330,7 +320,159 @@ describe("decideMischiefBotAction", () => {
       }
     });
 
-    expect(mischiefDecision?.command).toEqual(greedyDecision?.command);
+    expect(mischiefDecision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: "bot-red-9"
+    });
+  });
+
+  it("prefers a direct win over continuing to pressure a human", () => {
+    const state = createMischiefTestState([
+      { id: "bot-1", isBot: true },
+      { id: "player-2" },
+      { id: "bot-3", isBot: true }
+    ]);
+
+    setPlayerHand(state, "bot-1", [
+      createColoredActionCard("bot-red-discard", "red", "discard-same-color"),
+      createNumberCard("bot-red-5", "red", 5),
+      createColoredActionCard("bot-red-skip", "red", "skip")
+    ]);
+    setPlayerHand(state, "player-2", [
+      createNumberCard("p2-green-1", "green", 1)
+    ]);
+
+    const decision = decideMischiefBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(decision?.command).toEqual({
+      type: "play-discard-same-color",
+      playerId: "bot-1",
+      mainCardId: "bot-red-discard",
+      attachedCardIds: ["bot-red-5", "bot-red-skip"]
+    });
+  });
+
+  it("keeps a huge punish card when it would only hit a robot and no human relay exists", () => {
+    const state = createMischiefTestState([
+      { id: "bot-1", isBot: true },
+      { id: "bot-2", isBot: true },
+      { id: "player-3" }
+    ]);
+
+    setPlayerHand(state, "bot-1", [
+      createBlackCard("bot-plus10", "wild-draw-ten"),
+      createNumberCard("bot-red-9", "red", 9)
+    ]);
+    setPlayerHand(state, "bot-2", [
+      createNumberCard("bot2-green-1", "green", 1)
+    ]);
+    setPlayerHand(state, "player-3", [
+      createNumberCard("p3-yellow-2", "yellow", 2)
+    ]);
+
+    const decision = decideMischiefBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(decision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: "bot-red-9"
+    });
+  });
+
+  it("scores swap-hands much higher when a human holds +10 than when they only hold +6", () => {
+    const plusTenState = createMischiefTestState([
+      { id: "bot-1", isBot: true },
+      { id: "player-2" },
+      { id: "player-3" }
+    ]);
+    setPlayerHand(plusTenState, "bot-1", [
+      createColoredActionCard("bot-red-swap", "red", "swap-hands"),
+      createNumberCard("bot-red-9", "red", 9)
+    ]);
+    setPlayerHand(plusTenState, "player-2", [
+      createBlackCard("p2-plus10", "wild-draw-ten"),
+      createNumberCard("p2-green-2", "green", 2)
+    ]);
+
+    const plusSixState = createMischiefTestState([
+      { id: "bot-1", isBot: true },
+      { id: "player-2" },
+      { id: "player-3" }
+    ]);
+    setPlayerHand(plusSixState, "bot-1", [
+      createColoredActionCard("bot-red-swap", "red", "swap-hands"),
+      createNumberCard("bot-red-9", "red", 9)
+    ]);
+    setPlayerHand(plusSixState, "player-2", [
+      createBlackCard("p2-plus6", "wild-draw-six"),
+      createNumberCard("p2-green-2", "green", 2)
+    ]);
+
+    const plusTenDecision = decideMischiefBotAction({
+      state: plusTenState,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+    const plusSixDecision = decideMischiefBotAction({
+      state: plusSixState,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(plusTenDecision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: "bot-red-swap"
+    });
+    expect(plusSixDecision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: "bot-red-swap"
+    });
+    expect((plusTenDecision?.score ?? 0)).toBeGreaterThan(plusSixDecision?.score ?? 0);
+  });
+
+  it("only gives a small swap-hands bump for ordinary human skill cards", () => {
+    const state = createMischiefTestState([
+      { id: "bot-1", isBot: true },
+      { id: "player-2" },
+      { id: "player-3" }
+    ]);
+
+    setPlayerHand(state, "bot-1", [
+      createColoredActionCard("bot-red-swap", "red", "swap-hands"),
+      createNumberCard("bot-red-9", "red", 9)
+    ]);
+    setPlayerHand(state, "player-2", [
+      createColoredActionCard("p2-skip", "green", "skip"),
+      createNumberCard("p2-green-2", "green", 2)
+    ]);
+
+    const decision = decideMischiefBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(decision?.command).toEqual({
+      type: "play-card",
+      playerId: "bot-1",
+      cardId: "bot-red-9"
+    });
   });
 });
 

@@ -13,25 +13,40 @@ import {
   type BotScoringWeights,
   type ScoredBotAction
 } from "../botScoring";
-import { decideGreedyBotAction } from "./greedyStrategy";
 import type { BotStrategyDecision, BotStrategyParams } from "./types";
 
 const MISCHIEF_SKIP_HUMAN_SCORE = 1_500;
+const MISCHIEF_SKIP_ROBOT_PENALTY = 900;
 const MISCHIEF_REVERSE_HUMAN_SCORE = 1_400;
 const MISCHIEF_REVERSE_UNANSWERABLE_BONUS = 450;
-const MISCHIEF_DRAW_CHAIN_HUMAN_SCORE = 2_000;
-const MISCHIEF_DRAW_CHAIN_CURRENT_CARD_WEIGHT = 140;
-const MISCHIEF_DRAW_CHAIN_TOTAL_PRESSURE_WEIGHT = 18;
-const MISCHIEF_DRAW_CHAIN_STABILITY_WEIGHT = 35;
-const MISCHIEF_PENALTY_DRAW_HUMAN_SCORE = 1_800;
-const MISCHIEF_PENALTY_DRAW_HANDCOUNT_WEIGHT = 45;
-const MISCHIEF_SWAP_HUMAN_WILD_TEN_SCORE = 1_650;
-const MISCHIEF_SWAP_HUMAN_WILD_SIX_SCORE = 1_250;
-const MISCHIEF_SWAP_HUMAN_SHORT_HAND_BONUS = 220;
-const MISCHIEF_HUMAN_MISSING_COLOR_SCORE = 220;
-const MISCHIEF_HUMAN_UNIQUE_MISSING_COLOR_BONUS = 80;
-const MISCHIEF_PLUS_SIX_BLACK_HEAVY_BASELINE = 220;
-const MISCHIEF_PLUS_TEN_BLACK_HEAVY_BASELINE = 200;
+const MISCHIEF_REVERSE_ROBOT_PENALTY = 820;
+const MISCHIEF_DRAW_CHAIN_HUMAN_SCORE = 1_900;
+const MISCHIEF_DRAW_CHAIN_CURRENT_CARD_WEIGHT = 150;
+const MISCHIEF_DRAW_CHAIN_TOTAL_PRESSURE_WEIGHT = 20;
+const MISCHIEF_DRAW_CHAIN_STABILITY_WEIGHT = 45;
+const MISCHIEF_DRAW_CHAIN_RELAY_TEAM_BONUS = 220;
+const MISCHIEF_DRAW_CHAIN_ROBOT_PENALTY_FACTOR = 210;
+const MISCHIEF_PENALTY_DRAW_HUMAN_SCORE = 1_700;
+const MISCHIEF_PENALTY_DRAW_HANDCOUNT_WEIGHT = 42;
+const MISCHIEF_PENALTY_DRAW_RELAY_TEAM_BONUS = 180;
+const MISCHIEF_PENALTY_DRAW_ROBOT_PENALTY = 950;
+const MISCHIEF_HUMAN_MISSING_COLOR_SCORE = 240;
+const MISCHIEF_HUMAN_UNIQUE_MISSING_COLOR_BONUS = 90;
+const MISCHIEF_SELF_CARD_REDUCTION_SCORE = 220;
+const MISCHIEF_SELF_UNO_SCORE = 900;
+const MISCHIEF_SELF_TWO_CARDS_SCORE = 260;
+const MISCHIEF_SELF_DRAW_STACK_ESCAPE_WEIGHT = 85;
+const MISCHIEF_SELF_DRAW_UNTIL_COLOR_ESCAPE_SCORE = 700;
+const MISCHIEF_SELF_KEEP_DRAWN_SCORE = 30;
+const MISCHIEF_SELF_DRAW_COMMAND_PENALTY = 120;
+const MISCHIEF_PLUS_TEN_RESERVE_COST = 1_250;
+const MISCHIEF_PLUS_SIX_RESERVE_COST = 940;
+const MISCHIEF_REVERSE_PLUS_FOUR_RESERVE_COST = 720;
+const MISCHIEF_PENALTY_DRAW_RESERVE_COST = 540;
+const MISCHIEF_DRAW_FOUR_RESERVE_COST = 420;
+const MISCHIEF_DRAW_TWO_RESERVE_COST = 280;
+const MISCHIEF_SWAP_SHORT_HAND_BONUS = 180;
+const MISCHIEF_SWAP_ROBOT_THREAT_PENALTY_FACTOR = 0.35;
 
 export interface DecideMischiefBotActionParams extends BotStrategyParams {
   state: GameState;
@@ -43,9 +58,10 @@ export interface DecideMischiefBotActionParams extends BotStrategyParams {
 
 interface MischiefAnalysis {
   humanTargeted: boolean;
-  mainScore: number;
-  softColorScore: number;
-  baselineScore: number;
+  humanAttackScore: number;
+  teamScore: number;
+  selfScore: number;
+  colorScore: number;
   currentCardValue: number;
   totalPressure: number;
   overrideDeclaredColor?: CardColor | undefined;
@@ -55,10 +71,12 @@ interface MischiefAnalysis {
 interface RankedMischiefCandidate {
   index: number;
   candidate: BotCandidateAction;
+  directWin: boolean;
   humanTargeted: boolean;
-  mainScore: number;
-  softColorScore: number;
-  baselineScore: number;
+  humanAttackScore: number;
+  teamScore: number;
+  selfScore: number;
+  colorScore: number;
   currentCardValue: number;
   totalPressure: number;
   overrideDeclaredColor?: CardColor | undefined;
@@ -87,15 +105,21 @@ interface HumanBigBlackThreat {
   handCount: number;
 }
 
+interface ThreatScoreSummary {
+  playerId: PlayerId;
+  total: number;
+  highestSingle: number;
+  handCount: number;
+}
+
 export function decideMischiefBotAction(
   params: DecideMischiefBotActionParams
 ): BotStrategyDecision | null {
   const random = params.random ?? Math.random;
-  const greedyFallback = decideGreedyBotAction(params);
   const candidates = generateBotCandidates(params.state, params.playerId);
 
   if (candidates.length === 0) {
-    return greedyFallback;
+    return createProtectedFallbackDecision(params.state, params.playerId);
   }
 
   const scoredCandidates = scoreBotCandidates(
@@ -121,15 +145,19 @@ export function decideMischiefBotAction(
       params.state,
       params.playerId,
       candidate,
+      scoredAction,
       params.context
     );
+    const directWin = isDirectWinningAction(scoredAction, params.playerId);
     rankedCandidates.push({
       index,
       candidate,
+      directWin,
       humanTargeted: analysis.humanTargeted,
-      mainScore: analysis.mainScore,
-      softColorScore: analysis.softColorScore,
-      baselineScore: analysis.baselineScore,
+      humanAttackScore: analysis.humanAttackScore,
+      teamScore: analysis.teamScore,
+      selfScore: analysis.selfScore,
+      colorScore: analysis.colorScore,
       currentCardValue: analysis.currentCardValue,
       totalPressure: analysis.totalPressure,
       overrideDeclaredColor: analysis.overrideDeclaredColor,
@@ -140,20 +168,24 @@ export function decideMischiefBotAction(
   });
 
   rankedCandidates.sort((left, right) => {
-    if (left.humanTargeted !== right.humanTargeted) {
-      return left.humanTargeted ? -1 : 1;
+    if (left.directWin !== right.directWin) {
+      return left.directWin ? -1 : 1;
     }
 
-    if (right.mainScore !== left.mainScore) {
-      return right.mainScore - left.mainScore;
+    if (right.humanAttackScore !== left.humanAttackScore) {
+      return right.humanAttackScore - left.humanAttackScore;
     }
 
-    if (right.softColorScore !== left.softColorScore) {
-      return right.softColorScore - left.softColorScore;
+    if (right.teamScore !== left.teamScore) {
+      return right.teamScore - left.teamScore;
     }
 
-    if (right.baselineScore !== left.baselineScore) {
-      return right.baselineScore - left.baselineScore;
+    if (right.selfScore !== left.selfScore) {
+      return right.selfScore - left.selfScore;
+    }
+
+    if (right.colorScore !== left.colorScore) {
+      return right.colorScore - left.colorScore;
     }
 
     if (right.currentCardValue !== left.currentCardValue) {
@@ -173,13 +205,8 @@ export function decideMischiefBotAction(
 
   const bestCandidate = rankedCandidates[0];
 
-  if (
-    bestCandidate === undefined ||
-    (!bestCandidate.humanTargeted &&
-      bestCandidate.baselineScore <= 0 &&
-      bestCandidate.softColorScore <= 0)
-  ) {
-    return greedyFallback;
+  if (bestCandidate === undefined) {
+    return createProtectedFallbackDecision(params.state, params.playerId);
   }
 
   return {
@@ -188,9 +215,10 @@ export function decideMischiefBotAction(
       bestCandidate.overrideDeclaredColor
     ),
     score:
-      bestCandidate.mainScore +
-      bestCandidate.softColorScore +
-      bestCandidate.baselineScore,
+      bestCandidate.humanAttackScore +
+      bestCandidate.teamScore +
+      bestCandidate.selfScore +
+      bestCandidate.colorScore,
     reasons: bestCandidate.reasons,
     willCallUno: shouldCallUno(
       bestCandidate.scoredAction,
@@ -205,20 +233,37 @@ function analyzeMischiefCandidate(
   state: GameState,
   playerId: PlayerId,
   candidate: BotCandidateAction,
+  scoredAction: ScoredBotAction,
   context: BotStrategyParams["context"]
 ): MischiefAnalysis {
   const player = state.players.find((candidatePlayer) => candidatePlayer.id === playerId);
   const command = candidate.command;
+  const resultingPlayer = scoredAction.resultingState.players.find((candidatePlayer) => candidatePlayer.id === playerId);
 
   if (
     player === undefined ||
-    command.type !== "play-card"
+    resultingPlayer === undefined
   ) {
     return {
       humanTargeted: false,
-      mainScore: 0,
-      softColorScore: 0,
-      baselineScore: 0,
+      humanAttackScore: 0,
+      teamScore: 0,
+      selfScore: 0,
+      colorScore: 0,
+      currentCardValue: 0,
+      totalPressure: 0,
+      overrideDeclaredColor: undefined,
+      reasons: []
+    };
+  }
+
+  if (command.type !== "play-card") {
+    return {
+      humanTargeted: false,
+      humanAttackScore: 0,
+      teamScore: 0,
+      selfScore: getNonPlaySelfScore(state, player, resultingPlayer, candidate, scoredAction),
+      colorScore: 0,
       currentCardValue: 0,
       totalPressure: 0,
       overrideDeclaredColor: undefined,
@@ -231,9 +276,10 @@ function analyzeMischiefCandidate(
   if (playedCard === undefined) {
     return {
       humanTargeted: false,
-      mainScore: 0,
-      softColorScore: 0,
-      baselineScore: 0,
+      humanAttackScore: 0,
+      teamScore: 0,
+      selfScore: 0,
+      colorScore: 0,
       currentCardValue: 0,
       totalPressure: 0,
       overrideDeclaredColor: undefined,
@@ -241,77 +287,70 @@ function analyzeMischiefCandidate(
     };
   }
 
-  let mainScore = 0;
-  let softColorScore = 0;
-  let baselineScore = 0;
+  let humanAttackScore = 0;
+  let teamScore = 0;
+  let selfScore = getPlayCardSelfScore(state, player, resultingPlayer, candidate, scoredAction, playedCard);
+  let colorScore = 0;
   let currentCardValue = getDrawValue(playedCard) ?? 0;
   let totalPressure = 0;
   let overrideDeclaredColor: CardColor | undefined;
   const reasons: string[] = [];
-
-  const nonBlackCount = player.hand.filter((card) => !card.isBlack).length;
-
-  if (
-    playedCard.kind === "wild-draw-six" &&
-    player.handCount >= 10 &&
-    nonBlackCount <= 2
-  ) {
-    baselineScore += MISCHIEF_PLUS_SIX_BLACK_HEAVY_BASELINE;
-    reasons.push("mischief:baseline:plus-six-black-heavy-hand");
-  }
-
-  if (
+  const immediateTarget = getImmediateEffectTarget(state, playerId, playedCard);
+  const drawValue = getDrawValue(playedCard);
+  const isDrawTenCancellation =
     playedCard.kind === "wild-draw-ten" &&
-    player.handCount >= 10 &&
-    nonBlackCount <= 2 &&
-    !handContainsKind(player.hand.filter((card) => card.id !== playedCard.id), "wild-draw-six")
-  ) {
-    baselineScore += MISCHIEF_PLUS_TEN_BLACK_HEAVY_BASELINE;
-    reasons.push("mischief:baseline:plus-ten-black-heavy-hand");
+    state.drawStack.active &&
+    state.drawStack.previousDrawKind === "wild-draw-ten";
+
+  if (isDrawTenCancellation) {
+    selfScore += state.drawStack.amount * MISCHIEF_SELF_DRAW_STACK_ESCAPE_WEIGHT;
+    reasons.push("mischief:self:draw-ten-cancel");
   }
 
   if (playedCard.kind === "skip") {
-    const skippedPlayer = getNextActivePlayer(state, playerId, state.direction);
-
-    if (isHumanPlayer(skippedPlayer)) {
-      mainScore += MISCHIEF_SKIP_HUMAN_SCORE + getHumanThreatBonus(skippedPlayer.handCount);
+    if (isHumanPlayer(immediateTarget)) {
+      humanAttackScore += MISCHIEF_SKIP_HUMAN_SCORE + getHumanThreatBonus(immediateTarget.handCount);
       reasons.push("mischief:skip-human");
+    } else if (immediateTarget !== null) {
+      teamScore -= MISCHIEF_SKIP_ROBOT_PENALTY;
+      reasons.push("mischief:avoid-skip-robot");
     }
   }
 
   if (playedCard.kind === "reverse") {
-    const previousPlayer = getPreviousActivePlayer(state, playerId, state.direction);
-
-    if (isHumanPlayer(previousPlayer)) {
-      mainScore += MISCHIEF_REVERSE_HUMAN_SCORE + getHumanThreatBonus(previousPlayer.handCount);
+    if (isHumanPlayer(immediateTarget)) {
+      humanAttackScore += MISCHIEF_REVERSE_HUMAN_SCORE + getHumanThreatBonus(immediateTarget.handCount);
       reasons.push("mischief:reverse-human");
 
       if (
         playedCard.color !== undefined &&
-        context?.lastUnanswerableColorByPlayerId?.[previousPlayer.id] === playedCard.color
+        context?.lastUnanswerableColorByPlayerId?.[immediateTarget.id] === playedCard.color
       ) {
-        mainScore += MISCHIEF_REVERSE_UNANSWERABLE_BONUS;
+        humanAttackScore += MISCHIEF_REVERSE_UNANSWERABLE_BONUS;
         reasons.push("mischief:reverse-human-unanswerable-color");
       }
+    } else if (immediateTarget !== null) {
+      teamScore -= MISCHIEF_REVERSE_ROBOT_PENALTY;
+      reasons.push("mischief:avoid-reverse-robot");
     }
   }
 
   if (playedCard.kind === "swap-hands") {
-    const humanBigBlackThreat = getMostDangerousHumanBigBlackThreat(state, playerId);
+    const humanThreat = summarizeThreatByGroup(state, playerId, "human");
+    const robotThreat = summarizeThreatByGroup(state, playerId, "robot");
 
-    if (humanBigBlackThreat !== null) {
-      mainScore +=
-        humanBigBlackThreat.wildDrawTenCount > 0
-          ? MISCHIEF_SWAP_HUMAN_WILD_TEN_SCORE
-          : MISCHIEF_SWAP_HUMAN_WILD_SIX_SCORE;
-      mainScore += Math.max(0, humanBigBlackThreat.wildDrawTenCount - 1) * 180;
-      mainScore += humanBigBlackThreat.wildDrawSixCount * 120;
+    if (humanThreat !== null && humanThreat.total > 0) {
+      const swapThreatScore = getSwapHandsHumanThreatScore(humanThreat);
 
-      if (humanBigBlackThreat.handCount <= 2) {
-        mainScore += MISCHIEF_SWAP_HUMAN_SHORT_HAND_BONUS;
+      if (swapThreatScore > 0) {
+        humanAttackScore += swapThreatScore;
+        reasons.push("mischief:swap-human-big-black");
       }
+    }
 
-      reasons.push("mischief:swap-human-big-black");
+    if (robotThreat !== null && robotThreat.total > 0) {
+      teamScore -= Math.round(robotThreat.total * MISCHIEF_SWAP_ROBOT_THREAT_PENALTY_FACTOR);
+      reasons.push("mischief:avoid-swap-robot-threat");
     }
   }
 
@@ -319,10 +358,14 @@ function analyzeMischiefCandidate(
     const penaltyOutcome = analyzePenaltyDrawChain(state, playerId, playedCard);
 
     if (penaltyOutcome !== null) {
-      mainScore +=
+      humanAttackScore +=
         MISCHIEF_PENALTY_DRAW_HUMAN_SCORE +
         penaltyOutcome.humanHandCount * MISCHIEF_PENALTY_DRAW_HANDCOUNT_WEIGHT +
         penaltyOutcome.chainLength * 20;
+      if (immediateTarget?.isBot === true) {
+        teamScore += MISCHIEF_PENALTY_DRAW_RELAY_TEAM_BONUS * Math.max(1, penaltyOutcome.chainLength - 1);
+        reasons.push("mischief:penalty-relay-robot");
+      }
       currentCardValue = 10;
       totalPressure = penaltyOutcome.chainLength;
       reasons.push("mischief:penalty-human");
@@ -335,31 +378,44 @@ function analyzeMischiefCandidate(
           overrideDeclaredColor = preferredColor;
         }
 
-        softColorScore += getHumanMissingColorScore(
+        colorScore += getHumanMissingColorScore(
           humanPlayer?.hand ?? [],
           preferredColor ?? candidate.declaredColor
         );
 
-        if (softColorScore > 0) {
+        if (colorScore > 0) {
           reasons.push("mischief:penalty-human-missing-color");
         }
       }
+    } else if (immediateTarget?.isBot === true) {
+      teamScore -= MISCHIEF_PENALTY_DRAW_ROBOT_PENALTY;
+      reasons.push("mischief:avoid-penalty-robot");
     }
   }
 
-  if (isDrawCard(playedCard)) {
+  if (isDrawCard(playedCard) && !isDrawTenCancellation) {
     const drawChainOutcome = analyzeDrawChain(state, playerId, playedCard, candidate.declaredColor);
 
     if (drawChainOutcome !== null) {
-      const drawValue = getDrawValue(playedCard) ?? 0;
-      mainScore +=
+      const safeDrawValue = drawValue ?? 0;
+      humanAttackScore +=
         MISCHIEF_DRAW_CHAIN_HUMAN_SCORE +
-        drawValue * MISCHIEF_DRAW_CHAIN_CURRENT_CARD_WEIGHT +
+        safeDrawValue * MISCHIEF_DRAW_CHAIN_CURRENT_CARD_WEIGHT +
         drawChainOutcome.totalPressure * MISCHIEF_DRAW_CHAIN_TOTAL_PRESSURE_WEIGHT +
         drawChainOutcome.chainLength * MISCHIEF_DRAW_CHAIN_STABILITY_WEIGHT;
-      currentCardValue = drawValue;
+      if (immediateTarget?.isBot === true) {
+        teamScore += MISCHIEF_DRAW_CHAIN_RELAY_TEAM_BONUS * Math.max(1, drawChainOutcome.chainLength - 1);
+        reasons.push("mischief:draw-chain-relay-robot");
+      }
+      currentCardValue = safeDrawValue;
       totalPressure = drawChainOutcome.totalPressure;
       reasons.push("mischief:draw-chain-human");
+    } else if (immediateTarget?.isBot === true && drawValue !== null) {
+      teamScore -= drawValue * MISCHIEF_DRAW_CHAIN_ROBOT_PENALTY_FACTOR;
+      reasons.push("mischief:avoid-draw-chain-robot");
+    } else if (isHumanPlayer(immediateTarget) && drawValue !== null) {
+      humanAttackScore += drawValue * 55;
+      reasons.push("mischief:draw-pressure-human");
     }
   }
 
@@ -370,30 +426,322 @@ function analyzeMischiefCandidate(
     const preferredColor = playedCard.isBlack
       ? choosePreferredHumanMissingColor(colorTarget.hand)
       : resultingColor;
-    const colorScore =
+    const missingColorScore =
       preferredColor === null
         ? 0
         : getHumanMissingColorScore(colorTarget.hand, preferredColor);
 
-    if (colorScore > 0) {
+    if (missingColorScore > 0) {
       if (playedCard.isBlack && preferredColor !== null) {
         overrideDeclaredColor = preferredColor;
       }
-      softColorScore += colorScore;
+      colorScore += missingColorScore;
       reasons.push("mischief:human-missing-color");
     }
   }
 
+  if (
+    !isDirectWinningAction(scoredAction, playerId) &&
+    humanAttackScore <= 0 &&
+    !isDrawTenCancellation
+  ) {
+    selfScore -= getPunishReserveCost(playedCard);
+  }
+
   return {
-    humanTargeted: mainScore > 0 || softColorScore > 0,
-    mainScore,
-    softColorScore,
-    baselineScore,
+    humanTargeted: humanAttackScore > 0 || colorScore > 0,
+    humanAttackScore,
+    teamScore,
+    selfScore,
+    colorScore,
     currentCardValue,
     totalPressure,
     overrideDeclaredColor,
     reasons
   };
+}
+
+function createProtectedFallbackDecision(
+  state: GameState,
+  playerId: PlayerId
+): BotStrategyDecision | null {
+  if (state.status === "finished" || state.currentPlayerId !== playerId) {
+    return null;
+  }
+
+  if (state.normalDrawOffer.active && state.normalDrawOffer.playerId === playerId) {
+    return {
+      command: {
+        type: "keep-drawn-card",
+        playerId
+      },
+      score: Number.NEGATIVE_INFINITY,
+      reasons: ["protected-fallback"],
+      willCallUno: false
+    };
+  }
+
+  if (state.drawStack.active && state.drawStack.targetPlayerId === playerId) {
+    return {
+      command: {
+        type: "resolve-draw-stack",
+        playerId
+      },
+      score: Number.NEGATIVE_INFINITY,
+      reasons: ["protected-fallback"],
+      willCallUno: false
+    };
+  }
+
+  if (state.drawUntilColor.active && state.drawUntilColor.targetPlayerId === playerId) {
+    return {
+      command: {
+        type: "resolve-draw-until-color",
+        playerId
+      },
+      score: Number.NEGATIVE_INFINITY,
+      reasons: ["protected-fallback"],
+      willCallUno: false
+    };
+  }
+
+  return {
+    command: {
+      type: "draw-card",
+      playerId
+    },
+    score: Number.NEGATIVE_INFINITY,
+    reasons: ["protected-fallback"],
+    willCallUno: false
+  };
+}
+
+function isDirectWinningAction(
+  scoredAction: ScoredBotAction,
+  playerId: PlayerId
+): boolean {
+  const player = scoredAction.resultingState.players.find((candidate) => candidate.id === playerId);
+
+  return (
+    player !== undefined &&
+    (player.handCount === 0 || scoredAction.resultingState.winnerPlayerIds.includes(playerId))
+  );
+}
+
+function getNonPlaySelfScore(
+  state: GameState,
+  _player: GameState["players"][number],
+  _resultingPlayer: GameState["players"][number],
+  candidate: BotCandidateAction,
+  scoredAction: ScoredBotAction
+): number {
+  switch (candidate.command.type) {
+    case "keep-drawn-card":
+      return MISCHIEF_SELF_KEEP_DRAWN_SCORE + Math.round(scoredAction.score * 0.04);
+    case "resolve-draw-stack":
+      return -state.drawStack.amount * MISCHIEF_SELF_DRAW_STACK_ESCAPE_WEIGHT;
+    case "resolve-draw-until-color":
+      return -MISCHIEF_SELF_DRAW_UNTIL_COLOR_ESCAPE_SCORE;
+    case "draw-card":
+      return -MISCHIEF_SELF_DRAW_COMMAND_PENALTY;
+    default:
+      return 0;
+  }
+}
+
+function getPlayCardSelfScore(
+  state: GameState,
+  player: GameState["players"][number],
+  resultingPlayer: GameState["players"][number],
+  candidate: BotCandidateAction,
+  scoredAction: ScoredBotAction,
+  playedCard: Card
+): number {
+  let score =
+    (player.handCount - resultingPlayer.handCount) * MISCHIEF_SELF_CARD_REDUCTION_SCORE +
+    Math.round(scoredAction.score * 0.06);
+
+  if (resultingPlayer.handCount === 1 && resultingPlayer.unoPendingSinceMs !== null) {
+    score += MISCHIEF_SELF_UNO_SCORE;
+  } else if (resultingPlayer.handCount === 2) {
+    score += MISCHIEF_SELF_TWO_CARDS_SCORE;
+  }
+
+  if (state.drawStack.active && state.drawStack.targetPlayerId === player.id) {
+    score += state.drawStack.amount * MISCHIEF_SELF_DRAW_STACK_ESCAPE_WEIGHT;
+  }
+
+  if (state.drawUntilColor.active && state.drawUntilColor.targetPlayerId === player.id) {
+    score += MISCHIEF_SELF_DRAW_UNTIL_COLOR_ESCAPE_SCORE;
+  }
+
+  if (candidate.cardIds.length >= 2) {
+    score += 40;
+  }
+
+  if (playedCard.kind === "wild" && candidate.declaredColor !== undefined && candidate.declaredColor === state.currentColor) {
+    score -= 40;
+  }
+
+  return score;
+}
+
+function getImmediateEffectTarget(
+  state: GameState,
+  playerId: PlayerId,
+  playedCard: Card
+) {
+  switch (playedCard.kind) {
+    case "reverse":
+      return getPreviousActivePlayer(state, playerId, state.direction);
+    case "skip":
+    case "penalty-draw":
+    case "draw-two":
+    case "draw-four":
+    case "wild-draw-six":
+    case "wild-draw-ten":
+      return getNextActivePlayer(state, playerId, state.direction);
+    case "wild-reverse-draw-four":
+      return getPreviousActivePlayer(state, playerId, state.direction);
+    default:
+      return getNextActivePlayer(state, playerId, state.direction);
+  }
+}
+
+function summarizeThreatByGroup(
+  state: GameState,
+  playerId: PlayerId,
+  group: "human" | "robot"
+): ThreatScoreSummary | null {
+  const candidates = state.players.filter((candidate) => {
+    const groupMatches = group === "human" ? candidate.isBot !== true : candidate.isBot === true;
+
+    return (
+      candidate.id !== playerId &&
+      groupMatches &&
+      !candidate.isEliminated &&
+      !candidate.isRoundWinner &&
+      !candidate.hasLeftRoom
+    );
+  });
+
+  let best: ThreatScoreSummary | null = null;
+
+  for (const candidate of candidates) {
+    const threat = evaluateThreatScore(candidate.hand, candidate.handCount);
+
+    if (threat.total <= 0) {
+      continue;
+    }
+
+    if (
+      best === null ||
+      threat.highestSingle > best.highestSingle ||
+      threat.highestSingle === best.highestSingle &&
+        threat.total > best.total ||
+      threat.highestSingle === best.highestSingle &&
+        threat.total === best.total &&
+        candidate.handCount < best.handCount
+    ) {
+      best = {
+        playerId: candidate.id,
+        total: threat.total,
+        highestSingle: threat.highestSingle,
+        handCount: candidate.handCount
+      };
+    }
+  }
+
+  return best;
+}
+
+function evaluateThreatScore(
+  hand: readonly Card[],
+  handCount: number
+): { total: number; highestSingle: number } {
+  let total = 0;
+  let highestSingle = 0;
+
+  for (const card of hand) {
+    const weight = getMischiefThreatWeight(card);
+    total += weight;
+    highestSingle = Math.max(highestSingle, weight);
+  }
+
+  if (handCount <= 2) {
+    total += 260;
+  } else if (handCount <= 4) {
+    total += 120;
+  }
+
+  return {
+    total,
+    highestSingle
+  };
+}
+
+function getMischiefThreatWeight(card: Card): number {
+  switch (card.kind) {
+    case "wild-draw-ten":
+      return 1_800;
+    case "wild-draw-six":
+      return 620;
+    case "draw-four":
+      return 460;
+    case "wild-reverse-draw-four":
+      return 420;
+    case "penalty-draw":
+      return 90;
+    case "draw-two":
+      return 80;
+    case "wild":
+      return 60;
+    case "skip":
+    case "reverse":
+      return 45;
+    case "swap-hands":
+    case "discard-same-color":
+      return 35;
+    default:
+      return 0;
+  }
+}
+
+function getSwapHandsHumanThreatScore(summary: ThreatScoreSummary): number {
+  if (summary.highestSingle >= 1_800) {
+    return 1_600 + Math.round((summary.total - summary.highestSingle) * 0.18) +
+      (summary.handCount <= 2 ? MISCHIEF_SWAP_SHORT_HAND_BONUS : 0);
+  }
+
+  if (summary.highestSingle >= 620) {
+    return 780 + Math.round((summary.total - summary.highestSingle) * 0.12) +
+      (summary.handCount <= 2 ? 120 : 0);
+  }
+
+  if (summary.highestSingle >= 420) {
+    return 620 + Math.round((summary.total - summary.highestSingle) * 0.1);
+  }
+
+  return 0;
+}
+
+function getPunishReserveCost(card: Card): number {
+  switch (card.kind) {
+    case "wild-draw-ten":
+      return MISCHIEF_PLUS_TEN_RESERVE_COST;
+    case "wild-draw-six":
+      return MISCHIEF_PLUS_SIX_RESERVE_COST;
+    case "wild-reverse-draw-four":
+      return MISCHIEF_REVERSE_PLUS_FOUR_RESERVE_COST;
+    case "penalty-draw":
+      return MISCHIEF_PENALTY_DRAW_RESERVE_COST;
+    case "draw-four":
+      return MISCHIEF_DRAW_FOUR_RESERVE_COST;
+    case "draw-two":
+      return MISCHIEF_DRAW_TWO_RESERVE_COST;
+    default:
+      return 0;
+  }
 }
 
 function analyzeDrawChain(
