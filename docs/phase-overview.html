@@ -428,7 +428,7 @@
         <div class="meta-strip">
           <article class="meta-card">
             <strong>收录文档</strong>
-            <span>22</span>
+            <span>23</span>
           </article>
           <article class="meta-card">
             <strong>分组板块</strong>
@@ -1944,7 +1944,7 @@ corepack pnpm --filter @thunder-uno/client-web build</code></pre>
             <h2>机器人与对战打磨</h2>
             <p>围绕 Greedy Bot、权重调优、音效和对战沉浸感的阶段记录。</p>
           </div>
-          <span class="group-chip">4 份文档</span>
+          <span class="group-chip">5 份文档</span>
         </div>
         <div class="doc-grid">
           <article class="doc-card">
@@ -2462,6 +2462,70 @@ corepack pnpm test:e2e</code></pre>
 <h2>后续建议</h2>
 <p>后续如果继续写日志，建议按下面的边界拆：</p>
 <ol><li>如果是继续打磨 <code>chaos-v1</code> 权重和策略，记到机器人调优阶段。</li><li>如果是继续打磨回合决策、观战、房内重开之类房间生命周期，单独开新 Phase。</li><li>如果是继续打磨设置、更新日志、音频和 UI 面板，再开一篇 UI/UX 补充 Phase。</li></ol>
+        </div>
+      </div>
+    </article>
+<article class="doc-card">
+      <div class="doc-summary">
+        <div class="doc-topline">
+          <div>
+            <div class="doc-index">23</div>
+            <h3>Phase 7D：对战聊天、`+10` 清链规则与音频/聊天收口</h3>
+          </div>
+        </div>
+        <p>Phase 7D 记录的是一轮“把战斗体验真正打磨到玩家能直接感受到”的收口工作。重点不在于继续堆系统，而在于把已经上线的战斗 UI、聊天能力、黑牌规则和音频反馈修成统一口径，减少误解、误操作和视觉噪音。</p>
+        <div class="doc-tags">
+          <span class="doc-tag">PHASE7D</span><span class="doc-tag">105 行内容</span><span class="doc-tag">含测试/验收</span><span class="doc-tag">含后续计划</span>
+        </div>
+        <div class="doc-actions">
+          <button type="button" data-toggle="doc-23" aria-expanded="false">展开内容</button>
+          <a href="./PHASE7D-BATTLE-CHAT-PLUS10-AUDIO-POLISH.md">打开原文</a>
+        </div>
+      </div>
+      <div class="doc-body" data-detail="doc-23" hidden>
+        <div class="doc-body-inner">
+          <h1>Phase 7D：对战聊天、<code>+10</code> 清链规则与音频/聊天收口</h1>
+<h2>阶段目标</h2>
+<p>Phase 7D 记录的是一轮“把战斗体验真正打磨到玩家能直接感受到”的收口工作。重点不在于继续堆系统，而在于把已经上线的战斗 UI、聊天能力、黑牌规则和音频反馈修成统一口径，减少误解、误操作和视觉噪音。</p>
+<p>这一轮最终落下了 4 组变化：</p>
+<ol><li><code>变色 +10</code> 的第二张不再继续叠加，而是清空整条当前加牌链</li><li>对战页正式接入瞬时聊天气泡</li><li>出局音效改为正常速度播放，并在播放时压低背景音乐</li><li>大厅/对战聊天交互去掉冷却，同时修正己方大厅消息布局和设置面板滚动跳回问题</li></ol>
+<h2>与旧阶段文档的关系</h2>
+<p>本阶段不是独立推翻旧规则，而是对以下内容做正式覆盖或补充：</p>
+<ul><li>它细化了 <code>PHASE2B</code> 中“<code>+10</code> 抵消已有加牌链”的旧表述：</li></ul>
+<p>现在的最终口径是：<strong>仅当当前链顶已经是 <code>wild-draw-ten</code> 时，第二张 <code>+10</code> 清空整条链；第三张 <code>+10</code> 再重新开一条新的 <code>10</code> 加牌链。</strong></p>
+<ul><li>它补完了 <code>PHASE7A</code> 里 battle UI 只做到音效和牌桌表现、但还没有战斗聊天的空白。</li><li>它扩展了 <code>PHASE7C</code> 的音频和日志收口，把“出局音效压低 BGM、取消倍速、聊天不再冷却、设置滚动位置保持”等后来继续迭代出的真实行为正式写进阶段记录。</li></ul>
+<h2>核心变化</h2>
+<h3>1. <code>+10</code> 清链规则</h3>
+<ul><li><code>wild-draw-ten</code> 仍然可以接在较低等级的加牌链后面，比如 <code>+2 / +4 / 反转+4 / +6</code></li><li>但当当前链顶已经是 <code>wild-draw-ten</code> 时，再打一张 <code>wild-draw-ten</code>：</li><li>不再把压力继续从 <code>22</code> 抬到 <code>32</code></li><li>而是<strong>直接清空整条当前加牌链</strong></li><li>第二张 <code>+10</code> 只保留变色功能</li><li>这条规则的延伸行为也已经锁定：</li><li><code>+10 -&gt; +10</code>：旧链被清空</li><li><code>+10 -&gt; +10 -&gt; +10</code>：前两个 <code>+10</code> 清掉旧链；第三张 <code>+10</code> 因为已经不在接旧链，所以重新开启新的 <code>10</code> 加牌链</li><li>前端 tooltip、战斗 toast、bot 推演都同步到了同一口径，不再出现“文案说能抵消，但机器人和 reducer 仍按继续叠加算”的分裂状态</li></ul>
+<h3>2. 对战聊天气泡</h3>
+<ul><li>正式启用现有 <code>battle-chat</code> 协议，不新增新消息类型</li><li>对战 HUD 增加 <code>聊天</code> 按钮，与 <code>设置 / 规则 / 退出房间</code> 同一视觉带</li><li>点击后打开一个小输入面板：</li><li>输入框上限 <code>30</code> 字</li><li>回车或点击发送都可发出 <code>battle-chat</code></li><li>发送后默认收起输入面板</li><li>收到 <code>battle-chat</code> 后：</li><li>在对应玩家卡片旁边的空位显示聊天气泡</li><li>气泡持续 <code>8</code> 秒</li><li>同一玩家新消息覆盖旧消息并重新计时</li><li>新 snapshot 到达时，未过期气泡不会闪断</li><li>气泡颜色按玩家头像稳定配色派生为红/黄/蓝/绿四类主题，并按 battle 背景重新收了透明度、阴影和文字颜色</li></ul>
+<h3>3. 音频与设置体验</h3>
+<ul><li>出局音效资源继续使用 <code>apps/client-web/public/sounds/出局音效.mp3</code></li><li>这一轮把出局音效改成：</li><li><strong>正常速度播放</strong></li><li>不再设置 <code>playbackRate = 2</code></li><li>播放期间自动把 battle / lobby 背景音乐压低到当前音量的 <code>40%</code></li><li>停止后自动恢复原背景音乐音量</li><li>设置面板内部滚动位置现在会在实时刷新前后保持：</li><li>战斗中即使别人出牌触发新 snapshot</li><li>已打开的设置面板也不会再跳回顶部</li></ul>
+<h3>4. 聊天体验小修</h3>
+<ul><li>大厅聊天和对战聊天都移除了发送冷却</li><li>服务端不再返回：</li><li><code>Lobby chat is cooling down.</code></li><li><code>Battle chat is cooling down.</code></li><li>大厅里己方消息的 DOM 顺序和布局也做了修正：</li><li>己方气泡在左、头像在右</li><li>整体靠右对齐</li><li>中文换行从激进的 <code>anywhere</code> 收成正常的 <code>break-word</code></li><li>不再出现“消息跑到头像右边、每个字单独断行”的情况</li></ul>
+<h2>影响文件</h2>
+<h3>规则与核心状态</h3>
+<ul><li><code>packages/uno-core/src/reducer/applyPlayCard.ts</code></li><li><code>packages/uno-core/src/reducer/applyCommand.turn.test.ts</code></li><li><code>packages/uno-core/src/rules/canStackDrawCard.test.ts</code></li></ul>
+<h3>前端</h3>
+<ul><li><code>apps/client-web/src/main.ts</code></li><li><code>apps/client-web/src/styles.css</code></li><li><code>apps/client-web/src/protocol/clientMessages.test.ts</code></li><li><code>apps/client-web/src/smoke/appBoot.test.ts</code></li><li><code>apps/client-web/public/update-log.md</code></li></ul>
+<h3>服务端</h3>
+<ul><li><code>apps/game-server/src/gateway/messageHandler.ts</code></li><li><code>apps/game-server/src/tests/messageHandler.test.ts</code></li><li><code>apps/game-server/src/bot/botScoring.ts</code></li><li><code>apps/game-server/src/bot/strategies/chaosStrategy.ts</code></li><li><code>apps/game-server/src/bot/strategies/mischiefStrategy.ts</code></li></ul>
+<h2>验证记录</h2>
+<p>本阶段完成后，执行过以下针对性验证：</p>
+<pre><code class="language-bash">corepack pnpm --filter @thunder-uno/uno-core exec vitest run src/reducer/applyCommand.turn.test.ts src/rules/canStackDrawCard.test.ts
+corepack pnpm --filter @thunder-uno/game-server exec vitest run src/tests/chaosStrategy.test.ts src/tests/mischiefStrategy.test.ts
+corepack pnpm --filter @thunder-uno/game-server exec vitest run src/tests/messageHandler.test.ts -t &quot;lobby-chat 可以连续发送两条而不会触发冷却拦截|battle-chat 可以连续发送两条而不会触发冷却拦截&quot;
+corepack pnpm --filter @thunder-uno/client-web typecheck
+corepack pnpm --filter @thunder-uno/client-web exec vitest run src/smoke/appBoot.test.ts -t &quot;preserves the settings modal scroll position across live battle rerenders&quot;
+corepack pnpm --filter @thunder-uno/client-web exec vitest run src/smoke/appBoot.test.ts -t &quot;opens a battle chat composer|renders battle chat bubbles&quot;</code></pre>
+<p>额外说明：</p>
+<ul><li>出局音效压低背景音乐与取消倍速的定向 smoke 已通过</li><li><code>client-web</code> 全量 smoke 中仍有一条旧的套件级音频串行问题，属于历史测试干扰，不是本轮功能本身失效</li></ul>
+<h2>验收标准</h2>
+<p>本阶段完成后应满足：</p>
+<ol><li><code>+10</code> 接 <code>+10</code> 时会清空整条当前加牌链，而不是继续叠加</li><li><code>+10 -&gt; +10 -&gt; +10</code> 时，第三张 <code>+10</code> 会重新开启新的 <code>10</code> 加牌链</li><li>对战页顶部存在聊天按钮，发送后对应玩家卡片旁能显示 <code>8</code> 秒聊天气泡</li><li>同一玩家重复发言只保留一个气泡，新消息覆盖旧消息</li><li>对战聊天按钮和面板采用银色系，气泡透明度为 <code>70%</code></li><li>出局音效播放时背景音乐会临时压低，并在停止后恢复</li><li>出局音效不再倍速播放</li><li>设置面板在战斗实时刷新时保留内部滚动位置</li><li>大厅与对战聊天都可连续发送，不再出现 <code>cooling down</code> 提示</li><li>大厅里己方聊天消息布局正常，头像在右、消息靠右且不会一字一行</li></ol>
+<h2>后续建议</h2>
+<p>如果后面继续沿这条线打磨，建议拆成下面几个方向：</p>
+<ol><li>如果继续增强 battle chat，可单独做 <code>PHASE7E</code>，记录快捷短语、表情、聊天记录面板或更复杂的气泡动画</li><li>如果继续深化 <code>胡闹bot / 混沌bot</code> 在 <code>+10</code> 清链规则下的更细致取舍，再开一篇 bot 策略阶段</li><li>如果后面把音频全量 smoke 的串行问题清掉，建议单独记一次测试基础设施修复，不和功能阶段混在一起</li></ol>
         </div>
       </div>
     </article>
