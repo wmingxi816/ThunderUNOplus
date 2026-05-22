@@ -1077,6 +1077,13 @@ describe("client-web smoke", () => {
       const leftBubble = document.querySelector<HTMLElement>("[data-battle-chat-player='player-2']");
       expect(leftBubble).not.toBeNull();
       expect(leftBubble?.className).toContain("battle-chat-anchor-side-left");
+      expect(leftBubble?.getAttribute("style")).toContain("--seat-progress:");
+      expect(leftBubble?.getAttribute("style")).not.toContain("vh");
+
+      const leftSeat = document.querySelector<HTMLElement>(".opponent.seat-side-left");
+      expect(leftSeat?.getAttribute("style")).toContain("--seat-progress:");
+      expect(leftSeat?.getAttribute("style")).toContain("--battle-opponent-seat-scale");
+      expect(leftSeat?.getAttribute("style")).not.toContain("vh");
       expect(leftBubble?.textContent).toContain("先别打黑牌");
 
       socket?.triggerMessage({
@@ -1891,11 +1898,20 @@ describe("client-web smoke", () => {
 
     const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
     const styleText = await readFile("src/styles.css", "utf8");
+    const mainText = await readFile("src/main.ts", "utf8");
 
     expect(styleText).toContain("--battle-hud-bottom-limit");
     expect(styleText).toContain("--battle-action-dock-top-limit");
+    expect(styleText).toContain("--battle-seat-band-top");
+    expect(styleText).toContain("--battle-seat-band-bottom");
+    expect(styleText).toContain("--battle-seat-band-height");
+    expect(styleText).toContain("--battle-opponent-seat-scale");
+    expect(mainText).toContain('.battle-immersive .battle-action-dock .hand');
     expect(battleRoot?.style.getPropertyValue("--battle-hud-bottom-limit")).toContain("px");
     expect(battleRoot?.style.getPropertyValue("--battle-action-dock-top-limit")).toContain("px");
+    expect(battleRoot?.style.getPropertyValue("--battle-seat-band-top")).toContain("px");
+    expect(battleRoot?.style.getPropertyValue("--battle-seat-band-bottom")).toContain("px");
+    expect(battleRoot?.style.getPropertyValue("--battle-seat-band-height")).toContain("px");
   });
 
   it("keeps the current battle seat fully lit instead of dimming it under the active overlay", async () => {
@@ -3016,6 +3032,53 @@ it("shows a dedicated toast when draw-ten cancels the whole draw stack", async (
 
     expect(socket?.sentMessages).toHaveLength(sentCount);
     expect(document.querySelector(".ui-toast")?.textContent).toContain("10");
+  });
+
+  it("keeps the nickname input empty while editing and only refills it when rename is clicked empty", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "room-state",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      room: {
+        roomId: "ROOM1",
+        roomCode: "ROOM1",
+        status: "lobby",
+        mode: "no-challenge",
+        hostPlayerId: "player-1",
+        snapshotVersion: 1,
+        players: [
+          {
+            playerId: "player-1",
+            displayName: "Old Name",
+            avatarUrl: null,
+            seatIndex: 0,
+            isHost: true,
+            isReady: true,
+            connectionStatus: "connected"
+          }
+        ]
+      }
+    });
+
+    const nicknameInput = document.querySelector<HTMLInputElement>("#nickname")!;
+    nicknameInput.value = "";
+    nicknameInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(nicknameInput.value).toBe("");
+
+    const sentCount = socket?.sentMessages.length ?? 0;
+    document.querySelector<HTMLButtonElement>("#rename-player-button")?.click();
+
+    expect(socket?.sentMessages).toHaveLength(sentCount);
+    expect(nicknameInput.value).toBe("Old Name");
+    expect(document.querySelector(".ui-toast")?.textContent).toContain("不能为空");
   });
 
   it("simplifies lobby bot display and hides the seed input", async () => {

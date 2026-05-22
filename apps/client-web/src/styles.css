@@ -2603,6 +2603,16 @@ label span {
   --hand-card-scale: 1;
   --battle-hud-bottom-limit: calc(max(0.35rem, env(safe-area-inset-top)) + 4rem);
   --battle-action-dock-top-limit: calc(100% - max(0.65rem, env(safe-area-inset-bottom)) - clamp(17rem, 34vh, 22.5rem));
+  --battle-seat-band-padding: 12px;
+  --battle-seat-band-top: calc(var(--battle-hud-bottom-limit) + var(--battle-seat-band-padding));
+  --battle-seat-band-bottom: calc(var(--battle-action-dock-top-limit) - var(--battle-seat-band-padding));
+  --battle-seat-band-height: calc(var(--battle-seat-band-bottom) - var(--battle-seat-band-top));
+  --battle-seat-base-height: 82px;
+  --battle-seat-base-width: 196px;
+  --battle-seat-row-gap: 18px;
+  --battle-seat-scale-min: 0.74;
+  --battle-seat-scale-max: 1.45;
+  --battle-opponent-seat-scale: 1;
 }
 
 /* UI name: battle-debug-grid. 临时尺度调试网格线。 */
@@ -2682,6 +2692,41 @@ label span {
 .battle-debug-percent-y {
   right: 0.35rem;
   transform: translateY(-50%);
+}
+
+.battle-debug-boundary-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  height: 0;
+  border-top: 2px solid rgba(255, 99, 132, 0.92);
+  box-shadow: 0 0 0.45rem rgba(255, 99, 132, 0.42);
+}
+
+.battle-debug-boundary-line-top {
+  top: var(--battle-hud-bottom-limit);
+}
+
+.battle-debug-boundary-line-bottom {
+  top: var(--battle-action-dock-top-limit);
+  border-top-color: rgba(94, 234, 212, 0.94);
+  box-shadow: 0 0 0.45rem rgba(94, 234, 212, 0.4);
+}
+
+.battle-debug-boundary-label {
+  position: absolute;
+  left: 0.55rem;
+  top: 0;
+  transform: translateY(-100%);
+  padding: 0.14rem 0.34rem;
+  border-radius: 4px;
+  background: rgba(8, 11, 15, 0.82);
+  color: #ffffff;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 /* UI name: battle-stage. 对战舞台背景区域。 */
@@ -3725,25 +3770,10 @@ label span {
   right: 5%;
 }
 
-.battle-immersive .seat-top-left,
-.battle-immersive .seat-top-right {
-  top: -0.25rem;
-}
-
-.battle-immersive .seat-left,
-.battle-immersive .seat-right {
-  top: 28%;
-}
-
-.battle-immersive .seat-mid-left,
-.battle-immersive .seat-mid-right {
-  top: 48%;
-}
-
 .battle-immersive .seat-side {
   top: calc(var(--seat-top) + var(--battle-seat-y-offset, 0%));
-  width: clamp(9.5rem, 15vw, 12.25rem);
-  transform: translateY(-50%) scale(var(--seat-scale, 0.8));
+  width: var(--battle-seat-base-width);
+  transform: translateY(-50%) scale(var(--seat-scale, var(--battle-opponent-seat-scale, 1)));
   transform-origin: center center;
 }
 
@@ -3761,9 +3791,9 @@ label span {
 
 .battle-immersive .seat {
   display: block;
-  min-height: 5.1rem;
+  min-height: var(--battle-seat-base-height);
   padding: 0;
-  --seat-scale: 0.8;
+  --seat-scale: var(--battle-opponent-seat-scale, 1);
   --seat-name-left: 0;
   --seat-name-bottom: 0;
   --seat-count-top: 0;
@@ -3859,12 +3889,12 @@ label span {
 }
 
 .battle-chat-anchor-side-left {
-  left: calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)) + clamp(9.5rem, 15vw, 12.25rem) + 0.75rem);
+  left: calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)) + (var(--battle-seat-base-width) * var(--battle-opponent-seat-scale, 1)) + 0.75rem);
   transform: translateY(-50%) scale(var(--seat-scale, 1));
 }
 
 .battle-chat-anchor-side-right {
-  right: calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)) + clamp(9.5rem, 15vw, 12.25rem) + 0.75rem);
+  right: calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)) + (var(--battle-seat-base-width) * var(--battle-opponent-seat-scale, 1)) + 0.75rem);
   transform: translateY(-50%) scale(var(--seat-scale, 1));
 }
 

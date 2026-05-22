@@ -46,6 +46,7 @@ interface AppState {
   wsUrl: string;
   userId: string;
   nickname: string;
+  nicknameDraft: string;
   connectionStatus: ConnectionStatus;
   roomId: RoomId | null;
   playerId: PlayerId | null;
@@ -509,6 +510,7 @@ const appRoot = root;
 
 const config = readInitialConfig(window.location.search);
 const shouldReuseStoredSession = shouldReuseStoredSessionIdentity();
+const initialNickname = getOrCreateNickname();
 
 if (!shouldReuseStoredSession) {
   resetClonedSessionIdentity();
@@ -517,7 +519,8 @@ if (!shouldReuseStoredSession) {
 const state: AppState = {
   wsUrl: config.wsUrl,
   userId: getOrCreateUserId(),
-  nickname: getOrCreateNickname(),
+  nickname: initialNickname,
+  nicknameDraft: initialNickname,
   connectionStatus: "idle",
   roomId: readStoredRoomId(),
   playerId: null,
@@ -909,7 +912,7 @@ function renderConnectionPanel(): string {
         <input
           id="nickname"
           data-testid="nickname-input"
-          value="${escapeHtml(state.nickname)}"
+          value="${escapeHtml(state.nicknameDraft)}"
           autocomplete="off"
         />
       </label>
@@ -1139,7 +1142,7 @@ function renderLobbyPanel(): string {
               <div class="lobby-identity-row">
                 <label class="lobby-field">
                   <span>昵称</span>
-                  <input id="nickname" data-testid="nickname-input" value="${escapeHtml(state.nickname)}" maxlength="${String(MAX_PLAYER_NICKNAME_LENGTH)}" autocomplete="off" />
+                  <input id="nickname" data-testid="nickname-input" value="${escapeHtml(state.nicknameDraft)}" maxlength="${String(MAX_PLAYER_NICKNAME_LENGTH)}" autocomplete="off" />
                 </label>
                 <button
                   id="rename-player-button"
@@ -2445,6 +2448,12 @@ function renderBattleDebugGrid(): string {
   return `
     <div class="battle-debug-grid" aria-hidden="true">
       <div class="battle-debug-grid-title">GRID 40px / 10%</div>
+      <div class="battle-debug-boundary-line battle-debug-boundary-line-top" data-testid="battle-debug-boundary-top">
+        <span class="battle-debug-boundary-label">HUD bottom</span>
+      </div>
+      <div class="battle-debug-boundary-line battle-debug-boundary-line-bottom" data-testid="battle-debug-boundary-bottom">
+        <span class="battle-debug-boundary-label">HAND top</span>
+      </div>
       ${pixelTicks
         .map((value) => {
           return `
@@ -5305,23 +5314,18 @@ interface OpponentSeatPlacement {
   side: "left" | "right";
 }
 
+const DEFAULT_BATTLE_SEAT_BAND_PADDING_PX = 12;
+const DEFAULT_BATTLE_SEAT_BASE_HEIGHT_PX = 82;
+const DEFAULT_BATTLE_SEAT_ROW_GAP_PX = 18;
+const DEFAULT_BATTLE_SEAT_ROW_GAP_MIN_PX = 10;
+const DEFAULT_BATTLE_SEAT_ROW_GAP_MAX_PX = 18;
+const DEFAULT_BATTLE_SEAT_SCALE_MIN = 0.74;
+const DEFAULT_BATTLE_SEAT_SCALE_MAX = 1.45;
+
 function getOpponentSeatPlacement(
   index: number,
   total: number
 ): OpponentSeatPlacement {
-  const seatScale = getOpponentSeatScale(total + 1);
-
-  if (total <= 1) {
-    const topVh = 35;
-    return {
-      className: "seat-side seat-side-left seat-left",
-      originClassName: "seat-left",
-      effectStyle: getOpponentSeatEffectStyle("left", topVh),
-      style: `--seat-row: 0; --seat-side-count: 1; --seat-top: ${topVh.toFixed(2)}vh; --seat-scale: ${seatScale}; ${getOpponentSeatEffectStyle("left", topVh)}`,
-      side: "left"
-    };
-  }
-
   const leftCount = Math.ceil(total / 2);
   const rightCount = total - leftCount;
   const isLeftSide = index < leftCount;
@@ -5329,15 +5333,28 @@ function getOpponentSeatPlacement(
   const row = isLeftSide ? index : index - leftCount;
   const sideCount = isLeftSide ? leftCount : rightCount;
   const flow = isLeftSide ? "bottom-up" : "top-down";
-  const topVh = getOpponentSeatTopVh(row, sideCount, flow);
+  const seatProgress = formatSeatProgress(getOpponentSeatProgress(row, sideCount, flow));
+  const seatScale = "var(--battle-opponent-seat-scale)";
+  const seatTop = getOpponentSeatTopExpression(seatProgress);
+
+  if (total <= 1) {
+    return {
+      className: "seat-side seat-side-left seat-left",
+      originClassName: "seat-left",
+      effectStyle: getOpponentSeatEffectStyle("left", seatProgress),
+      style: `--seat-row: 0; --seat-side-count: 1; --seat-progress: ${seatProgress}; --seat-top: ${seatTop}; --seat-scale: ${seatScale}; ${getOpponentSeatEffectStyle("left", seatProgress)}`,
+      side: "left"
+    };
+  }
+
   const originClassName = getOpponentSeatOriginClass(side, row, sideCount, flow);
-  const effectStyle = getOpponentSeatEffectStyle(side, topVh);
+  const effectStyle = getOpponentSeatEffectStyle(side, seatProgress);
 
   return {
     className: `seat-side seat-side-${side} ${originClassName}`,
     originClassName,
     effectStyle,
-    style: `--seat-row: ${String(row)}; --seat-side-count: ${String(sideCount)}; --seat-top: ${topVh.toFixed(2)}vh; --seat-scale: ${seatScale}; ${effectStyle}`,
+    style: `--seat-row: ${String(row)}; --seat-side-count: ${String(sideCount)}; --seat-progress: ${seatProgress}; --seat-top: ${seatTop}; --seat-scale: ${seatScale}; ${effectStyle}`,
     side
   };
 }
@@ -5346,15 +5363,26 @@ function getOpponentSeatClass(index: number, total: number): string {
   return getOpponentSeatPlacement(index, total).originClassName;
 }
 
-function getOpponentSeatTopVh(row: number, sideCount: number, flow: "top-down" | "bottom-up"): number {
+function getOpponentSeatProgress(
+  row: number,
+  sideCount: number,
+  flow: "top-down" | "bottom-up"
+): number {
   if (sideCount <= 1) {
-    return 35;
+    return 0.5;
   }
 
-  const { topBound, bottomBound } = getOpponentSeatVerticalBounds(sideCount);
-  const topDownValue = topBound + (row * (bottomBound - topBound)) / (sideCount - 1);
+  const topDownProgress = row / (sideCount - 1);
 
-  return flow === "top-down" ? topDownValue : bottomBound - (topDownValue - topBound);
+  return flow === "top-down" ? topDownProgress : 1 - topDownProgress;
+}
+
+function formatSeatProgress(value: number): string {
+  return value.toFixed(4);
+}
+
+function getOpponentSeatTopExpression(seatProgress: string): string {
+  return `calc(var(--battle-seat-band-top) + (var(--battle-seat-band-height) * ${seatProgress}))`;
 }
 
 function getOpponentSeatOriginClass(
@@ -5380,56 +5408,11 @@ function getOpponentSeatOriginClass(
   return side === "left" ? "seat-mid-left" : "seat-mid-right";
 }
 
-function getOpponentSeatEffectStyle(side: "left" | "right", topVh: number): string {
-  const sideOffset = "calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)) + clamp(4.75rem, 7.5vw, 6.125rem))";
+function getOpponentSeatEffectStyle(side: "left" | "right", seatProgress: string): string {
+  const sideOffset = "calc(clamp(0.45rem, 1.4vw, 1.1rem) + var(--battle-side-offset, clamp(1rem, 4vw, 60px)) + ((var(--battle-seat-base-width) * var(--battle-opponent-seat-scale, 1)) * 0.5))";
   const left = side === "left" ? sideOffset : `calc(100% - ${sideOffset})`;
 
-  return `--seat-effect-left: ${left}; --seat-effect-top: ${topVh.toFixed(2)}vh;`;
-}
-
-function getOpponentSeatVerticalBounds(sideCount: number): {
-  topBound: number;
-  bottomBound: number;
-} {
-  if (sideCount === 2) {
-    return {
-      topBound: 22.5,
-      bottomBound: 47.5
-    };
-  }
-
-  return {
-    topBound: 10,
-    bottomBound: 60
-  };
-}
-
-function getOpponentSeatScale(totalPlayerCount: number): string {
-  if (totalPlayerCount <= 3) {
-    return "1.45";
-  }
-
-  if (totalPlayerCount <= 4) {
-    return "1.28";
-  }
-
-  if (totalPlayerCount <= 5) {
-    return "1.08";
-  }
-
-  if (totalPlayerCount <= 6) {
-    return "0.92";
-  }
-
-  if (totalPlayerCount === 7) {
-    return "1.07";
-  }
-
-  if (totalPlayerCount === 8) {
-    return "0.96";
-  }
-
-  return "0.74";
+  return `--seat-effect-left: ${left}; --seat-effect-top: ${getOpponentSeatTopExpression(seatProgress)};`;
 }
 
 function getPlayerSeatClass(snapshot: PlayerGameSnapshot, playerId: PlayerId): string {
@@ -6486,9 +6469,11 @@ function connectUsingCurrentInputs(): void {
   }
 
   if (nicknameInput !== null) {
-    state.nickname = ensureNicknameValue(nicknameInput.value);
-    nicknameInput.value = state.nickname;
-    setSessionStoredValue(USER_NICKNAME_STORAGE_KEY, state.nickname);
+    const ensuredNickname = ensureNicknameValue(nicknameInput.value);
+    state.nickname = ensuredNickname;
+    state.nicknameDraft = ensuredNickname;
+    nicknameInput.value = ensuredNickname;
+    setSessionStoredValue(USER_NICKNAME_STORAGE_KEY, ensuredNickname);
   }
 
   wsClient.connect(state.wsUrl);
@@ -6502,10 +6487,15 @@ function renameCurrentPlayer(): void {
   }
 
   const nicknameInput = document.querySelector<HTMLInputElement>("#nickname");
-  const nickname = nicknameInput?.value.trim() ?? "";
+  const nickname = nicknameInput?.value.trim() ?? state.nicknameDraft.trim();
   const nicknameLength = getNicknameCharacterCount(nickname);
 
   if (nickname.length === 0) {
+    const fallbackNickname = getRenameNicknameFallback();
+    state.nicknameDraft = fallbackNickname;
+    if (nicknameInput !== null) {
+      nicknameInput.value = fallbackNickname;
+    }
     showToast("昵称不能为空。", "warning");
     render();
     return;
@@ -6518,6 +6508,10 @@ function renameCurrentPlayer(): void {
   }
 
   state.nickname = nickname;
+  state.nicknameDraft = nickname;
+  if (nicknameInput !== null) {
+    nicknameInput.value = nickname;
+  }
   setSessionStoredValue(USER_NICKNAME_STORAGE_KEY, nickname);
 
   sendSafely(
@@ -6529,15 +6523,44 @@ function renameCurrentPlayer(): void {
   );
 }
 
+function commitNicknameDraftForAction(): string {
+  const nicknameInput = document.querySelector<HTMLInputElement>("#nickname");
+  const ensuredNickname = ensureNicknameValue(nicknameInput?.value ?? state.nicknameDraft);
+
+  state.nickname = ensuredNickname;
+  state.nicknameDraft = ensuredNickname;
+
+  if (nicknameInput !== null) {
+    nicknameInput.value = ensuredNickname;
+  }
+
+  setSessionStoredValue(USER_NICKNAME_STORAGE_KEY, ensuredNickname);
+  return ensuredNickname;
+}
+
+function getRenameNicknameFallback(): string {
+  if (state.room !== null && state.playerId !== null) {
+    const selfRoomPlayer = state.room.players.find((player) => player.playerId === state.playerId);
+    const displayName = selfRoomPlayer?.displayName?.trim();
+
+    if (displayName !== undefined && displayName !== "") {
+      return displayName;
+    }
+  }
+
+  return state.nickname;
+}
+
 function bindLobbyPanel(): void {
   bindRoomCodeInputs();
 
   document.querySelector("#create-room-button")?.addEventListener("click", () => {
     const mode: GameMode = "no-challenge";
     state.lobbyMode = mode;
+    const nickname = commitNicknameDraftForAction();
     const message = buildCreateRoomMessage({
       userId: state.userId,
-      nickname: state.nickname,
+      nickname,
       mode
     });
     sendSafely(message);
@@ -6549,8 +6572,12 @@ function bindLobbyPanel(): void {
       return;
     }
 
-    state.nickname = ensureNicknameValue(input.value);
-    input.value = state.nickname;
+    const boundedValue = Array.from(input.value).slice(0, MAX_PLAYER_NICKNAME_LENGTH).join("");
+    if (input.value !== boundedValue) {
+      input.value = boundedValue;
+    }
+
+    state.nicknameDraft = boundedValue;
   });
 
   document.querySelector("#mode")?.addEventListener("change", (event) => {
@@ -6573,10 +6600,11 @@ function bindLobbyPanel(): void {
       return;
     }
 
+    const nickname = commitNicknameDraftForAction();
     const message = buildJoinRoomMessage({
       roomId,
       userId: state.userId,
-      nickname: state.nickname
+      nickname
     });
     sendSafely(message);
   });
@@ -7329,24 +7357,172 @@ function applyInterfaceAdjustSetting(setting: string | undefined, value: number)
 function syncBattleLayoutLimits(): void {
   const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
   const battleHud = document.querySelector<HTMLElement>(".battle-immersive .battle-hud");
-  const actionDock = document.querySelector<HTMLElement>(".battle-immersive .battle-action-dock");
+  const handPanel = document.querySelector<HTMLElement>(".battle-immersive .battle-action-dock .hand");
 
-  if (battleRoot === null || battleHud === null || actionDock === null) {
+  if (battleRoot === null || battleHud === null || handPanel === null) {
     return;
   }
 
   const rootRect = battleRoot.getBoundingClientRect();
   const hudRect = battleHud.getBoundingClientRect();
-  const actionDockRect = actionDock.getBoundingClientRect();
+  const handPanelRect = handPanel.getBoundingClientRect();
+  const battleRootStyle = getComputedStyle(battleRoot);
   const scale = Math.max(
     0.0001,
-    Number.parseFloat(getComputedStyle(battleRoot).getPropertyValue("--battle-ui-scale")) || 1
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-ui-scale")) || 1
   );
   const hudBottomLimit = (hudRect.bottom - rootRect.top) / scale;
-  const actionDockTopLimit = (actionDockRect.top - rootRect.top) / scale;
+  const actionDockTopLimit = (handPanelRect.top - rootRect.top) / scale;
+  const seatBandPadding =
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-seat-band-padding")) ||
+    DEFAULT_BATTLE_SEAT_BAND_PADDING_PX;
+  const battleSeatBaseHeight =
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-seat-base-height")) ||
+    DEFAULT_BATTLE_SEAT_BASE_HEIGHT_PX;
+  const battleSeatRowGap =
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-seat-row-gap")) ||
+    DEFAULT_BATTLE_SEAT_ROW_GAP_PX;
+  const battleSeatScaleMin =
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-seat-scale-min")) ||
+    DEFAULT_BATTLE_SEAT_SCALE_MIN;
+  const battleSeatScaleMax =
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-seat-scale-max")) ||
+    DEFAULT_BATTLE_SEAT_SCALE_MAX;
+  const totalOpponents = document.querySelectorAll(".battle-immersive .opponents .seat-side").length;
+  const sideConstraintCount = totalOpponents === 0 ? 0 : Math.ceil(totalOpponents / 2);
+  const battleOpponentSeatScale = resolveBattleOpponentSeatScale(
+    sideConstraintCount,
+    hudBottomLimit,
+    actionDockTopLimit,
+    battleSeatBaseHeight,
+    battleSeatRowGap,
+    seatBandPadding,
+    battleSeatScaleMin,
+    battleSeatScaleMax
+  );
+  const battleOpponentSeatHeight = battleSeatBaseHeight * battleOpponentSeatScale;
+  const battleOpponentSeatGap = getBattleSeatRowGapPx(
+    battleOpponentSeatScale,
+    battleSeatRowGap
+  );
+  const centerBandTop = hudBottomLimit + seatBandPadding + battleOpponentSeatHeight * 0.5;
+  const centerBandBottom = Math.max(centerBandTop, actionDockTopLimit - battleOpponentSeatHeight);
+  const centerBandHeight = Math.max(0, centerBandBottom - centerBandTop);
 
   battleRoot.style.setProperty("--battle-hud-bottom-limit", `${hudBottomLimit.toFixed(2)}px`);
   battleRoot.style.setProperty("--battle-action-dock-top-limit", `${actionDockTopLimit.toFixed(2)}px`);
+  battleRoot.style.setProperty("--battle-seat-band-top", `${centerBandTop.toFixed(2)}px`);
+  battleRoot.style.setProperty("--battle-seat-band-bottom", `${centerBandBottom.toFixed(2)}px`);
+  battleRoot.style.setProperty("--battle-seat-band-height", `${centerBandHeight.toFixed(2)}px`);
+  battleRoot.style.setProperty(
+    "--battle-opponent-seat-scale",
+    battleOpponentSeatScale.toFixed(4)
+  );
+  battleRoot.style.setProperty(
+    "--battle-opponent-seat-gap",
+    `${battleOpponentSeatGap.toFixed(2)}px`
+  );
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getBattleSeatRowGapPx(scale: number, baseGap: number): number {
+  return clampNumber(
+    baseGap * scale,
+    DEFAULT_BATTLE_SEAT_ROW_GAP_MIN_PX,
+    DEFAULT_BATTLE_SEAT_ROW_GAP_MAX_PX
+  );
+}
+
+function getBattleSeatOccupiedHeight(
+  sideCount: number,
+  scale: number,
+  baseHeight: number,
+  baseGap: number,
+  topPadding: number
+): number {
+  if (sideCount <= 0) {
+    return 0;
+  }
+
+  const seatHeight = baseHeight * scale;
+  const seatGap = getBattleSeatRowGapPx(scale, baseGap);
+
+  return (
+    topPadding +
+    seatHeight * sideCount +
+    seatGap * Math.max(0, sideCount - 1) +
+    seatHeight * 0.5
+  );
+}
+
+function resolveBattleOpponentSeatScale(
+  sideCount: number,
+  hudBottomLimit: number,
+  handTopLimit: number,
+  baseHeight: number,
+  baseGap: number,
+  topPadding: number,
+  minScale: number,
+  maxScale: number
+): number {
+  if (sideCount <= 0) {
+    return maxScale;
+  }
+
+  const availableHeight = Math.max(0, handTopLimit - hudBottomLimit);
+
+  if (availableHeight <= 0) {
+    return minScale;
+  }
+
+  const minOccupiedHeight = getBattleSeatOccupiedHeight(
+    sideCount,
+    minScale,
+    baseHeight,
+    baseGap,
+    topPadding
+  );
+
+  if (minOccupiedHeight >= availableHeight) {
+    return minScale;
+  }
+
+  const maxOccupiedHeight = getBattleSeatOccupiedHeight(
+    sideCount,
+    maxScale,
+    baseHeight,
+    baseGap,
+    topPadding
+  );
+
+  if (maxOccupiedHeight <= availableHeight) {
+    return maxScale;
+  }
+
+  let low = minScale;
+  let high = maxScale;
+
+  for (let index = 0; index < 24; index += 1) {
+    const mid = (low + high) / 2;
+    const occupiedHeight = getBattleSeatOccupiedHeight(
+      sideCount,
+      mid,
+      baseHeight,
+      baseGap,
+      topPadding
+    );
+
+    if (occupiedHeight <= availableHeight) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
 }
 
 function bindRuleControls(): void {
