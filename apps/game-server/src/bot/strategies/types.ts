@@ -1,7 +1,7 @@
 import type { CardColor, GameCommand, GameState, PlayerId } from "@thunder-uno/shared-types";
 import type { BotScoringWeights } from "../botScoring";
 
-export type BotStrategyName = "greedy-v1" | "chaos-v1";
+export type BotStrategyName = "greedy-v1" | "chaos-v1" | "mischief-v1";
 
 export interface BotStrategyDecision {
   command: GameCommand;

@@ -266,6 +266,19 @@ describe("canStackDrawCard", () => {
     ).toBe(true);
   });
 
+  it("allows black +10 after black +10 so the reducer can clear the whole chain", () => {
+    const nextCard = createBlackCard("next", "wild-draw-ten");
+
+    expect(
+      canStackDrawCard({
+        nextCard,
+        currentColor: "green",
+        previousDrawValue: 10,
+        previousDrawKind: "wild-draw-ten"
+      })
+    ).toBe(true);
+  });
+
   it("rejects black +6 after black +10", () => {
     const nextCard = createBlackCard("next", "wild-draw-six");
 

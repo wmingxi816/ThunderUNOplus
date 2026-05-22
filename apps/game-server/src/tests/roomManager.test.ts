@@ -288,6 +288,16 @@ describe("RoomManager", () => {
       playerId: fixture.room.ownerPlayerId,
       botType: "chaos"
     }).botPlayer;
+    const mischiefBot1 = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      botType: "mischief"
+    }).botPlayer;
+    const mischiefBot2 = fixture.roomManager.addBot({
+      roomId: fixture.room.roomId,
+      playerId: fixture.room.ownerPlayerId,
+      botType: "mischief"
+    }).botPlayer;
 
     expect(strongBot1.nickname).toBe("最强bot1");
     expect(strongBot1.botProfile?.strategy).toBe("greedy-v1");
@@ -297,6 +307,10 @@ describe("RoomManager", () => {
     expect(strongBot2.botProfile?.strategy).toBe("greedy-v1");
     expect(chaosBot2.nickname).toBe("混沌bot2");
     expect(chaosBot2.botProfile?.strategy).toBe("chaos-v1");
+    expect(mischiefBot1.nickname).toBe("胡闹bot1");
+    expect(mischiefBot1.botProfile?.strategy).toBe("mischief-v1");
+    expect(mischiefBot2.nickname).toBe("胡闹bot2");
+    expect(mischiefBot2.botProfile?.strategy).toBe("mischief-v1");
   });
 
   it("有质疑模式不能添加机器人", () => {

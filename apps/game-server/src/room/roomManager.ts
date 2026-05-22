@@ -520,9 +520,18 @@ export class RoomManager {
 
     const joinedAt = this.now();
     const botIndex = room.players.filter((player) => player.isBot).length + 1;
-    const isChaosBot = params.botType === "chaos";
-    const strategy = isChaosBot ? "chaos-v1" : "greedy-v1";
-    const botBaseName = isChaosBot ? "混沌bot" : "最强bot";
+    const strategy =
+      params.botType === "chaos"
+        ? "chaos-v1"
+        : params.botType === "mischief"
+          ? "mischief-v1"
+          : "greedy-v1";
+    const botBaseName =
+      params.botType === "chaos"
+        ? "混沌bot"
+        : params.botType === "mischief"
+          ? "胡闹bot"
+          : "最强bot";
     const botTypeIndex = room.players.filter(
       (player) => player.isBot && player.botProfile?.strategy === strategy
     ).length + 1;

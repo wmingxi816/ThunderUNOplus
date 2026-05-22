@@ -43,11 +43,7 @@ export interface HandleClientMessageParams {
 }
 
 const BATTLE_CHAT_MAX_LENGTH = 30;
-const BATTLE_CHAT_COOLDOWN_MS = 3_000;
 const LOBBY_CHAT_MAX_LENGTH = 30;
-const LOBBY_CHAT_COOLDOWN_MS = 3_000;
-const battleChatLastSentAtByPlayer = new Map<string, number>();
-const lobbyChatLastSentAtByPlayer = new Map<string, number>();
 
 /**
  * WebSocket 层只负责消息分发与生命周期，不在这里重写游戏规则。
@@ -485,24 +481,6 @@ function handleBattleChat(params: {
     return;
   }
 
-  const cooldownKey = `${room.roomId}:${params.message.playerId}`;
-  const lastSentAt = battleChatLastSentAtByPlayer.get(cooldownKey) ?? 0;
-  const now = Date.now();
-
-  if (now - lastSentAt < BATTLE_CHAT_COOLDOWN_MS) {
-    params.connection.send(
-      createServerErrorMessage({
-        code: "invalid-message",
-        message: "Battle chat is cooling down.",
-        requestId: params.message.requestId,
-        roomId: room.roomId
-      })
-    );
-    return;
-  }
-
-  battleChatLastSentAtByPlayer.set(cooldownKey, now);
-
   params.connectionRegistry.sendToRoom(room.roomId, {
     protocolVersion: PROTOCOL_VERSION,
     type: "battle-chat",
@@ -561,24 +539,6 @@ function handleLobbyChat(params: {
     );
     return;
   }
-
-  const cooldownKey = `${room.roomId}:${params.message.playerId}`;
-  const lastSentAt = lobbyChatLastSentAtByPlayer.get(cooldownKey) ?? 0;
-  const now = Date.now();
-
-  if (now - lastSentAt < LOBBY_CHAT_COOLDOWN_MS) {
-    params.connection.send(
-      createServerErrorMessage({
-        code: "invalid-message",
-        message: "Lobby chat is cooling down.",
-        requestId: params.message.requestId,
-        roomId: room.roomId
-      })
-    );
-    return;
-  }
-
-  lobbyChatLastSentAtByPlayer.set(cooldownKey, now);
 
   params.connectionRegistry.sendToRoom(room.roomId, {
     protocolVersion: PROTOCOL_VERSION,

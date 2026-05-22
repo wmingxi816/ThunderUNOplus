@@ -121,7 +121,7 @@ export function buildRenamePlayerMessage(params: {
 export function buildAddBotMessage(params: {
   roomId: RoomId;
   playerId: PlayerId;
-  botType: "strong" | "chaos";
+  botType: "strong" | "chaos" | "mischief";
   requestId?: string;
 }): ClientAddBotMessage {
   return {

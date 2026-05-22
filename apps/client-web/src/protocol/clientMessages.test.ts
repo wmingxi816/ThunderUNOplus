@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAddBotMessage,
+  buildBattleChatMessage,
   buildCommandMessage,
   buildContinueGameMessage,
   buildCreateRoomMessage,
@@ -155,7 +156,7 @@ describe("client message builders", () => {
       requestId: "req-add-bot",
       roomId: "ROOM1",
       playerId: "player-1",
-      botType: "chaos"
+      botType: "mischief"
     });
 
     expect(message).toMatchObject({
@@ -163,7 +164,24 @@ describe("client message builders", () => {
       requestId: "req-add-bot",
       roomId: "ROOM1",
       playerId: "player-1",
-      botType: "chaos"
+      botType: "mischief"
+    });
+  });
+
+  it("builds battle-chat messages", () => {
+    const message = buildBattleChatMessage({
+      requestId: "req-battle-chat",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      text: "先别急着出黑牌"
+    });
+
+    expect(message).toMatchObject({
+      type: "battle-chat",
+      requestId: "req-battle-chat",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      text: "先别急着出黑牌"
     });
   });
 });

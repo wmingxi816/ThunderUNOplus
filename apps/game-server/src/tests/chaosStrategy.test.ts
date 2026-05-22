@@ -264,6 +264,80 @@ describe("decideChaosBotAction", () => {
     });
   });
 
+  it("falls back to greedy when responding to +10 by canceling the whole draw stack", () => {
+    const state = createChaosTestState();
+
+    state.topCard = createBlackCard("top-plus10", "wild-draw-ten");
+    state.currentColor = "red";
+    state.discardPile = [state.topCard];
+    state.drawStack = {
+      active: true,
+      amount: 22,
+      previousDrawValue: 10,
+      previousDrawKind: "wild-draw-ten",
+      targetPlayerId: "bot-1"
+    };
+
+    setPlayerHand(state, "bot-1", [
+      createBlackCard("bot-plus10-response", "wild-draw-ten")
+    ]);
+
+    const greedyDecision = decideGreedyBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+    const chaosDecision = decideChaosBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(chaosDecision).toEqual(greedyDecision);
+  });
+
+  it("follows greedy and resolves a manageable +10 chain instead of urgently canceling it", () => {
+    const state = createChaosTestState();
+
+    state.topCard = createBlackCard("top-plus10-manageable", "wild-draw-ten");
+    state.currentColor = "red";
+    state.discardPile = [state.topCard];
+    state.drawStack = {
+      active: true,
+      amount: 10,
+      previousDrawValue: 10,
+      previousDrawKind: "wild-draw-ten",
+      targetPlayerId: "bot-1"
+    };
+
+    setPlayerHand(state, "bot-1", [
+      createBlackCard("bot-plus10-manageable", "wild-draw-ten"),
+      createNumberCard("bot-red-9-manageable", "red", 9),
+      createNumberCard("bot-red-8-manageable", "red", 8)
+    ]);
+
+    const greedyDecision = decideGreedyBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+    const chaosDecision = decideChaosBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(greedyDecision?.command).toEqual({
+      type: "resolve-draw-stack",
+      playerId: "bot-1"
+    });
+    expect(chaosDecision).toEqual(greedyDecision);
+  });
+
   it("falls back to the greedy strategy when no chaos rule applies", () => {
     const state = createChaosTestState();
 

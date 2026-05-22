@@ -317,6 +317,40 @@ describe("Greedy bot decision", () => {
     });
   });
 
+  it("does not rush to cancel a +10 chain when the resulting hand would still stay within 20 cards", () => {
+    const state = createBotTestState();
+
+    state.topCard = createBlackCard("top-plus10", "wild-draw-ten");
+    state.currentColor = "red";
+    state.discardPile = [state.topCard];
+    state.currentPlayerId = "bot-1";
+    state.drawStack = {
+      active: true,
+      amount: 10,
+      previousDrawValue: 10,
+      previousDrawKind: "wild-draw-ten",
+      targetPlayerId: "bot-1"
+    };
+
+    setPlayerHand(state, "bot-1", [
+      createBlackCard("bot-plus10-response", "wild-draw-ten"),
+      createNumberCard("bot-red-9", "red", 9),
+      createNumberCard("bot-red-8", "red", 8)
+    ]);
+
+    const decision = decideGreedyBotAction({
+      state,
+      playerId: "bot-1",
+      forgetUnoRate: 0.2,
+      random: () => 0
+    });
+
+    expect(decision?.command).toEqual({
+      type: "resolve-draw-stack",
+      playerId: "bot-1"
+    });
+  });
+
   it("allows a small bot hand to swap when the source hand is even smaller", () => {
     const state = createBotTestState();
     const swapHands = createColoredActionCard("small-red-swap", "red", "swap-hands");

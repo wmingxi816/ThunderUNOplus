@@ -117,6 +117,64 @@ export const DEFAULT_BOT_SCORING_WEIGHTS: BotScoringWeights = {
   structuredNumberDistanceBonus: 6
 };
 
+export function getProjectedHandCountAfterResolvingDrawStack(
+  state: GameState,
+  playerId: PlayerId
+): number | null {
+  if (!state.drawStack.active || state.drawStack.targetPlayerId !== playerId) {
+    return null;
+  }
+
+  const player = state.players.find((candidate) => candidate.id === playerId);
+
+  if (player === undefined) {
+    return null;
+  }
+
+  return player.handCount + state.drawStack.amount;
+}
+
+export function shouldPrioritizeDrawTenSelfRescue(
+  state: GameState,
+  playerId: PlayerId
+): boolean {
+  const projectedHandCount = getProjectedHandCountAfterResolvingDrawStack(state, playerId);
+
+  return projectedHandCount !== null && projectedHandCount > 20;
+}
+
+function hasManageableDrawTenCancellationOption(
+  state: GameState,
+  playerId: PlayerId
+): boolean {
+  if (
+    !state.drawStack.active ||
+    state.drawStack.previousDrawKind !== "wild-draw-ten" ||
+    state.drawStack.targetPlayerId !== playerId ||
+    shouldPrioritizeDrawTenSelfRescue(state, playerId)
+  ) {
+    return false;
+  }
+
+  const player = state.players.find((candidate) => candidate.id === playerId);
+
+  return player?.hand.some((card) => card.kind === "wild-draw-ten") === true;
+}
+
+function isManageableDrawTenCancellationPlay(
+  state: GameState,
+  playerId: PlayerId,
+  card: Card
+): boolean {
+  return (
+    card.kind === "wild-draw-ten" &&
+    state.drawStack.active &&
+    state.drawStack.previousDrawKind === "wild-draw-ten" &&
+    state.drawStack.targetPlayerId === playerId &&
+    !shouldPrioritizeDrawTenSelfRescue(state, playerId)
+  );
+}
+
 export function scoreBotCandidates(
   state: GameState,
   playerId: PlayerId,
@@ -218,6 +276,10 @@ function scorePressure(
     return 0;
   }
 
+  if (isDrawTenChainCancellation(state, topCard)) {
+    return 0;
+  }
+
   const dangerBonus =
     nextPlayer.handCount === 1
       ? weights.nextPlayerOneCardDangerBonus
@@ -245,6 +307,14 @@ function scorePressure(
   }
 
   return scoreDrawCardPressure(topCard, weights);
+}
+
+function isDrawTenChainCancellation(state: GameState, topCard: Card): boolean {
+  return (
+    state.drawStack.active &&
+    state.drawStack.previousDrawKind === "wild-draw-ten" &&
+    topCard.kind === "wild-draw-ten"
+  );
 }
 
 function scoreDrawCardPressure(card: Card, weights: BotScoringWeights): number {
@@ -276,10 +346,24 @@ function scoreDrawStack(
   }
 
   if (command.type === "resolve-draw-stack") {
+    if (hasManageableDrawTenCancellationOption(state, command.playerId)) {
+      return 0;
+    }
+
     return -state.drawStack.amount * weights.drawStackAvoidedDrawMultiplier;
   }
 
   if (command.type === "play-card") {
+    const topCard = getCommandTopCard(state, command);
+
+    if (
+      topCard !== null &&
+      isDrawTenChainCancellation(state, topCard) &&
+      !shouldPrioritizeDrawTenSelfRescue(state, command.playerId)
+    ) {
+      return -weights.reserveWildDrawTenCost;
+    }
+
     return state.drawStack.amount * weights.drawStackAvoidedDrawMultiplier;
   }
 
@@ -340,10 +424,13 @@ function scoreReserveCost(
   const nextPlayer = getNextActivePlayer(state, command.playerId);
   const nextPlayerDanger = nextPlayer !== null && nextPlayer.handCount <= 2;
   const hasPressureAlternative = hasPlayablePressureAlternative(state, hand, card);
+  const drawStackEmergency =
+    state.drawStack.active &&
+    !isManageableDrawTenCancellationPlay(state, command.playerId, card);
   const emergency =
     !hasCurrentColorAlternative ||
     (nextPlayerDanger && !hasPressureAlternative) ||
-    state.drawStack.active ||
+    drawStackEmergency ||
     state.drawUntilColor.active ||
     hand.length >= 15;
 

@@ -261,6 +261,104 @@ describe("messageHandler", () => {
     }
   });
 
+  it("lobby-chat 可以连续发送两条而不会触发冷却拦截", () => {
+    const fixture = createWaitingRoomFixture(3);
+    const chatter = fixture.room.players[1]!;
+    const connection = fixture.connectionRegistry.getConnectionByPlayerId(chatter.playerId)!;
+    const watcher = fixture.connections[0]!;
+    connection.sentMessages.length = 0;
+    watcher.sentMessages.length = 0;
+
+    handleClientMessage({
+      connection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "lobby-chat",
+        requestId: "req-lobby-chat-1",
+        roomId: fixture.room.roomId,
+        playerId: chatter.playerId,
+        text: "第一条",
+        timestampMs: 1000
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    handleClientMessage({
+      connection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "lobby-chat",
+        requestId: "req-lobby-chat-2",
+        roomId: fixture.room.roomId,
+        playerId: chatter.playerId,
+        text: "第二条",
+        timestampMs: 1001
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    expect(connection.sentMessages.filter((message) => message.type === "lobby-chat")).toEqual([
+      expect.objectContaining({ text: "第一条", playerId: chatter.playerId }),
+      expect.objectContaining({ text: "第二条", playerId: chatter.playerId })
+    ]);
+    expect(watcher.sentMessages.filter((message) => message.type === "lobby-chat")).toEqual([
+      expect.objectContaining({ text: "第一条", playerId: chatter.playerId }),
+      expect.objectContaining({ text: "第二条", playerId: chatter.playerId })
+    ]);
+    expect(connection.sentMessages.some((message) => message.type === "error")).toBe(false);
+  });
+
+  it("battle-chat 可以连续发送两条而不会触发冷却拦截", () => {
+    const fixture = createStartedRoomFixture(3);
+    const chatter = fixture.room.players[1]!;
+    const connection = fixture.connectionRegistry.getConnectionByPlayerId(chatter.playerId)!;
+    const watcher = fixture.connections[0]!;
+    connection.sentMessages.length = 0;
+    watcher.sentMessages.length = 0;
+
+    handleClientMessage({
+      connection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "battle-chat",
+        requestId: "req-battle-chat-1",
+        roomId: fixture.room.roomId,
+        playerId: chatter.playerId,
+        text: "先别急",
+        timestampMs: 1000
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    handleClientMessage({
+      connection,
+      rawMessage: JSON.stringify({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "battle-chat",
+        requestId: "req-battle-chat-2",
+        roomId: fixture.room.roomId,
+        playerId: chatter.playerId,
+        text: "我再说一句",
+        timestampMs: 1001
+      }),
+      roomManager: fixture.roomManager,
+      connectionRegistry: fixture.connectionRegistry
+    });
+
+    expect(connection.sentMessages.filter((message) => message.type === "battle-chat")).toEqual([
+      expect.objectContaining({ text: "先别急", playerId: chatter.playerId }),
+      expect.objectContaining({ text: "我再说一句", playerId: chatter.playerId })
+    ]);
+    expect(watcher.sentMessages.filter((message) => message.type === "battle-chat")).toEqual([
+      expect.objectContaining({ text: "先别急", playerId: chatter.playerId }),
+      expect.objectContaining({ text: "我再说一句", playerId: chatter.playerId })
+    ]);
+    expect(connection.sentMessages.some((message) => message.type === "error")).toBe(false);
+  });
+
   it("start-game 会兜底给发起连接直接发送房主 snapshot", () => {
     const fixture = createWaitingRoomFixture(3);
     const ownerPlayerId = fixture.room.ownerPlayerId;
