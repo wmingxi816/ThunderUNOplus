@@ -6498,3 +6498,51 @@ label span {
     flex: 1 1 auto;
   }
 }
+
+/* ─── Portrait overlay ─── */
+#portrait-overlay {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  #portrait-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    background: #101114;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .portrait-spin-icon {
+    width: clamp(4rem, 16vw, 6rem);
+    height: auto;
+    animation: portrait-spin 3s linear infinite;
+    opacity: 0.85;
+    pointer-events: none;
+  }
+
+  .portrait-text-main {
+    margin: 0;
+    color: #f8d64e;
+    font-size: clamp(1.2rem, 5vw, 1.8rem);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+  }
+
+  .portrait-text-sub {
+    margin: 0;
+    color: #8b8fa3;
+    font-size: clamp(0.85rem, 3.4vw, 1.1rem);
+  }
+}
+
+@keyframes portrait-spin {
+  from { rotate: 0deg; }
+  to   { rotate: 360deg; }
+}
