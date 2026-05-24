@@ -1,4 +1,4 @@
-* {
+﻿* {
   box-sizing: border-box;
 }
 
@@ -386,7 +386,7 @@ label span {
   animation: lobby-lightning-flash-c 11.4s infinite;
 }
 
-/* UI name: app-toast. 全局临时提示条。 */
+/* UI name: app-toast. 鍏ㄥ眬涓存椂鎻愮ず鏉°€?*/
 .ui-toast {
   position: fixed;
   left: 50%;
@@ -662,7 +662,7 @@ label span {
   gap: 0.8rem;
 }
 
-/* UI name: lobby-connection-panel. 服务端地址、昵称、改名、连接按钮区域。 */
+/* UI name: lobby-connection-panel. 鏈嶅姟绔湴鍧€銆佹樀绉般€佹敼鍚嶃€佽繛鎺ユ寜閽尯鍩熴€?*/
 .connection-panel {
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) auto;
   align-items: end;
@@ -680,7 +680,7 @@ label span {
   margin-bottom: 1rem;
 }
 
-/* UI name: lobby-root. 大厅主布局。 */
+/* UI name: lobby-root. 澶у巺涓诲竷灞€銆?*/
 .lobby-layout {
   grid-template-columns: minmax(9.5rem, 0.39fr) minmax(0, 1.61fr);
   gap: 1rem;
@@ -689,7 +689,7 @@ label span {
 /* UI names: lobby-create-join-panel / lobby-room-status-panel / lobby-rules-guide. */
 .lobby-control,
 .lobby-status,
-/* UI name: lobby-rules-guide. 大厅规则讲解框架。 */
+/* UI name: lobby-rules-guide. 澶у巺瑙勫垯璁茶В妗嗘灦銆?*/
 .rules-guide {
   position: relative;
   min-height: 100%;
@@ -740,7 +740,7 @@ label span {
     rgba(255, 255, 255, 0.94);
 }
 
-/* UI name: rule-entry-buttons. 四个规则入口按钮。 */
+/* UI name: rule-entry-buttons. 鍥涗釜瑙勫垯鍏ュ彛鎸夐挳銆?*/
 .rule-entry-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1686,7 +1686,7 @@ label span {
 }
 
 .lobby-settings-button::before {
-  content: "⚙";
+  content: "鈿?;
   font-size: 1.28rem;
   line-height: 1;
 }
@@ -2577,7 +2577,7 @@ label span {
   min-height: 2.9rem;
 }
 
-/* UI name: battle-root. 对战页面根容器。 */
+/* UI name: battle-root. 瀵规垬椤甸潰鏍瑰鍣ㄣ€?*/
 .battle {
   display: grid;
   gap: 1rem;
@@ -2615,7 +2615,7 @@ label span {
   --battle-opponent-seat-scale: 1;
 }
 
-/* UI name: battle-debug-grid. 临时尺度调试网格线。 */
+/* UI name: battle-debug-grid. 涓存椂灏哄害璋冭瘯缃戞牸绾裤€?*/
 .battle-debug-grid {
   position: absolute;
   inset: 0;
@@ -2729,7 +2729,7 @@ label span {
   white-space: nowrap;
 }
 
-/* UI name: battle-stage. 对战舞台背景区域。 */
+/* UI name: battle-stage. 瀵规垬鑸炲彴鑳屾櫙鍖哄煙銆?*/
 .battle-stage {
   position: relative;
   overflow: hidden;
@@ -2805,7 +2805,7 @@ label span {
     rgba(8, 11, 15, 0.46);
 }
 
-/* UI name: battle-top-hud. 顶部状态栏。 */
+/* UI name: battle-top-hud. 椤堕儴鐘舵€佹爮銆?*/
 .battle-hud {
   display: flex;
   flex-wrap: wrap;
@@ -3444,13 +3444,13 @@ label span {
     url("/battle-stage.png") center/cover no-repeat;
 }
 
-/* UI name: battle-stage-layering. 除方向底图外的对战内容层级。 */
+/* UI name: battle-stage-layering. 闄ゆ柟鍚戝簳鍥惧鐨勫鎴樺唴瀹瑰眰绾с€?*/
 .table-zone.battle-stage > :not(.turn-direction-orbit):not(.battle-hud):not(.battle-chat-dock):not(.battle-table):not(.battle-action-dock):not(.settings-modal-backdrop):not(.event-modal-backdrop):not(.normal-draw-offer-backdrop) {
   position: relative;
   z-index: 2;
 }
 
-/* UI name: battle-turn-orbit. 顺/逆时针旋转方向底图。 */
+/* UI name: battle-turn-orbit. 椤?閫嗘椂閽堟棆杞柟鍚戝簳鍥俱€?*/
 .turn-direction-orbit {
   position: absolute;
   left: 50%;
@@ -3503,7 +3503,7 @@ label span {
   border-color: #f8d64e;
 }
 
-/* UI name: battle-table. 玩家卡片、中心牌区和特效的主体容器。 */
+/* UI name: battle-table. 鐜╁鍗＄墖銆佷腑蹇冪墝鍖哄拰鐗规晥鐨勪富浣撳鍣ㄣ€?*/
 .battle-table {
   position: relative;
   min-height: 33rem;
@@ -3525,7 +3525,7 @@ label span {
   position: absolute;
 }
 
-/* UI names: battle-opponent-seat / battle-self-seat. 玩家卡片通用样式。 */
+/* UI names: battle-opponent-seat / battle-self-seat. 鐜╁鍗＄墖閫氱敤鏍峰紡銆?*/
 .seat {
   position: absolute;
   z-index: 18;
@@ -3622,7 +3622,7 @@ label span {
   grid-area: name;
 }
 
-/* UI name: battle-seat-name. 玩家卡片姓名 label。 */
+/* UI name: battle-seat-name. 鐜╁鍗＄墖濮撳悕 label銆?*/
 .battle-immersive .seat strong {
   position: absolute !important;
   top: auto !important;
@@ -3661,7 +3661,7 @@ label span {
   transform: translateY(-50%);
 }
 
-/* UI name: battle-seat-count. 玩家卡片手牌数量 label。 */
+/* UI name: battle-seat-count. 鐜╁鍗＄墖鎵嬬墝鏁伴噺 label銆?*/
 .hand-count-badge {
   grid-area: count;
   align-self: center;
@@ -3962,7 +3962,7 @@ label span {
   margin: 0;
 }
 
-/* UI name: battle-catch-uno-button. 抓 UNO 按钮。 */
+/* UI name: battle-catch-uno-button. 鎶?UNO 鎸夐挳銆?*/
 .opponent-actions button {
   min-height: 2rem;
   padding: 0.35rem;
@@ -3980,7 +3980,7 @@ label span {
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
 }
 
-/* UI name: battle-center-table. 摸牌区、牌堆区、状态提示区的总容器。 */
+/* UI name: battle-center-table. 鎽哥墝鍖恒€佺墝鍫嗗尯銆佺姸鎬佹彁绀哄尯鐨勬€诲鍣ㄣ€?*/
 .center-table {
   display: grid;
   grid-template-columns: minmax(7rem, 8rem) minmax(8rem, 10rem) minmax(0, 12rem);
@@ -4015,7 +4015,7 @@ label span {
   gap: 0.5rem;
 }
 
-/* UI name: battle-draw-pile. 摸牌区。 */
+/* UI name: battle-draw-pile. 鎽哥墝鍖恒€?*/
 @media (max-height: 720px) {
   .battle-immersive {
     --battle-center-scale: 0.86;
@@ -4034,14 +4034,14 @@ label span {
   transform: translateX(calc(var(--battle-center-offset) - var(--battle-pile-offset, clamp(1.5rem, 6vw, 5.5rem))));
 }
 
-/* UI name: battle-discard-pile. 牌堆区。 */
+/* UI name: battle-discard-pile. 鐗屽爢鍖恒€?*/
 .battle-immersive .discard-pile {
   position: relative;
   z-index: 3;
   transform: translateX(calc(var(--battle-center-offset) + var(--battle-pile-offset, clamp(1.5rem, 6vw, 5.5rem))));
 }
 
-/* UI name: battle-table-facts. 牌堆旁边的状态提示区。 */
+/* UI name: battle-table-facts. 鐗屽爢鏃佽竟鐨勭姸鎬佹彁绀哄尯銆?*/
 .battle-immersive .table-facts {
   position: relative;
   z-index: 5;
@@ -4067,7 +4067,7 @@ label span {
   min-height: 3.2rem;
 }
 
-/* UI name: battle-discard-pile. 牌堆区基础样式。 */
+/* UI name: battle-discard-pile. 鐗屽爢鍖哄熀纭€鏍峰紡銆?*/
 .discard-pile {
   min-height: 13rem;
 }
@@ -4101,7 +4101,7 @@ label span {
 }
 
 .latest-play-group,
-/* UI name: battle-active-draw-chain. 加牌链平铺展示。 */
+/* UI name: battle-active-draw-chain. 鍔犵墝閾惧钩閾哄睍绀恒€?*/
 .active-draw-chain,
 .draw-stack-burst {
   position: absolute;
@@ -4536,7 +4536,7 @@ label span {
   border-color: rgba(248, 198, 83, 0.48);
 }
 
-/* UI name: rule-modal. 规则讲解弹窗遮罩。 */
+/* UI name: rule-modal. 瑙勫垯璁茶В寮圭獥閬僵銆?*/
 .rule-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -4577,7 +4577,7 @@ label span {
   gap: 0.5rem;
 }
 
-/* UI name: rule-image-viewer. 规则图片翻页窗口。 */
+/* UI name: rule-image-viewer. 瑙勫垯鍥剧墖缈婚〉绐楀彛銆?*/
 .rule-image-viewer {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -4671,7 +4671,7 @@ label span {
   font-weight: 900;
 }
 
-/* UI name: battle-table-facts. 当前玩家、颜色、方向、加牌量提示。 */
+/* UI name: battle-table-facts. 褰撳墠鐜╁銆侀鑹层€佹柟鍚戙€佸姞鐗岄噺鎻愮ず銆?*/
 .table-facts {
   display: grid;
   gap: 0.5rem;
@@ -4742,7 +4742,7 @@ label span {
   border-radius: 8px;
 }
 
-/* UI name: battle-action-dock. 底部操作区和手牌区总容器。 */
+/* UI name: battle-action-dock. 搴曢儴鎿嶄綔鍖哄拰鎵嬬墝鍖烘€诲鍣ㄣ€?*/
 .battle-action-dock {
   position: absolute;
   right: clamp(0.65rem, 1.8vw, 1.3rem);
@@ -4827,7 +4827,7 @@ label span {
   position: absolute;
 }
 
-/* UI name: battle-actions-panel. UNO 和出牌操作面板。 */
+/* UI name: battle-actions-panel. UNO 鍜屽嚭鐗屾搷浣滈潰鏉裤€?*/
 .battle-action-dock .actions {
   align-self: stretch;
   display: grid;
@@ -4876,7 +4876,7 @@ label span {
   box-shadow: 0 0 0 2px rgba(248, 214, 78, 0.08);
 }
 
-/* UI name: battle-hand-panel. 手牌区域外框。 */
+/* UI name: battle-hand-panel. 鎵嬬墝鍖哄煙澶栨銆?*/
 .hand {
   border-radius: 8px;
   padding: 1rem;
@@ -4898,7 +4898,7 @@ label span {
   overflow: hidden;
 }
 
-/* UI name: battle-hand-header. 手牌区标题和数量。 */
+/* UI name: battle-hand-header. 鎵嬬墝鍖烘爣棰樺拰鏁伴噺銆?*/
 .hand-header {
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -4932,7 +4932,7 @@ label span {
   line-height: 1.35;
 }
 
-/* UI name: battle-action-guide. 当前操作提示。 */
+/* UI name: battle-action-guide. 褰撳墠鎿嶄綔鎻愮ず銆?*/
 .battle-action-dock .action-guide {
   position: absolute;
   top: 1.60rem;
@@ -4963,7 +4963,7 @@ label span {
   color: #ffd4d4;
 }
 
-/* UI name: battle-hand-cards. 手牌按钮列表。 */
+/* UI name: battle-hand-cards. 鎵嬬墝鎸夐挳鍒楄〃銆?*/
 .cards {
   display: flex;
   flex-wrap: wrap;
@@ -5032,7 +5032,7 @@ label span {
     opacity 0.15s ease;
 }
 
-/* UI name: battle-card-button. 单张手牌按钮。 */
+/* UI name: battle-card-button. 鍗曞紶鎵嬬墝鎸夐挳銆?*/
 .battle-action-dock .card-button {
   flex: 0 0 clamp(5rem, 7.4vw, 7rem);
   scale: var(--hand-card-scale, 1);
@@ -5235,7 +5235,7 @@ label span {
   background: #2f63c9;
 }
 
-/* UI name: battle-selection-panel. 选中手牌后的出牌/清空操作区。 */
+/* UI name: battle-selection-panel. 閫変腑鎵嬬墝鍚庣殑鍑虹墝/娓呯┖鎿嶄綔鍖恒€?*/
 .selection-panel {
   display: grid;
   gap: 0.8rem;
@@ -5321,7 +5321,7 @@ label span {
   background: #f8d64e;
 }
 
-/* UI name: battle-color-picker. 黑牌选择颜色面板遮罩。 */
+/* UI name: battle-color-picker. 榛戠墝閫夋嫨棰滆壊闈㈡澘閬僵銆?*/
 .color-picker-backdrop {
   position: fixed;
   inset: 0;
@@ -5394,14 +5394,14 @@ label span {
 }
 
 .log-panel summary::after {
-  content: "展开";
+  content: "灞曞紑";
   float: right;
   color: #bfc3cf;
   font-size: 0.8rem;
 }
 
 .log-panel[open] summary::after {
-  content: "收起";
+  content: "鏀惰捣";
 }
 
 .log-panel ol {
@@ -6513,46 +6513,48 @@ label span {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.6rem;
-    background: #101114;
+    gap: 0.8rem;
+    background:
+      url("/cards/64_black_faces.png") center/60% no-repeat,
+      #101114;
     -webkit-user-select: none;
     user-select: none;
   }
 
   .portrait-spin-icon {
-    width: clamp(4rem, 16vw, 6rem);
+    width: clamp(5.5rem, 22vw, 8rem);
     height: auto;
     animation: portrait-spin 3s linear infinite;
-    opacity: 0.85;
+    opacity: 0.9;
     pointer-events: none;
+    filter: drop-shadow(0 0 1.2rem rgba(248, 214, 78, 0.35));
   }
 
   .portrait-text-main {
     margin: 0;
     color: #f8d64e;
-    font-size: clamp(1.2rem, 5vw, 1.8rem);
+    font-size: clamp(1.6rem, 6.5vw, 2.4rem);
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
   }
 
   .portrait-text-sub {
     margin: 0;
+    color: #bfc3cf;
+    font-size: clamp(1.1rem, 4.4vw, 1.5rem);
+  }
+
+  .portrait-text-tip {
+    margin: 0.5rem 0 0;
     color: #8b8fa3;
-    font-size: clamp(0.85rem, 3.4vw, 1.1rem);
+    font-size: clamp(0.9rem, 3.6vw, 1.15rem);
+    text-align: center;
+    max-width: 20rem;
+    line-height: 1.5;
   }
 }
 
 @keyframes portrait-spin {
   from { rotate: 0deg; }
   to   { rotate: 360deg; }
-}
-
-/* tip line */
-.portrait-text-tip {
-  margin: 0.4rem 0 0;
-  color: #6b6f82;
-  font-size: clamp(0.72rem, 2.8vw, 0.9rem);
-  text-align: center;
-  max-width: 18rem;
-  line-height: 1.5;
 }
