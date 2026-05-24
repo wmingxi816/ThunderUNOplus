@@ -1,4 +1,4 @@
-﻿* {
+* {
   box-sizing: border-box;
 }
 
@@ -6499,7 +6499,7 @@ label span {
   }
 }
 
-/* ─── Portrait overlay ─── */
+/* Portrait overlay */
 #portrait-overlay {
   display: none;
 }
