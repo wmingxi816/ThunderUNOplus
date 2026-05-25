@@ -7,11 +7,13 @@
   </head>
   <body>
     <div id="app"></div>
-    <div id="portrait-overlay">
+    <div id="portrait-overlay" data-testid="portrait-overlay" aria-hidden="true">
+      <div class="portrait-copy">
+        <p class="portrait-text-main">请旋转设备</p>
+        <p class="portrait-text-sub">请使用横屏模式继续游戏</p>
+        <p class="portrait-text-tip">手机端可以在右上角设置处调整为合适的缩放</p>
+      </div>
       <img src="/turn-clockwise.png" alt="" class="portrait-spin-icon" />
-      <p class="portrait-text-main">请旋转设备</p>
-      <p class="portrait-text-sub">使用横屏模式</p>
-      <p class="portrait-text-tip">手机端可以在右上角设置处调整为合适的缩放</p>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

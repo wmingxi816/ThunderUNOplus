@@ -18,7 +18,7 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 }
 
 async function bootCurrentLobbyPlayer(page: Page, nickname: string): Promise<void> {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/");
   await expect(page.getByTestId("lobby-view")).toBeVisible();
   await expect(page.getByTestId("connection-status")).toHaveText("open");
   await page.locator("#nickname").fill(nickname);
@@ -29,12 +29,46 @@ async function createCurrentLobbyRoom(page: Page): Promise<void> {
   await expect(page.locator("#room-id-input")).toHaveValue(/\d{6}/);
 }
 
-test("mobile lobby and battle stay readable in portrait and landscape", async ({ browser }) => {
-  test.setTimeout(90_000);
-  const contextA = await browser.newContext({
+test("portrait overlay only appears on mobile portrait and hides after rotation", async ({ browser }) => {
+  const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
     isMobile: true
+  });
+  const mobilePage = await mobileContext.newPage();
+
+  await mobilePage.goto("/");
+
+  const portraitOverlay = mobilePage.getByTestId("portrait-overlay");
+  await expect(portraitOverlay).toBeVisible();
+  await expect(portraitOverlay.locator(".portrait-copy")).toBeVisible();
+  await expect(portraitOverlay.locator(".portrait-spin-icon")).toBeVisible();
+  await expect(portraitOverlay).toHaveAttribute("aria-hidden", "false");
+
+  await mobilePage.setViewportSize({ width: 844, height: 390 });
+  await expect(portraitOverlay).toBeHidden();
+  await expect(portraitOverlay).toHaveAttribute("aria-hidden", "true");
+  await expect(mobilePage.getByTestId("lobby-view")).toBeVisible();
+
+  await mobileContext.close();
+
+  const desktopContext = await browser.newContext({
+    viewport: { width: 780, height: 1100 }
+  });
+  const desktopPage = await desktopContext.newPage();
+
+  await desktopPage.goto("/");
+
+  await expect(desktopPage.getByTestId("portrait-overlay")).toBeHidden();
+  await expect(desktopPage.getByTestId("lobby-view")).toBeVisible();
+
+  await desktopContext.close();
+});
+
+test("mobile lobby and battle stay readable in portrait and landscape", async ({ browser }) => {
+  test.setTimeout(90_000);
+  const contextA = await browser.newContext({
+    viewport: { width: 390, height: 844 }
   });
   const pageA = await bootPlayer(contextA, "Mobile-A");
 
@@ -44,17 +78,13 @@ test("mobile lobby and battle stay readable in portrait and landscape", async ({
   const roomId = await createRoom(pageA);
 
   const contextB = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    hasTouch: true,
-    isMobile: true
+    viewport: { width: 390, height: 844 }
   });
   const pageB = await bootPlayer(contextB, "Mobile-B");
   await joinRoom(pageB, roomId);
 
   const contextC = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    hasTouch: true,
-    isMobile: true
+    viewport: { width: 390, height: 844 }
   });
   const pageC = await bootPlayer(contextC, "Mobile-C");
   await joinRoom(pageC, roomId);
@@ -87,9 +117,7 @@ test("mobile lobby and battle stay readable in portrait and landscape", async ({
 
 test("long nicknames keep lobby cards readable on mobile", async ({ browser }) => {
   const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    hasTouch: true,
-    isMobile: true
+    viewport: { width: 390, height: 844 }
   });
   const host = await bootPlayer(context, "player-with-a-very-very-long-name");
   const roomId = await createRoom(host);
@@ -108,9 +136,7 @@ test("long nicknames keep lobby cards readable on mobile", async ({ browser }) =
 
 test("mobile lobby stacks panels and keeps player cards compact", async ({ browser }) => {
   const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    hasTouch: true,
-    isMobile: true
+    viewport: { width: 390, height: 844 }
   });
   const host = await context.newPage();
   await bootCurrentLobbyPlayer(host, "player-with-a-very-very-long-name");

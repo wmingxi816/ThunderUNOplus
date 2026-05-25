@@ -624,6 +624,64 @@ window.addEventListener("resize", () => {
   });
 });
 
+function getMediaQuery(query: string): MediaQueryList | null {
+  if (typeof window.matchMedia !== "function") {
+    return null;
+  }
+
+  return window.matchMedia(query);
+}
+
+const portraitOrientationQuery = getMediaQuery("(orientation: portrait)");
+const narrowViewportQuery = getMediaQuery("(max-width: 960px)");
+const coarsePointerQuery = getMediaQuery("(hover: none) and (pointer: coarse)");
+const noHoverQuery = getMediaQuery("(any-hover: none)");
+
+function bindMediaQueryChange(query: MediaQueryList | null, listener: () => void) {
+  if (query === null) {
+    return;
+  }
+
+  if (typeof query.addEventListener === "function") {
+    query.addEventListener("change", listener);
+    return;
+  }
+
+  query.addListener(listener);
+}
+
+function syncPortraitOverlayVisibility() {
+  const overlay = document.getElementById("portrait-overlay");
+  if (!overlay) {
+    return;
+  }
+
+  const isPortrait = portraitOrientationQuery?.matches ?? false;
+  const isNarrowViewport = narrowViewportQuery?.matches ?? false;
+  const hasCoarsePointer = coarsePointerQuery?.matches ?? false;
+  const hasTouchWithoutHover = navigator.maxTouchPoints > 0 && (noHoverQuery?.matches ?? false);
+  const shouldShowOverlay = isPortrait && isNarrowViewport && (hasCoarsePointer || hasTouchWithoutHover);
+
+  overlay.classList.toggle("is-visible", shouldShowOverlay);
+  overlay.setAttribute("aria-hidden", shouldShowOverlay ? "false" : "true");
+  document.body.classList.toggle("portrait-overlay-active", shouldShowOverlay);
+}
+syncPortraitOverlayVisibility();
+for (const query of [
+  portraitOrientationQuery,
+  narrowViewportQuery,
+  coarsePointerQuery,
+  noHoverQuery
+]) {
+  bindMediaQueryChange(query, syncPortraitOverlayVisibility);
+}
+window.addEventListener("resize", syncPortraitOverlayVisibility);
+if (typeof screen.orientation !== "undefined") {
+  screen.orientation.addEventListener("change", () => {
+    setTimeout(syncPortraitOverlayVisibility, 50);
+  });
+}
+
 function handleServerMessage(message: ServerMessage): void {
   switch (message.type) {
     case "room-state":

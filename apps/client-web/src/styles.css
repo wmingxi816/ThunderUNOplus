@@ -1686,7 +1686,7 @@ label span {
 }
 
 .lobby-settings-button::before {
-  content: "鈿?;
+  content: "\2699";
   font-size: 1.28rem;
   line-height: 1;
 }
@@ -2065,7 +2065,7 @@ label span {
   font-weight: 850;
   line-height: 1.05;
   overflow: hidden;
-  text-overflow: clip;
+  text-overflow: ellipsis;
   overflow-wrap: normal;
   word-break: keep-all;
   white-space: nowrap;
@@ -5078,6 +5078,10 @@ label span {
   z-index: 3;
 }
 
+.card-button.selected img {
+  opacity: 0.5;
+}
+
 .card-button.card-motion-select {
   animation: card-select-lift 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -5394,14 +5398,14 @@ label span {
 }
 
 .log-panel summary::after {
-  content: "灞曞紑";
+  content: "\25BE";
   float: right;
   color: #bfc3cf;
   font-size: 0.8rem;
 }
 
 .log-panel[open] summary::after {
-  content: "鏀惰捣";
+  content: "\25B4";
 }
 
 .log-panel ol {
@@ -5801,9 +5805,7 @@ label span {
 
   .center-table {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "pile top"
-      "facts facts";
+    grid-template-areas: "pile top" "facts facts";
     width: min(100%, 28rem);
     gap: 0.9rem;
     margin: 1rem auto 1.2rem;
@@ -6369,9 +6371,7 @@ label span {
       scale(var(--battle-center-scale, 1));
     gap: clamp(0.35rem, 2vw, 0.65rem);
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "pile top"
-      "facts facts";
+    grid-template-areas: "pile top" "facts facts";
   }
 
   .battle-immersive .draw-pile {
@@ -6501,60 +6501,69 @@ label span {
 
 /* Portrait overlay */
 #portrait-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
   display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1.2rem, 5vw, 1.8rem);
+  padding: clamp(1.5rem, 6vw, 2.75rem);
+  background: #000;
+  text-align: center;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-@media (orientation: portrait) {
-  #portrait-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.8rem;
-    background:
-      url("/cards/64_black_faces.png") center/60% no-repeat,
-      #101114;
-    -webkit-user-select: none;
-    user-select: none;
-  }
+#portrait-overlay.is-visible {
+  display: flex;
+}
 
-  .portrait-spin-icon {
-    width: clamp(5.5rem, 22vw, 8rem);
-    height: auto;
-    animation: portrait-spin 3s linear infinite;
-    opacity: 0.9;
-    pointer-events: none;
-    filter: drop-shadow(0 0 1.2rem rgba(248, 214, 78, 0.35));
-  }
+body.portrait-overlay-active {
+  overflow: hidden;
+}
 
-  .portrait-text-main {
-    margin: 0;
-    color: #f8d64e;
-    font-size: clamp(1.6rem, 6.5vw, 2.4rem);
-    font-weight: 800;
-    letter-spacing: 0.08em;
-  }
+.portrait-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: min(22rem, 100%);
+}
 
-  .portrait-text-sub {
-    margin: 0;
-    color: #bfc3cf;
-    font-size: clamp(1.1rem, 4.4vw, 1.5rem);
-  }
+.portrait-spin-icon {
+  width: clamp(5.5rem, 22vw, 8rem);
+  height: auto;
+  animation: portrait-spin 3s linear infinite;
+  opacity: 0.92;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1rem rgba(255, 255, 255, 0.18));
+}
 
-  .portrait-text-tip {
-    margin: 0.5rem 0 0;
-    color: #8b8fa3;
-    font-size: clamp(0.9rem, 3.6vw, 1.15rem);
-    text-align: center;
-    max-width: 20rem;
-    line-height: 1.5;
-  }
+.portrait-text-main {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.7rem, 6.5vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.portrait-text-sub {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: clamp(1.05rem, 4.2vw, 1.45rem);
+  line-height: 1.45;
+}
+
+.portrait-text-tip {
+  margin: 0.3rem 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(0.92rem, 3.5vw, 1.1rem);
+  line-height: 1.55;
 }
 
 @keyframes portrait-spin {
-  from { rotate: 0deg; }
-  to   { rotate: 360deg; }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
