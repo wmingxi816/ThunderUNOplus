@@ -17,11 +17,50 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(metrics.bodyScrollWidth).toBeLessThanOrEqual(metrics.innerWidth + 3);
 }
 
+async function suppressPortraitOverlay(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const overlay = document.getElementById("portrait-overlay");
+    if (overlay === null) {
+      return;
+    }
+
+    overlay.classList.remove("is-visible");
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.style.setProperty("display", "none", "important");
+    document.body.classList.remove("portrait-overlay-active");
+  });
+}
+
+async function readLobbyPanelLayout(page: Page): Promise<{
+  controlTop: number;
+  controlBottom: number;
+  chatTop: number;
+}> {
+  return page.evaluate(() => {
+    const controlPanel = document.querySelector<HTMLElement>("[data-testid='lobby-control-panel']");
+    const chatPanel = document.querySelector<HTMLElement>("[data-testid='lobby-chat-panel']");
+
+    if (controlPanel === null || chatPanel === null) {
+      throw new Error("Lobby panels did not render.");
+    }
+
+    const controlRect = controlPanel.getBoundingClientRect();
+    const chatRect = chatPanel.getBoundingClientRect();
+
+    return {
+      controlTop: controlRect.top,
+      controlBottom: controlRect.bottom,
+      chatTop: chatRect.top
+    };
+  });
+}
+
 async function bootCurrentLobbyPlayer(page: Page, nickname: string): Promise<void> {
   await page.goto("/");
   await expect(page.getByTestId("lobby-view")).toBeVisible();
   await expect(page.getByTestId("connection-status")).toHaveText("open");
   await page.locator("#nickname").fill(nickname);
+  await suppressPortraitOverlay(page);
 }
 
 async function createCurrentLobbyRoom(page: Page): Promise<void> {
@@ -43,6 +82,7 @@ test("portrait overlay only appears on mobile portrait and hides after rotation"
   await expect(portraitOverlay).toBeVisible();
   await expect(portraitOverlay.locator(".portrait-copy")).toBeVisible();
   await expect(portraitOverlay.locator(".portrait-spin-icon")).toBeVisible();
+  await expect(portraitOverlay).toContainText("手机浏览器请打开电脑/桌面模式");
   await expect(portraitOverlay).toHaveAttribute("aria-hidden", "false");
 
   await mobilePage.setViewportSize({ width: 844, height: 390 });
@@ -59,10 +99,27 @@ test("portrait overlay only appears on mobile portrait and hides after rotation"
 
   await desktopPage.goto("/");
 
-  await expect(desktopPage.getByTestId("portrait-overlay")).toBeHidden();
+  const stackedLayout = await readLobbyPanelLayout(desktopPage);
+  await expect(desktopPage.getByTestId("portrait-overlay")).toBeVisible();
+  await expect(desktopPage.getByTestId("portrait-overlay")).toHaveAttribute("aria-hidden", "false");
   await expect(desktopPage.getByTestId("lobby-view")).toBeVisible();
+  expect(stackedLayout.chatTop).toBeGreaterThanOrEqual(stackedLayout.controlBottom - 4);
 
   await desktopContext.close();
+
+  const wideDesktopContext = await browser.newContext({
+    viewport: { width: 860, height: 1100 }
+  });
+  const wideDesktopPage = await wideDesktopContext.newPage();
+
+  await wideDesktopPage.goto("/");
+
+  const sideBySideLayout = await readLobbyPanelLayout(wideDesktopPage);
+  await expect(wideDesktopPage.getByTestId("portrait-overlay")).toBeHidden();
+  await expect(wideDesktopPage.getByTestId("lobby-view")).toBeVisible();
+  expect(Math.abs(sideBySideLayout.chatTop - sideBySideLayout.controlTop)).toBeLessThanOrEqual(4);
+
+  await wideDesktopContext.close();
 });
 
 test("mobile lobby and battle stay readable in portrait and landscape", async ({ browser }) => {
@@ -71,6 +128,7 @@ test("mobile lobby and battle stay readable in portrait and landscape", async ({
     viewport: { width: 390, height: 844 }
   });
   const pageA = await bootPlayer(contextA, "Mobile-A");
+  await suppressPortraitOverlay(pageA);
 
   await expect(pageA.getByTestId("create-room-button")).toBeVisible();
   await expectNoHorizontalOverflow(pageA);
@@ -81,12 +139,14 @@ test("mobile lobby and battle stay readable in portrait and landscape", async ({
     viewport: { width: 390, height: 844 }
   });
   const pageB = await bootPlayer(contextB, "Mobile-B");
+  await suppressPortraitOverlay(pageB);
   await joinRoom(pageB, roomId);
 
   const contextC = await browser.newContext({
     viewport: { width: 390, height: 844 }
   });
   const pageC = await bootPlayer(contextC, "Mobile-C");
+  await suppressPortraitOverlay(pageC);
   await joinRoom(pageC, roomId);
 
   await startGame(pageA);
@@ -120,9 +180,11 @@ test("long nicknames keep lobby cards readable on mobile", async ({ browser }) =
     viewport: { width: 390, height: 844 }
   });
   const host = await bootPlayer(context, "player-with-a-very-very-long-name");
+  await suppressPortraitOverlay(host);
   const roomId = await createRoom(host);
 
   const guest = await bootPlayer(context, "超级无敌霹雳长昵称玩家ABCDEFG123456789");
+  await suppressPortraitOverlay(guest);
   await joinRoom(guest, roomId);
 
   await expect(host.getByTestId("room-player")).toHaveCount(2);

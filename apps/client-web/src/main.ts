@@ -612,6 +612,7 @@ const wsClient = new WsClient({
 });
 
 let globalLobbyInteractionsInstalled = false;
+let canSyncPortraitOverlayAfterRender = false;
 installGlobalLobbyInteractions();
 
 render();
@@ -633,6 +634,7 @@ function getMediaQuery(query: string): MediaQueryList | null {
 }
 
 const portraitOrientationQuery = getMediaQuery("(orientation: portrait)");
+const compactViewportQuery = getMediaQuery("(max-width: 820px)");
 const narrowViewportQuery = getMediaQuery("(max-width: 960px)");
 const coarsePointerQuery = getMediaQuery("(hover: none) and (pointer: coarse)");
 const noHoverQuery = getMediaQuery("(any-hover: none)");
@@ -650,6 +652,30 @@ function bindMediaQueryChange(query: MediaQueryList | null, listener: () => void
   query.addListener(listener);
 }
 
+function isLobbyLayoutStacked(): boolean {
+  const lobbyView = document.querySelector<HTMLElement>("[data-testid='lobby-view']");
+  const controlPanel = document.querySelector<HTMLElement>("[data-testid='lobby-control-panel']");
+  const chatPanel = document.querySelector<HTMLElement>("[data-testid='lobby-chat-panel']");
+
+  if (lobbyView === null || controlPanel === null || chatPanel === null) {
+    return false;
+  }
+
+  const controlRect = controlPanel.getBoundingClientRect();
+  const chatRect = chatPanel.getBoundingClientRect();
+
+  if (
+    controlRect.width === 0 &&
+    controlRect.height === 0 &&
+    chatRect.width === 0 &&
+    chatRect.height === 0
+  ) {
+    return false;
+  }
+
+  return chatRect.top >= controlRect.bottom - 4;
+}
+
 function syncPortraitOverlayVisibility() {
   const overlay = document.getElementById("portrait-overlay");
   if (!overlay) {
@@ -657,10 +683,15 @@ function syncPortraitOverlayVisibility() {
   }
 
   const isPortrait = portraitOrientationQuery?.matches ?? false;
+  const isCompactViewport = compactViewportQuery?.matches ?? false;
   const isNarrowViewport = narrowViewportQuery?.matches ?? false;
   const hasCoarsePointer = coarsePointerQuery?.matches ?? false;
   const hasTouchWithoutHover = navigator.maxTouchPoints > 0 && (noHoverQuery?.matches ?? false);
-  const shouldShowOverlay = isPortrait && isNarrowViewport && (hasCoarsePointer || hasTouchWithoutHover);
+  const shouldShowLobbyOverlay = isLobbyLayoutStacked();
+  const shouldShowOverlay =
+    shouldShowLobbyOverlay ||
+    (isPortrait &&
+      (isCompactViewport || (isNarrowViewport && (hasCoarsePointer || hasTouchWithoutHover))));
 
   overlay.classList.toggle("is-visible", shouldShowOverlay);
   overlay.setAttribute("aria-hidden", shouldShowOverlay ? "false" : "true");
@@ -669,12 +700,14 @@ function syncPortraitOverlayVisibility() {
 syncPortraitOverlayVisibility();
 for (const query of [
   portraitOrientationQuery,
+  compactViewportQuery,
   narrowViewportQuery,
   coarsePointerQuery,
   noHoverQuery
 ]) {
   bindMediaQueryChange(query, syncPortraitOverlayVisibility);
 }
+canSyncPortraitOverlayAfterRender = true;
 window.addEventListener("resize", syncPortraitOverlayVisibility);
 if (typeof screen.orientation !== "undefined") {
   screen.orientation.addEventListener("change", () => {
@@ -825,6 +858,9 @@ function render(): void {
   bindRuleControls();
   syncLobbyChatScroll();
   restoreSettingsModalScrollPosition();
+  if (canSyncPortraitOverlayAfterRender) {
+    syncPortraitOverlayVisibility();
+  }
 
   if (isBattleView) {
     syncBattleLayoutLimits();

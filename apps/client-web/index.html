@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>雷霆UNOplus</title>
+    <style>
+      #portrait-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: none;
+        padding: 1.5rem;
+        background: #000;
+        color: #fff;
+        text-align: center;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
@@ -11,6 +23,7 @@
       <div class="portrait-copy">
         <p class="portrait-text-main">请旋转设备</p>
         <p class="portrait-text-sub">请使用横屏模式继续游戏</p>
+        <p class="portrait-text-tip">手机浏览器请打开电脑/桌面模式</p>
         <p class="portrait-text-tip">手机端可以在右上角设置处调整为合适的缩放</p>
       </div>
       <img src="/turn-clockwise.png" alt="" class="portrait-spin-icon" />
