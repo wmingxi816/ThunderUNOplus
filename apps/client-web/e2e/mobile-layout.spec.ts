@@ -82,7 +82,12 @@ test("portrait overlay only appears on mobile portrait and hides after rotation"
   await expect(portraitOverlay).toBeVisible();
   await expect(portraitOverlay.locator(".portrait-copy")).toBeVisible();
   await expect(portraitOverlay.locator(".portrait-spin-icon")).toBeVisible();
-  await expect(portraitOverlay).toContainText("手机浏览器请打开电脑/桌面模式");
+  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis")).toHaveCount(3);
+  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(0)).toHaveText("浏览器");
+  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(1)).toHaveText("电脑/桌面");
+  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(2)).toHaveText("横屏");
+  await expect(portraitOverlay.locator(".portrait-copy")).not.toContainText("【");
+  await expect(portraitOverlay.locator(".portrait-copy")).not.toContainText("】");
   await expect(portraitOverlay).toHaveAttribute("aria-hidden", "false");
 
   await mobilePage.setViewportSize({ width: 844, height: 390 });
@@ -172,7 +177,6 @@ test("mobile lobby and battle stay readable in portrait and landscape", async ({
     await expect(page.getByTestId("top-card")).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
-
 });
 
 test("long nicknames keep lobby cards readable on mobile", async ({ browser }) => {
@@ -183,17 +187,16 @@ test("long nicknames keep lobby cards readable on mobile", async ({ browser }) =
   await suppressPortraitOverlay(host);
   const roomId = await createRoom(host);
 
-  const guest = await bootPlayer(context, "超级无敌霹雳长昵称玩家ABCDEFG123456789");
+  const guest = await bootPlayer(context, "super-long-mobile-guest-name-ABCDEFG123456789");
   await suppressPortraitOverlay(guest);
   await joinRoom(guest, roomId);
 
   await expect(host.getByTestId("room-player")).toHaveCount(2);
   await expect(guest.getByTestId("room-player")).toHaveCount(2);
   await expect(host.getByTestId("room-player").first()).toContainText("player-wit");
-  await expect(guest.getByTestId("room-player").nth(1)).toContainText("超级无敌霹雳长昵称");
+  await expect(guest.getByTestId("room-player").nth(1)).toContainText("super-long");
   await expectNoHorizontalOverflow(host);
   await expectNoHorizontalOverflow(guest);
-
 });
 
 test("mobile lobby stacks panels and keeps player cards compact", async ({ browser }) => {
@@ -243,7 +246,6 @@ test("mobile lobby stacks panels and keeps player cards compact", async ({ brows
   expect(metrics.nameTextOverflow).toBe("clip");
   expect(metrics.nameWhiteSpace).toBe("nowrap");
   await expectNoHorizontalOverflow(host);
-
 });
 
 test("lobby matchmaking controls scale from panel width instead of viewport height", async ({ browser }) => {

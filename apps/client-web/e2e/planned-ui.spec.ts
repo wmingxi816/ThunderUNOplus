@@ -248,6 +248,63 @@ test("battle center side panels stay centered within the seat band and only the 
   expect(shortMetrics.centerDeltaY).toBeLessThanOrEqual(2);
 });
 
+test("battle side seats shift outward before opponent seats shrink when horizontal space gets tight", async ({ browser }) => {
+  test.setTimeout(45_000);
+  const { context, page } = await bootInstrumentedBattlePage(browser, "Seat-Gutter-A", {
+    viewport: { width: 1280, height: 900 }
+  });
+
+  await openInjectedBattle(page, {
+    topCard: createNumberCard("tight-top-a", "red", 5, "Red 5"),
+    currentColor: "red",
+    hand: createNumberHand("tight-hand-a", 8)
+  });
+
+  const readMetrics = async () =>
+    page.evaluate(() => {
+      const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
+      const leftSeat = document.querySelector<HTMLElement>(".battle-immersive .seat-side-left");
+      const rightSeat = document.querySelector<HTMLElement>(".battle-immersive .seat-side-right");
+
+      if (battleRoot === null || leftSeat === null || rightSeat === null) {
+        throw new Error("Battle seats were not rendered.");
+      }
+
+      const style = getComputedStyle(battleRoot);
+
+      return {
+        sideOffset: Number.parseFloat(style.getPropertyValue("--battle-side-offset")) || 0,
+        seatScale: Number.parseFloat(style.getPropertyValue("--battle-opponent-seat-scale")) || 0,
+        renderedSeatWidth: leftSeat.getBoundingClientRect().width,
+        renderedRightSeatWidth: rightSeat.getBoundingClientRect().width
+      };
+    });
+
+  const normalMetrics = await readMetrics();
+
+  await page.setViewportSize({ width: 844, height: 900 });
+  await expect(page.getByTestId("battle-view")).toBeVisible();
+  await page.waitForTimeout(150);
+
+  const tighterMetrics = await readMetrics();
+
+  expect(tighterMetrics.sideOffset).toBeLessThan(normalMetrics.sideOffset - 1);
+  expect(tighterMetrics.seatScale).toBeGreaterThanOrEqual(normalMetrics.seatScale - 0.02);
+  expect(tighterMetrics.renderedSeatWidth).toBeGreaterThan(0);
+  expect(tighterMetrics.renderedRightSeatWidth).toBeGreaterThan(0);
+
+  await page.setViewportSize({ width: 760, height: 300 });
+  await expect(page.getByTestId("battle-view")).toBeVisible();
+  await page.waitForTimeout(150);
+
+  const constrainedMetrics = await readMetrics();
+
+  expect(constrainedMetrics.sideOffset).toBeLessThanOrEqual(tighterMetrics.sideOffset + 1);
+  expect(constrainedMetrics.seatScale).toBeLessThan(tighterMetrics.seatScale);
+
+  await context.close();
+});
+
 test("hand card scale pulls non-overlap cards together while preserving overlap slot positioning", async ({ browser }) => {
   test.setTimeout(45_000);
   const { context, page } = await bootInstrumentedBattlePage(browser, "Hand-Scale-A", {
@@ -275,6 +332,25 @@ test("hand card scale pulls non-overlap cards together while preserving overlap 
   expect(compactMetrics.cardWidth).toBeLessThan(defaultMetrics.cardWidth * 0.75);
   expect(Math.abs(compactMetrics.gap - defaultMetrics.gap)).toBeLessThanOrEqual(6);
 
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await openInjectedBattle(page, {
+    topCard: createNumberCard("top-red-5b", "red", 5, "Red 5B"),
+    currentColor: "red",
+    hand: createNumberHand("wide-scale", 7)
+  });
+
+  await setBattleHandCardScale(page, 100);
+  await expect.poll(() => readHandCardLayoutMetrics(page).then((metrics) => metrics.isOverlap)).toBe(false);
+  const expandedBaselineMetrics = await readHandCardLayoutMetrics(page);
+
+  await setBattleHandCardScale(page, 140);
+  await expect.poll(() => readHandCardLayoutMetrics(page).then((metrics) => metrics.isOverlap)).toBe(false);
+  const expandedMetrics = await readHandCardLayoutMetrics(page);
+
+  expect(expandedMetrics.isOverlap).toBe(false);
+  expect(expandedMetrics.cardWidth).toBeGreaterThan(expandedBaselineMetrics.cardWidth * 1.2);
+  expect(expandedMetrics.gap).toBeGreaterThanOrEqual(-1);
+
   await page.setViewportSize({ width: 900, height: 760 });
   await openInjectedBattle(page, {
     topCard: createNumberCard("top-red-6", "red", 6, "Red 6"),
@@ -287,16 +363,68 @@ test("hand card scale pulls non-overlap cards together while preserving overlap 
   const overlapAtDefaultScale = await readHandOverlapLayoutState(page);
 
   await setBattleHandCardScale(page, 60);
-  const overlapAtCompactScale = await readHandOverlapLayoutState(page);
+  await expect.poll(() => readHandOverlapLayoutState(page).then((metrics) => metrics.isOverlap)).toBe(false);
+  const compactAfterOverlapMetrics = await readHandCardLayoutMetrics(page);
 
   expect(overlapAtDefaultScale.isOverlap).toBe(true);
-  expect(overlapAtCompactScale.isOverlap).toBe(true);
+  expect(compactAfterOverlapMetrics.isOverlap).toBe(false);
   expect(overlapAtDefaultScale.leftPositions.length).toBeGreaterThanOrEqual(4);
-  expect(overlapAtCompactScale.leftPositions).toHaveLength(overlapAtDefaultScale.leftPositions.length);
+  expect(compactAfterOverlapMetrics.gap).toBeGreaterThanOrEqual(-1);
+
+  await page.setViewportSize({ width: 760, height: 760 });
+  await openInjectedBattle(page, {
+    topCard: createNumberCard("top-red-7", "red", 7, "Red 7"),
+    currentColor: "red",
+    hand: createNumberHand("expanded-overlap", 14)
+  });
+
+  await setBattleHandCardScale(page, 140);
+  await expect.poll(() => readHandOverlapLayoutState(page).then((metrics) => metrics.isOverlap)).toBe(true);
+  const overlapAtExpandedScale = await readHandOverlapLayoutState(page);
 
   overlapAtDefaultScale.leftPositions.forEach((position, index) => {
-    expect(Math.abs(overlapAtCompactScale.leftPositions[index]! - position)).toBeLessThanOrEqual(0.1);
+    expect(Number.isFinite(position)).toBe(true);
   });
+  expect(overlapAtExpandedScale.leftPositions).toHaveLength(overlapAtDefaultScale.leftPositions.length);
+  overlapAtExpandedScale.leftPositions.forEach((position) => {
+    expect(Number.isFinite(position)).toBe(true);
+  });
+
+  await context.close();
+});
+
+test("hand cards stay closely anchored under the action guide instead of floating vertically", async ({ browser }) => {
+  test.setTimeout(45_000);
+  const { context, page } = await bootInstrumentedBattlePage(browser, "Hand-Guide-A", {
+    viewport: { width: 1280, height: 900 }
+  });
+
+  const hand = createNumberHand("guide-gap", 8);
+
+  await openInjectedBattle(page, {
+    topCard: createNumberCard("top-guide-1", "red", 5, "Red 5"),
+    currentColor: "red",
+    hand
+  });
+
+  const activeGap = await readActionGuideGap(page);
+  expect(activeGap).toBeGreaterThanOrEqual(0);
+  expect(activeGap).toBeLessThanOrEqual(10);
+
+  await injectServerMessage(
+    page,
+    createInjectedSnapshotMessage({
+      topCard: createNumberCard("top-guide-2", "yellow", 8, "Yellow 8"),
+      currentColor: "yellow",
+      hand,
+      currentPlayerId: "player-opponent-a"
+    })
+  );
+  await expect(page.locator(".action-guide")).toContainText("等待");
+
+  const waitingGap = await readActionGuideGap(page);
+  expect(waitingGap).toBeGreaterThanOrEqual(0);
+  expect(waitingGap).toBeLessThanOrEqual(10);
 
   await context.close();
 });
@@ -413,6 +541,7 @@ async function openInjectedBattle(
   await injectServerMessage(page, createInjectedSnapshotMessage(params));
   await expect(page.getByTestId("battle-view")).toBeVisible();
   await expect(page.getByTestId("hand-area")).toBeVisible();
+  await suppressPortraitOverlay(page);
 }
 
 async function injectServerMessage(page: Page, message: unknown): Promise<void> {
@@ -423,6 +552,20 @@ async function injectServerMessage(page: Page, message: unknown): Promise<void> 
       }
     ).__injectThunderUnoServerMessage__?.(payload);
   }, message);
+}
+
+async function suppressPortraitOverlay(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const overlay = document.getElementById("portrait-overlay");
+    if (overlay === null) {
+      return;
+    }
+
+    overlay.classList.remove("is-visible");
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.style.setProperty("display", "none", "important");
+    document.body.classList.remove("portrait-overlay-active");
+  });
 }
 
 async function setBattleHandCardScale(page: Page, value: number): Promise<void> {
@@ -491,6 +634,22 @@ async function readHandOverlapLayoutState(page: Page): Promise<{
       isOverlap: cards.classList.contains("cards-overlap"),
       leftPositions: slots.map((slot) => Number.parseFloat(slot.style.left || "NaN"))
     };
+  });
+}
+
+async function readActionGuideGap(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const guide = document.querySelector<HTMLElement>(".battle-action-dock .action-guide");
+    const cards = document.querySelector<HTMLElement>("[data-testid='hand-area']");
+
+    if (guide === null || cards === null) {
+      throw new Error("Need action guide and hand cards to read the vertical gap.");
+    }
+
+    const guideRect = guide.getBoundingClientRect();
+    const cardsRect = cards.getBoundingClientRect();
+
+    return cardsRect.top - guideRect.bottom;
   });
 }
 

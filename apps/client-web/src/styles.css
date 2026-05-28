@@ -1676,19 +1676,18 @@ label span {
   filter: grayscale(0.15);
 }
 
-.lobby-settings-button {
-  width: 2.75rem;
-  min-width: 2.75rem;
-  height: 2.75rem;
-  min-height: 2.75rem;
-  padding: 0;
-  font-size: 0;
+.lobby-topbar-status-group .lobby-settings-button {
+  margin-left: 0;
+  min-height: 2.2rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
-.lobby-settings-button::before {
-  content: "\2699";
-  font-size: 1.28rem;
-  line-height: 1;
+.shell:not(.shell-battle) .lobby-topbar-status-group .lobby-rule-button {
+  border-color: rgba(248, 214, 78, 0.72);
+  background: #f8d64e;
+  color: #161616;
 }
 
 .lobby-mobile-scale-tip {
@@ -2606,6 +2605,8 @@ label span {
   --turn-orbit-bottom: 25%;
   --hand-card-scale: 1;
   --battle-hand-slot-width: clamp(5rem, 7.4vw, 7rem);
+  --battle-action-guide-gap: 6px;
+  --battle-hand-cards-offset-top: 4rem;
   --battle-hud-bottom-limit: calc(max(0.35rem, env(safe-area-inset-top)) + 4rem);
   --battle-action-dock-top-limit: calc(100% - max(0.65rem, env(safe-area-inset-bottom)) - clamp(17rem, 34vh, 22.5rem));
   --battle-seat-band-padding: 12px;
@@ -2615,7 +2616,7 @@ label span {
   --battle-seat-base-height: 82px;
   --battle-seat-base-width: 196px;
   --battle-seat-row-gap: 18px;
-  --battle-seat-scale-min: 0.74;
+  --battle-seat-scale-min: 0.45;
   --battle-seat-scale-max: 1.45;
   --battle-opponent-seat-scale: 1;
 }
@@ -2697,6 +2698,86 @@ label span {
 .battle-debug-percent-y {
   right: 0.35rem;
   transform: translateY(-50%);
+}
+
+.battle-immersive.battle-debug-boxes {
+  --battle-debug-box-color: rgba(255, 82, 168, 0.96);
+  --battle-debug-box-soft-color: rgba(255, 82, 168, 0.28);
+  --battle-debug-box-shadow:
+    inset 0 0 0 1px var(--battle-debug-box-color),
+    0 0 0 1px var(--battle-debug-box-color),
+    0 0 0 4px var(--battle-debug-box-soft-color);
+}
+
+.battle-immersive.battle-debug-boxes .battle-stage,
+.battle-immersive.battle-debug-boxes .battle-hud,
+.battle-immersive.battle-debug-boxes .battle-error-line,
+.battle-immersive.battle-debug-boxes .battle-table,
+.battle-immersive.battle-debug-boxes .seat,
+.battle-immersive.battle-debug-boxes .self-seat-chat-anchor,
+.battle-immersive.battle-debug-boxes .battle-chat-bubble,
+.battle-immersive.battle-debug-boxes .battle-chat-toggle-button,
+.battle-immersive.battle-debug-boxes .battle-chat-composer,
+.battle-immersive.battle-debug-boxes .center-draw-pile-box,
+.battle-immersive.battle-debug-boxes .center-discard-pile-shell,
+.battle-immersive.battle-debug-boxes .discard-pile,
+.battle-immersive.battle-debug-boxes .discard-stack,
+.battle-immersive.battle-debug-boxes .center-table,
+.battle-immersive.battle-debug-boxes .center-table-facts-box,
+.battle-immersive.battle-debug-boxes .table-facts,
+.battle-immersive.battle-debug-boxes .battle-action-dock,
+.battle-immersive.battle-debug-boxes .battle-action-dock .actions,
+.battle-immersive.battle-debug-boxes .battle-action-dock .hand,
+.battle-immersive.battle-debug-boxes .battle-action-dock .hand-header,
+.battle-immersive.battle-debug-boxes .battle-action-dock .action-guide,
+.battle-immersive.battle-debug-boxes .battle-action-dock .cards,
+.battle-immersive.battle-debug-boxes .battle-action-dock .selection-panel,
+.battle-immersive.battle-debug-boxes .battle-action-dock .selection-summary,
+.battle-immersive.battle-debug-boxes .battle-action-dock .selection-actions,
+.battle-immersive.battle-debug-boxes .battle-action-dock .hand-card-slot,
+.battle-immersive.battle-debug-boxes .battle-action-dock .card-button,
+.battle-immersive.battle-debug-boxes .opponent-actions,
+.battle-immersive.battle-debug-boxes .opponent-actions button,
+.battle-immersive.battle-debug-boxes .draw-pile,
+.battle-immersive.battle-debug-boxes .draw-pile button,
+.battle-immersive.battle-debug-boxes .table-fact,
+.battle-immersive.battle-debug-boxes .normal-draw-offer,
+.battle-immersive.battle-debug-boxes .event-modal,
+.battle-immersive.battle-debug-boxes .challenge-prompt,
+.battle-immersive.battle-debug-boxes .color-picker-panel,
+.battle-immersive.battle-debug-boxes .color-picker-panel button,
+.battle-immersive.battle-debug-boxes .initial-direction-modal {
+  box-shadow: var(--battle-debug-box-shadow);
+}
+
+.battle-immersive.battle-debug-boxes .battle-stage,
+.battle-immersive.battle-debug-boxes .battle-hud,
+.battle-immersive.battle-debug-boxes .battle-table,
+.battle-immersive.battle-debug-boxes .center-draw-pile-box,
+.battle-immersive.battle-debug-boxes .center-discard-pile-shell,
+.battle-immersive.battle-debug-boxes .center-table-facts-box,
+.battle-immersive.battle-debug-boxes .center-table,
+.battle-immersive.battle-debug-boxes .battle-action-dock,
+.battle-immersive.battle-debug-boxes .battle-action-dock .actions,
+.battle-immersive.battle-debug-boxes .battle-action-dock .hand,
+.battle-immersive.battle-debug-boxes .battle-action-dock .cards,
+.battle-immersive.battle-debug-boxes .battle-action-dock .selection-panel,
+.battle-immersive.battle-debug-boxes .normal-draw-offer,
+.battle-immersive.battle-debug-boxes .event-modal,
+.battle-immersive.battle-debug-boxes .challenge-prompt,
+.battle-immersive.battle-debug-boxes .color-picker-panel,
+.battle-immersive.battle-debug-boxes .initial-direction-modal {
+  border-radius: 10px;
+}
+
+.battle-immersive.battle-debug-boxes .battle-action-dock .hand-card-slot,
+.battle-immersive.battle-debug-boxes .battle-action-dock .card-button,
+.battle-immersive.battle-debug-boxes .color-picker-panel button,
+.battle-immersive.battle-debug-boxes .opponent-actions button,
+.battle-immersive.battle-debug-boxes .draw-pile button,
+.battle-immersive.battle-debug-boxes .table-fact,
+.battle-immersive.battle-debug-boxes .battle-chat-toggle-button {
+  border-radius: 8px;
 }
 
 .battle-debug-boundary-line {
@@ -4798,9 +4879,9 @@ label span {
   z-index: 1000;
   display: grid;
   grid-template-columns: clamp(12rem, 16vw, 15rem) minmax(0, 1fr);
-  align-items: end;
+  align-items: start;
   gap: 0.75rem;
-  height: clamp(17rem, 34vh, 22.5rem);
+  height: auto;
   min-height: 0;
   padding: 0.55rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -4876,7 +4957,7 @@ label span {
 
 /* UI name: battle-actions-panel. UNO 鍜屽嚭鐗屾搷浣滈潰鏉裤€?*/
 .battle-action-dock .actions {
-  align-self: stretch;
+  align-self: start;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 3.2rem auto;
@@ -4932,19 +5013,22 @@ label span {
 }
 
 .battle-action-dock .hand {
-  align-self: stretch;
+  align-self: start;
   position: relative;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  align-content: stretch;
-  height: 100%;
+  grid-template-rows: auto auto;
+  align-content: start;
+  height: auto;
   min-height: 0;
   max-height: none;
   padding: 0;
   border: 0;
   background: transparent;
-  overflow: hidden;
+  outline: 2px solid rgba(248, 214, 78, 0.98);
+  overflow: visible;
 }
+
+
 
 /* UI name: battle-hand-header. 鎵嬬墝鍖烘爣棰樺拰鏁伴噺銆?*/
 .hand-header {
@@ -4983,11 +5067,11 @@ label span {
 /* UI name: battle-action-guide. 褰撳墠鎿嶄綔鎻愮ず銆?*/
 .battle-action-dock .action-guide {
   position: absolute;
-  top: 1.60rem;
+  top: calc(1.60rem + 10px);
   left: 0;
   right: 0;
   z-index: 2;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0;
   padding: 0.45rem 0.6rem;
   font-size: 0.82rem;
   box-shadow: 0 0.45rem 1rem rgba(0, 0, 0, 0.18);
@@ -5023,12 +5107,14 @@ label span {
 
 .battle-action-dock .cards {
   flex-wrap: nowrap;
+  align-items: flex-start;
   gap: 0.55rem;
   align-self: start;
-  max-height: 30rem;
-  padding: 4rem 0.25rem 0.95rem;
+  max-height: none;
+  margin-top: var(--battle-hand-cards-offset-top, 4rem);
+  padding: 0 0.25rem 0.95rem;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: visible;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   position: relative;
@@ -5045,25 +5131,29 @@ label span {
   position: relative;
   display: block;
   min-height: var(--hand-overlap-height, 11rem);
-  max-height: var(--hand-overlap-height, 11rem);
+  max-height: none;
   overflow: visible;
 }
 
 .battle-action-dock .cards.cards-overlap .hand-card-slot {
   position: absolute;
-  bottom: 0.95rem;
+  top: 15px;
+  bottom: auto;
   width: var(--battle-hand-slot-width);
+  transform-origin: bottom center;
 }
 
 .battle-action-dock .cards .hand-card-slot {
-  z-index: 1;
+  margin-top: 15px;
+  z-index: 24;
+}
+
+.battle-action-dock .cards:not(.cards-overlap) .hand-card-slot {
+  transform-origin: bottom left;
 }
 
 .battle-action-dock .cards:not(.cards-overlap) .hand-card-slot + .hand-card-slot {
-  margin-left: min(
-    0px,
-    calc((var(--hand-card-scale, 1) - 1) * var(--battle-hand-slot-width))
-  );
+  margin-left: calc((var(--hand-card-scale, 1) - 1) * var(--battle-hand-slot-width));
 }
 
 .battle-action-dock .cards.cards-overlap .hand-card-slot:hover,
@@ -5384,14 +5474,14 @@ label span {
 }
 
 .battle-action-dock .selection-panel {
-  align-self: stretch;
+  align-self: start;
   grid-template-columns: 1fr;
   grid-template-rows: auto 6.9rem minmax(3.25rem, 1fr);
   align-content: stretch;
   justify-items: stretch;
   gap: 0.45rem;
   width: 100%;
-  height: 100%;
+  height: auto;
   min-width: 0;
   min-height: 0;
   max-width: 100%;
@@ -5409,17 +5499,17 @@ label span {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: repeat(2, 1fr);
-  align-self: stretch;
+  align-self: start;
   justify-self: stretch;
   width: 100%;
-  height: 100%;
+  height: auto;
   min-height: 0;
 }
 
 .battle-action-dock .selection-actions button {
   justify-self: stretch;
   width: 100%;
-  height: 100%;
+  height: 3.2rem;
   min-height: 3.2rem;
 }
 
@@ -5486,7 +5576,7 @@ label span {
 }
 
 .selection-toggle-copy strong {
-  font-size: 0.8rem;
+  font-size: 1.04rem;
   line-height: 1.05;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -6522,11 +6612,16 @@ label span {
     height: 100%;
   }
 
-  .battle-immersive .hand {
+  .battle-immersive .hand:not(.battle-action-dock .hand) {
     position: relative;
     top: auto;
     max-height: min(34vh, 13rem);
     overflow: hidden;
+  }
+
+  .battle-action-dock .hand {
+    max-height: none;
+    overflow: visible;
   }
 
   .battle-immersive .battle-table {
@@ -6642,13 +6737,13 @@ label span {
   }
 
   .battle-action-dock .hand {
-    max-height: min(62vh, 36rem);
+    max-height: none;
   }
 
   .battle-action-dock .cards {
     flex-wrap: nowrap;
-    max-height: 30rem;
-    padding-top: 3.5rem;
+    max-height: none;
+    margin-top: var(--battle-hand-cards-offset-top, 3.5rem);
   }
 
   .battle-immersive {
@@ -6704,7 +6799,7 @@ label span {
 
   .battle-action-dock .cards {
     max-height: 7.8rem;
-    padding-top: 1.15rem;
+    margin-top: var(--battle-hand-cards-offset-top, 1.15rem);
   }
 
   .battle-action-dock .selection-actions {
@@ -6787,6 +6882,11 @@ body.portrait-overlay-active {
   color: rgba(255, 255, 255, 0.72);
   font-size: clamp(0.92rem, 3.5vw, 1.1rem);
   line-height: 1.55;
+}
+
+.portrait-text-tip-emphasis {
+  color: #ffd84d;
+  font-weight: 800;
 }
 
 @keyframes portrait-spin {

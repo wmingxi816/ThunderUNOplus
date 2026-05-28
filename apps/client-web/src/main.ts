@@ -896,7 +896,7 @@ function render(): void {
                 <button
                   id="lobby-settings-button"
                   data-testid="lobby-settings-button"
-                  class="secondary lobby-settings-button"
+                  class="secondary hud-settings-button lobby-settings-button"
                   aria-label="设置"
                   title="设置"
                 >设置</button>
@@ -2431,7 +2431,7 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
 
   return `
     <section
-      class="battle battle-immersive ${isMyTurn ? "my-turn" : "other-turn"} ${isChoosingInitialDirection ? "is-initial-direction-lock" : ""}"
+      class="battle battle-immersive ${isMyTurn ? "my-turn" : "other-turn"} ${isChoosingInitialDirection ? "is-initial-direction-lock" : ""} ${state.showDebugGrid ? "battle-debug-boxes" : ""}"
       data-testid="battle-view"
       style="${renderBattleUiScaleStyle()}"
     >
@@ -5559,11 +5559,19 @@ interface OpponentSeatPlacement {
 
 const DEFAULT_BATTLE_SEAT_BAND_PADDING_PX = 12;
 const DEFAULT_BATTLE_SEAT_BASE_HEIGHT_PX = 82;
+const DEFAULT_BATTLE_SEAT_BASE_WIDTH_PX = 196;
 const DEFAULT_BATTLE_SEAT_ROW_GAP_PX = 18;
 const DEFAULT_BATTLE_SEAT_ROW_GAP_MIN_PX = 10;
 const DEFAULT_BATTLE_SEAT_ROW_GAP_MAX_PX = 18;
-const DEFAULT_BATTLE_SEAT_SCALE_MIN = 0.74;
+const DEFAULT_BATTLE_SEAT_SCALE_MIN = 0.45;
 const DEFAULT_BATTLE_SEAT_SCALE_MAX = 1.45;
+const DEFAULT_BATTLE_SPARSE_SIDE_SPREAD_TWO = 0.58;
+const DEFAULT_BATTLE_SPARSE_SIDE_SPREAD_THREE = 0.82;
+const DEFAULT_BATTLE_SIDE_OFFSET_PX = 60;
+const DEFAULT_BATTLE_SIDE_OFFSET_MIN_PX = 16;
+const DEFAULT_BATTLE_CENTER_SIDE_MARGIN_PX = 12;
+const DEFAULT_BATTLE_SEAT_BOUNDARY_GAP_RATIO = 0.7;
+const DEFAULT_BATTLE_SEAT_BOUNDARY_GAP_MIN_PX = 28;
 
 function getOpponentSeatPlacement(
   index: number,
@@ -5616,8 +5624,23 @@ function getOpponentSeatProgress(
   }
 
   const topDownProgress = row / (sideCount - 1);
+  const centeredProgress =
+    0.5 +
+    (topDownProgress - 0.5) * getOpponentSeatSpreadFactor(sideCount);
 
-  return flow === "top-down" ? topDownProgress : 1 - topDownProgress;
+  return flow === "top-down" ? centeredProgress : 1 - centeredProgress;
+}
+
+function getOpponentSeatSpreadFactor(sideCount: number): number {
+  if (sideCount === 2) {
+    return DEFAULT_BATTLE_SPARSE_SIDE_SPREAD_TWO;
+  }
+
+  if (sideCount === 3) {
+    return DEFAULT_BATTLE_SPARSE_SIDE_SPREAD_THREE;
+  }
+
+  return 1;
 }
 
 function formatSeatProgress(value: number): string {
@@ -7606,6 +7629,10 @@ function applyInterfaceAdjustSetting(setting: string | undefined, value: number)
     output.textContent = `${String(value)}%`;
   }
 
+  if (setting === "hand-card-scale") {
+    syncHandOverlapLayout();
+  }
+
   syncBattleLayoutLimits();
 }
 
@@ -7613,6 +7640,8 @@ function syncBattleLayoutLimits(): void {
   const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
   const battleHud = document.querySelector<HTMLElement>(".battle-immersive .battle-hud");
   const handPanel = document.querySelector<HTMLElement>(".battle-immersive .battle-action-dock .hand");
+  const handHeader = document.querySelector<HTMLElement>(".battle-immersive .battle-action-dock .hand-header");
+  const actionGuide = document.querySelector<HTMLElement>(".battle-immersive .battle-action-dock .action-guide");
   const drawPileBox = document.querySelector<HTMLElement>(".battle-immersive .center-draw-pile-box");
   const tableFactsBox = document.querySelector<HTMLElement>(".battle-immersive .center-table-facts-box");
   const discardPileShell = document.querySelector<HTMLElement>(
@@ -7648,13 +7677,21 @@ function syncBattleLayoutLimits(): void {
   const battleSeatScaleMax =
     Number.parseFloat(battleRootStyle.getPropertyValue("--battle-seat-scale-max")) ||
     DEFAULT_BATTLE_SEAT_SCALE_MAX;
+  const battleSeatBaseWidth =
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-seat-base-width")) ||
+    DEFAULT_BATTLE_SEAT_BASE_WIDTH_PX;
+  const actionGuideGap =
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-action-guide-gap")) || 6;
   const battleCenterScale = Math.max(
     0.0001,
     Number.parseFloat(battleRootStyle.getPropertyValue("--battle-center-scale")) || 1
   );
+  const battleWidth = rootRect.width / scale;
+  const baseBattleSideOffset = resolveBattleBaseSideOffsetPx(battleWidth);
   const totalOpponents = document.querySelectorAll(".battle-immersive .opponents .seat-side").length;
   const sideConstraintCount = totalOpponents === 0 ? 0 : Math.ceil(totalOpponents / 2);
   const battleOpponentSeatScale = resolveBattleOpponentSeatScale(
+    battleRoot,
     sideConstraintCount,
     hudBottomLimit,
     actionDockTopLimit,
@@ -7662,7 +7699,11 @@ function syncBattleLayoutLimits(): void {
     battleSeatRowGap,
     seatBandPadding,
     battleSeatScaleMin,
-    battleSeatScaleMax
+    battleSeatScaleMax,
+    battleWidth,
+    baseBattleSideOffset,
+    battleSeatBaseWidth,
+    discardPileShell
   );
   const battleOpponentSeatGap = getBattleSeatRowGapPx(
     battleOpponentSeatScale,
@@ -7676,6 +7717,16 @@ function syncBattleLayoutLimits(): void {
   const seatBandHeight = Math.max(0, seatBandBottom - seatBandTop);
   const centerBandTop = hudBottomLimit;
   const centerBandBottom = Math.max(centerBandTop, actionDockTopLimit);
+  const battleSideOffset = resolveBattleSideOffsetPx({
+    battleWidth,
+    baseSideOffset: baseBattleSideOffset,
+    seatScale: battleOpponentSeatScale,
+    seatBaseWidth: battleSeatBaseWidth,
+    discardPileShell,
+    rootRect,
+    uiScale: scale
+  });
+  battleRoot.style.setProperty("--battle-side-offset", `${battleSideOffset.toFixed(2)}px`);
   const drawPileHorizontalBounds = resolveBattleCenterSideHorizontalBounds({
     rootRect,
     uiScale: scale,
@@ -7702,9 +7753,28 @@ function syncBattleLayoutLimits(): void {
     battleCenterScale,
     tableFactsHorizontalBounds.availableWidth
   );
+  const handPanelTop = handPanelRect.top;
+  const handHeaderBottom =
+    handHeader === null
+      ? 0
+      : Math.max(0, (handHeader.getBoundingClientRect().bottom - handPanelTop) / scale);
+  const actionGuideBottom =
+    actionGuide === null
+      ? null
+      : Math.max(
+          0,
+          (actionGuide.getBoundingClientRect().bottom - handPanelTop) / scale + actionGuideGap
+        );
+  const handCardsOffsetTop =
+    actionGuideBottom === null ? null : Math.max(0, actionGuideBottom - handHeaderBottom);
 
   battleRoot.style.setProperty("--battle-hud-bottom-limit", `${hudBottomLimit.toFixed(2)}px`);
   battleRoot.style.setProperty("--battle-action-dock-top-limit", `${actionDockTopLimit.toFixed(2)}px`);
+  if (handCardsOffsetTop === null) {
+    battleRoot.style.removeProperty("--battle-hand-cards-offset-top");
+  } else {
+    battleRoot.style.setProperty("--battle-hand-cards-offset-top", `${handCardsOffsetTop.toFixed(2)}px`);
+  }
   battleRoot.style.setProperty("--battle-seat-band-top", `${seatBandTop.toFixed(2)}px`);
   battleRoot.style.setProperty("--battle-seat-band-bottom", `${seatBandBottom.toFixed(2)}px`);
   battleRoot.style.setProperty("--battle-seat-band-height", `${seatBandHeight.toFixed(2)}px`);
@@ -7792,6 +7862,83 @@ function resolveBattleCenterSideHorizontalBounds(params: {
   return {
     centerX: discardRect.right + availableWidth / 2,
     availableWidth
+  };
+}
+
+function resolveBattleBaseSideOffsetPx(battleWidth: number): number {
+  return clampNumber(battleWidth * 0.04, DEFAULT_BATTLE_SIDE_OFFSET_MIN_PX, DEFAULT_BATTLE_SIDE_OFFSET_PX);
+}
+
+function resolveBattleSideOffsetPx(params: {
+  battleWidth: number;
+  baseSideOffset: number;
+  seatScale: number;
+  seatBaseWidth: number;
+  discardPileShell: HTMLElement | null;
+  rootRect: DOMRect;
+  uiScale: number;
+}): number {
+  if (params.discardPileShell === null) {
+    return params.baseSideOffset;
+  }
+
+  const discardRect = getBattleRootRelativeRect(
+    params.discardPileShell,
+    params.rootRect,
+    params.uiScale
+  );
+  const seatWidth = params.seatBaseWidth * params.seatScale;
+  const leftAvailable = Math.max(0, discardRect.left - DEFAULT_BATTLE_CENTER_SIDE_MARGIN_PX - seatWidth);
+  const rightAvailable = Math.max(
+    0,
+    params.battleWidth - discardRect.right - DEFAULT_BATTLE_CENTER_SIDE_MARGIN_PX - seatWidth
+  );
+  const resolvedOffset = Math.min(params.baseSideOffset, leftAvailable, rightAvailable);
+
+  return clampNumber(resolvedOffset, DEFAULT_BATTLE_SIDE_OFFSET_MIN_PX, params.baseSideOffset);
+}
+
+function readBattleSeatBoundaryMetrics(
+  battleRoot: HTMLElement
+): { gap: number; threshold: number } | null {
+  const rootRect = battleRoot.getBoundingClientRect();
+  const uiScale = Math.max(
+    0.0001,
+    Number.parseFloat(getComputedStyle(battleRoot).getPropertyValue("--battle-ui-scale")) || 1
+  );
+  const leftSeats = [
+    ...battleRoot.querySelectorAll<HTMLElement>(".seat-side-left")
+  ].map((element) => getBattleRootRelativeRect(element, rootRect, uiScale));
+  const rightSeats = [
+    ...battleRoot.querySelectorAll<HTMLElement>(".seat-side-right")
+  ].map((element) => getBattleRootRelativeRect(element, rootRect, uiScale));
+  const drawShell = battleRoot.querySelector<HTMLElement>(".center-draw-pile-shell");
+  const factsShell = battleRoot.querySelector<HTMLElement>(".center-table-facts-shell");
+
+  if (
+    leftSeats.length === 0 ||
+    rightSeats.length === 0 ||
+    drawShell === null ||
+    factsShell === null
+  ) {
+    return null;
+  }
+
+  const drawRect = getBattleRootRelativeRect(drawShell, rootRect, uiScale);
+  const factsRect = getBattleRootRelativeRect(factsShell, rootRect, uiScale);
+  const leftGap = drawRect.left - Math.max(...leftSeats.map((rect) => rect.right));
+  const rightGap = Math.min(...rightSeats.map((rect) => rect.left)) - factsRect.right;
+  const seatHeights = [...leftSeats, ...rightSeats].map((rect) => rect.height);
+  const smallestSeatHeight =
+    seatHeights.length === 0 ? DEFAULT_BATTLE_SEAT_BASE_HEIGHT_PX : Math.min(...seatHeights);
+  const threshold = Math.max(
+    DEFAULT_BATTLE_SEAT_BOUNDARY_GAP_MIN_PX,
+    smallestSeatHeight * DEFAULT_BATTLE_SEAT_BOUNDARY_GAP_RATIO
+  );
+
+  return {
+    gap: Math.min(leftGap, rightGap),
+    threshold
   };
 }
 
@@ -7895,6 +8042,7 @@ function getBattleSeatOccupiedHeight(
 }
 
 function resolveBattleOpponentSeatScale(
+  battleRoot: HTMLElement,
   sideCount: number,
   hudBottomLimit: number,
   handTopLimit: number,
@@ -7902,7 +8050,11 @@ function resolveBattleOpponentSeatScale(
   baseGap: number,
   topPadding: number,
   minScale: number,
-  maxScale: number
+  maxScale: number,
+  battleWidth: number,
+  baseSideOffset: number,
+  seatBaseWidth: number,
+  discardPileShell: HTMLElement | null
 ): number {
   if (sideCount <= 0) {
     return maxScale;
@@ -7935,7 +8087,18 @@ function resolveBattleOpponentSeatScale(
   );
 
   if (maxOccupiedHeight <= availableHeight) {
-    return maxScale;
+    if (
+      canBattleSeatScaleFitHorizontally({
+        battleRoot,
+        scale: maxScale,
+        battleWidth,
+        baseSideOffset,
+        seatBaseWidth,
+        discardPileShell
+      })
+    ) {
+      return maxScale;
+    }
   }
 
   let low = minScale;
@@ -7951,7 +8114,17 @@ function resolveBattleOpponentSeatScale(
       topPadding
     );
 
-    if (occupiedHeight <= availableHeight) {
+    if (
+      occupiedHeight <= availableHeight &&
+      canBattleSeatScaleFitHorizontally({
+        battleRoot,
+        scale: mid,
+        battleWidth,
+        baseSideOffset,
+        seatBaseWidth,
+        discardPileShell
+      })
+    ) {
       low = mid;
     } else {
       high = mid;
@@ -7959,6 +8132,40 @@ function resolveBattleOpponentSeatScale(
   }
 
   return low;
+}
+
+function canBattleSeatScaleFitHorizontally(params: {
+  battleRoot: HTMLElement;
+  scale: number;
+  battleWidth: number;
+  baseSideOffset: number;
+  seatBaseWidth: number;
+  discardPileShell: HTMLElement | null;
+}): boolean {
+  if (params.discardPileShell === null) {
+    return true;
+  }
+
+  params.battleRoot.style.setProperty("--battle-opponent-seat-scale", params.scale.toFixed(4));
+  params.battleRoot.style.setProperty(
+    "--battle-side-offset",
+    resolveBattleSideOffsetPx({
+      battleWidth: params.battleWidth,
+      baseSideOffset: params.baseSideOffset,
+      seatScale: params.scale,
+      seatBaseWidth: params.seatBaseWidth,
+      discardPileShell: params.discardPileShell,
+      rootRect: params.battleRoot.getBoundingClientRect(),
+      uiScale:
+        Math.max(
+          0.0001,
+          Number.parseFloat(getComputedStyle(params.battleRoot).getPropertyValue("--battle-ui-scale")) || 1
+        )
+    }).toFixed(2) + "px"
+  );
+
+  const boundaryMetrics = readBattleSeatBoundaryMetrics(params.battleRoot);
+  return boundaryMetrics === null || boundaryMetrics.gap >= boundaryMetrics.threshold;
 }
 
 function bindRuleControls(): void {
@@ -8434,7 +8641,9 @@ function syncHandOverlapLayout(): void {
   const containerWidth = cards.clientWidth;
   const firstCardSlot = cardSlots[0]!;
   const firstCardButton = firstCardSlot.querySelector<HTMLElement>(".card-button");
-  const cardWidth = Math.max(firstCardSlot.offsetWidth, firstCardButton?.offsetWidth ?? 0);
+  const cardScale = getHandCardScale(cards);
+  const slotWidth = Math.max(firstCardSlot.offsetWidth, firstCardButton?.offsetWidth ?? 0);
+  const cardWidth = slotWidth * cardScale;
   const normalGap = getHandCardGapPx(cards);
   const horizontalPadding = getHorizontalPaddingPx(cards);
   const availableWidth = Math.max(cardWidth, containerWidth - horizontalPadding);
@@ -8453,10 +8662,13 @@ function syncHandOverlapLayout(): void {
   }
 
   const step = Math.max(14, (availableWidth - cardWidth) / (cardSlots.length - 1));
-  const cardHeight = Math.max(firstCardSlot.offsetHeight, firstCardButton?.offsetHeight ?? 0);
+  const slotHeight = Math.max(firstCardSlot.offsetHeight, firstCardButton?.offsetHeight ?? 0);
+  const cardHeight = slotHeight * cardScale;
+  const overlapTopOffset = 15;
+  const overlapOccupiedHeight = overlapTopOffset + cardHeight;
 
   cards.classList.add("cards-overlap");
-  cards.style.setProperty("--hand-overlap-height", `${String(Math.ceil(cardHeight + 26))}px`);
+  cards.style.setProperty("--hand-overlap-height", `${String(Math.ceil(overlapOccupiedHeight))}px`);
 
   cardSlots.forEach((cardSlot, index) => {
     cardSlot.style.left = `${String(Math.max(0, step * index + horizontalPadding / 2))}px`;
@@ -8469,6 +8681,13 @@ function getHandCardGapPx(cards: HTMLElement): number {
   const gap = Number.parseFloat(styles.columnGap || styles.gap);
 
   return Number.isFinite(gap) ? gap : 0;
+}
+
+function getHandCardScale(cards: HTMLElement): number {
+  const styles = window.getComputedStyle(cards);
+  const scale = Number.parseFloat(styles.getPropertyValue("--hand-card-scale"));
+
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
 function getHorizontalPaddingPx(element: HTMLElement): number {

@@ -441,6 +441,8 @@ describe("client-web smoke", () => {
     handCardScaleSlider!.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(document.querySelector<HTMLButtonElement>("#debug-grid-toggle-button")?.textContent).toContain("关闭网格");
+    expect(document.querySelector(".battle-debug-grid")).not.toBeNull();
+    expect(document.querySelector<HTMLElement>(".battle-immersive")?.classList.contains("battle-debug-boxes")).toBe(true);
     expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='turn-orbit-scale']")?.textContent).toBe("120%");
     expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='hand-card-scale']")?.textContent).toBe("90%");
     expect(document.querySelector<HTMLElement>(".battle-immersive")?.style.getPropertyValue("--hand-card-scale")).toBe("0.90");
@@ -448,6 +450,8 @@ describe("client-web smoke", () => {
     document.querySelector<HTMLButtonElement>("#settings-adjust-reset-button")?.click();
 
     expect(document.querySelector<HTMLButtonElement>("#debug-grid-toggle-button")?.textContent).toContain("显示网格");
+    expect(document.querySelector(".battle-debug-grid")).toBeNull();
+    expect(document.querySelector<HTMLElement>(".battle-immersive")?.classList.contains("battle-debug-boxes")).toBe(false);
     expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='turn-orbit-scale']")?.textContent).toBe("100%");
     expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='hand-card-scale']")?.textContent).toBe("100%");
     expect(document.querySelector<HTMLElement>(".battle-immersive")?.style.getPropertyValue("--hand-card-scale")).toBe("1.00");
@@ -551,12 +555,18 @@ describe("client-web smoke", () => {
     await import("../main");
 
     const rightGroup = document.querySelector(".lobby-topbar-status-group");
-    const settingsButton = document.querySelector("#lobby-settings-button");
-    const ruleButton = document.querySelector("#lobby-rule-button");
+    const settingsButton = document.querySelector<HTMLButtonElement>("#lobby-settings-button");
+    const ruleButton = document.querySelector<HTMLButtonElement>("#lobby-rule-button");
     const styleText = await readFile("src/styles.css", "utf8");
 
     expect(rightGroup?.contains(settingsButton ?? null)).toBe(true);
     expect(rightGroup?.contains(ruleButton ?? null)).toBe(true);
+    expect(settingsButton?.classList.contains("hud-settings-button")).toBe(true);
+    expect(styleText).toContain(".shell:not(.shell-battle) .lobby-topbar-status-group .lobby-rule-button");
+    expect(styleText).toContain("background: #f8d64e;");
+    expect(styleText).toContain(".lobby-topbar-status-group .lobby-settings-button");
+    expect(styleText).toContain("min-height: 2.2rem;");
+    expect(styleText).not.toContain(".lobby-settings-button::before");
     expect(styleText).toContain("min-height: 3.64rem");
   });
 
@@ -1200,6 +1210,140 @@ describe("client-web smoke", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("keeps sparse side opponent seats closer to the vertical center while preserving order", async () => {
+    await import("../main");
+
+    const socket = FakeWebSocket.instances[0];
+    socket?.triggerOpen();
+
+    const topCard = {
+      id: "yellow-4",
+      kind: "number",
+      color: "yellow",
+      number: 4,
+      isBlack: false,
+      displayName: "yellow 4"
+    };
+
+    socket?.triggerMessage({
+      protocolVersion: "0.1.0",
+      type: "snapshot",
+      roomId: "ROOM1",
+      playerId: "player-1",
+      snapshotVersion: 1,
+      snapshot: {
+        roomId: "ROOM1",
+        snapshotVersion: 1,
+        status: "in-progress",
+        mode: "no-challenge",
+        currentPlayerId: "player-1",
+        currentColor: "yellow",
+        direction: "clockwise",
+        topCard,
+        discardPile: [topCard],
+        drawPileCount: 80,
+        drawStack: {
+          active: false,
+          amount: 0,
+          previousDrawValue: null,
+          previousDrawKind: null,
+          targetPlayerId: null
+        },
+        roundDecisionPending: false,
+        drawUntilColor: {
+          active: false,
+          color: null,
+          targetPlayerId: null
+        },
+        normalDrawOffer: {
+          active: false,
+          playerId: null,
+          cardId: null
+        },
+        initialDirectionChoice: {
+          active: false,
+          chooserPlayerId: null
+        },
+        challengeWindow: {
+          active: false,
+          targetPlayerId: null
+        },
+        winnerPlayerIds: [],
+        self: {
+          playerId: "player-1",
+          displayName: "player-1",
+          avatarUrl: null,
+          hand: [],
+          handCount: 0,
+          hasCalledUno: false,
+          unoPendingSinceMs: null,
+          unoProtectionStartedAtMs: null,
+          unoProtectionEndsAtMs: null,
+          isEliminated: false,
+          isCurrentPlayer: true
+        },
+        opponents: [
+          {
+            playerId: "player-2",
+            displayName: "player-2",
+            avatarUrl: null,
+            handCount: 5,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: false,
+            isBot: false
+          },
+          {
+            playerId: "player-3",
+            displayName: "player-3",
+            avatarUrl: null,
+            handCount: 4,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: false,
+            isBot: false
+          },
+          {
+            playerId: "player-4",
+            displayName: "player-4",
+            avatarUrl: null,
+            handCount: 6,
+            hasCalledUno: false,
+            unoPendingSinceMs: null,
+            unoProtectionStartedAtMs: null,
+            unoProtectionEndsAtMs: null,
+            isEliminated: false,
+            isCurrentPlayer: false,
+            isBot: false
+          }
+        ]
+      }
+    });
+
+    const leftSeats = Array.from(document.querySelectorAll<HTMLElement>(".opponent.seat-side-left"));
+    expect(leftSeats).toHaveLength(2);
+
+    const progressValues = leftSeats.map((seat) => {
+      const styleText = seat.getAttribute("style") ?? "";
+      const match = styleText.match(/--seat-progress:\s*([0-9.]+)/);
+
+      return match === null ? NaN : Number.parseFloat(match[1]!);
+    });
+
+    expect(progressValues[0]).toBeGreaterThan(0.5);
+    expect(progressValues[0]).toBeLessThan(1);
+    expect(progressValues[1]).toBeGreaterThan(0);
+    expect(progressValues[1]).toBeLessThan(0.5);
+    expect(progressValues[0]).toBeCloseTo(0.79, 2);
+    expect(progressValues[1]).toBeCloseTo(0.21, 2);
   });
 
   it("shows a waiting message for non-host players in the finished game modal", async () => {
