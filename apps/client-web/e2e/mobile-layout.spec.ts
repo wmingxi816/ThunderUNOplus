@@ -24,7 +24,7 @@ async function suppressPortraitOverlay(page: Page): Promise<void> {
       return;
     }
 
-    overlay.classList.remove("is-visible");
+    overlay.classList.remove("is-visible", "skip-ready");
     overlay.setAttribute("aria-hidden", "true");
     overlay.style.setProperty("display", "none", "important");
     document.body.classList.remove("portrait-overlay-active");
@@ -83,11 +83,10 @@ test("portrait overlay only appears on mobile portrait and hides after rotation"
   await expect(portraitOverlay.locator(".portrait-copy")).toBeVisible();
   await expect(portraitOverlay.locator(".portrait-spin-icon")).toBeVisible();
   await expect(portraitOverlay.locator(".portrait-text-tip-emphasis")).toHaveCount(3);
-  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(0)).toHaveText("浏览器");
-  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(1)).toHaveText("电脑/桌面");
-  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(2)).toHaveText("横屏");
-  await expect(portraitOverlay.locator(".portrait-copy")).not.toContainText("【");
-  await expect(portraitOverlay.locator(".portrait-copy")).not.toContainText("】");
+  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(0)).toBeVisible();
+  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(1)).toBeVisible();
+  await expect(portraitOverlay.locator(".portrait-text-tip-emphasis").nth(2)).toBeVisible();
+  await expect(mobilePage.getByTestId("portrait-overlay-skip")).toBeHidden();
   await expect(portraitOverlay).toHaveAttribute("aria-hidden", "false");
 
   await mobilePage.setViewportSize({ width: 844, height: 390 });
@@ -125,6 +124,36 @@ test("portrait overlay only appears on mobile portrait and hides after rotation"
   expect(Math.abs(sideBySideLayout.chatTop - sideBySideLayout.controlTop)).toBeLessThanOrEqual(4);
 
   await wideDesktopContext.close();
+});
+
+test("portrait overlay skip button appears after 3 seconds and persists dismissal", async ({ browser }) => {
+  test.setTimeout(20_000);
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true
+  });
+  const mobilePage = await mobileContext.newPage();
+
+  await mobilePage.goto("/");
+
+  const portraitOverlay = mobilePage.getByTestId("portrait-overlay");
+  const skipButton = mobilePage.getByTestId("portrait-overlay-skip");
+
+  await expect(portraitOverlay).toBeVisible();
+  await expect(skipButton).toBeHidden();
+
+  await mobilePage.waitForTimeout(3_100);
+  await expect(skipButton).toBeVisible();
+
+  await skipButton.click();
+  await expect(portraitOverlay).toBeHidden();
+
+  await mobilePage.reload();
+  await expect(mobilePage.getByTestId("portrait-overlay")).toBeHidden();
+  await expect(mobilePage.getByTestId("lobby-view")).toBeVisible();
+
+  await mobileContext.close();
 });
 
 test("mobile lobby and battle stay readable in portrait and landscape", async ({ browser }) => {

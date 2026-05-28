@@ -6851,13 +6851,65 @@ body.portrait-overlay-active {
   max-width: min(22rem, 100%);
 }
 
+.portrait-spin-shell {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
 .portrait-spin-icon {
-  width: clamp(5.5rem, 22vw, 8rem);
+  grid-area: 1 / 1;
+  width: clamp(7.15rem, 28.6vw, 10.4rem);
   height: auto;
   animation: portrait-spin 3s linear infinite;
   opacity: 0.92;
   pointer-events: none;
   filter: drop-shadow(0 0 1rem rgba(255, 255, 255, 0.18));
+}
+
+.portrait-skip-button {
+  grid-area: 1 / 1;
+  z-index: 1;
+  min-width: clamp(4.25rem, 18vw, 5.3rem);
+  min-height: clamp(4.25rem, 18vw, 5.3rem);
+  padding: 0.55rem 0.95rem;
+  border: 1px solid rgba(255, 216, 77, 0.72);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 219, 110, 0.36), rgba(255, 219, 110, 0.08) 55%, rgba(255, 219, 110, 0) 100%),
+    rgba(15, 15, 15, 0.84);
+  color: #fff6bf;
+  font-size: clamp(0.92rem, 3.9vw, 1rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow:
+    0 0.9rem 1.8rem rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.82);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+  backdrop-filter: blur(12px);
+}
+
+#portrait-overlay.skip-ready .portrait-skip-button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.portrait-skip-button:hover,
+.portrait-skip-button:focus-visible {
+  border-color: rgba(255, 230, 130, 0.96);
+  box-shadow:
+    0 1rem 2rem rgba(0, 0, 0, 0.34),
+    0 0 1.4rem rgba(255, 216, 77, 0.26),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  outline: none;
 }
 
 .portrait-text-main {

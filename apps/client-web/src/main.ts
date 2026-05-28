@@ -282,6 +282,7 @@ const TURN_ORBIT_SCALE_STORAGE_KEY = "thunder-uno.turn-orbit-scale-percent";
 const LEGACY_SEAT_Y_OFFSET_STORAGE_KEY = "thunder-uno.seat-y-offset-percent";
 const LEGACY_BATTLE_TABLE_Y_OFFSET_STORAGE_KEY = "thunder-uno.battle-table-y-offset-percent";
 const HAND_CARD_SCALE_STORAGE_KEY = "thunder-uno.hand-card-scale-percent";
+const PORTRAIT_OVERLAY_DISMISSED_STORAGE_KEY = "thunder-uno.portrait-overlay-dismissed";
 const UPDATE_LOG_PATH = "/update-log.md";
 const BATTLE_UI_BASE_SCALE = 0.8;
 const DEFAULT_UI_SETTING_PERCENT = 80;
@@ -289,6 +290,7 @@ const UI_SCALE_OPTIONS = [20, 40, 60, 80, 100] as const;
 type UiScalePercent = typeof UI_SCALE_OPTIONS[number];
 const DEFAULT_UI_SCALE_PERCENT: UiScalePercent = 80;
 const CHALLENGE_PROMPT_MS = 5_000;
+const PORTRAIT_OVERLAY_SKIP_DELAY_MS = 3_000;
 const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
 const MAX_PLAYER_NICKNAME_LENGTH = 10;
@@ -623,6 +625,8 @@ removeStoredValue(LEGACY_BATTLE_TABLE_Y_OFFSET_STORAGE_KEY);
 
 let globalLobbyInteractionsInstalled = false;
 let canSyncPortraitOverlayAfterRender = false;
+let portraitOverlaySkipRevealTimer: number | null = null;
+let portraitOverlayDismissed = readStoredBoolean(PORTRAIT_OVERLAY_DISMISSED_STORAGE_KEY);
 let pendingBattleLayoutSyncFrameId: number | null = null;
 let pendingBattleLayoutSettleFrameId: number | null = null;
 let battleEntryRefreshTimer: number | null = null;
@@ -743,6 +747,43 @@ function isLobbyLayoutStacked(): boolean {
   return chatRect.top >= controlRect.bottom - 4;
 }
 
+function clearPortraitOverlaySkipRevealTimer(): void {
+  if (portraitOverlaySkipRevealTimer === null) {
+    return;
+  }
+
+  window.clearTimeout(portraitOverlaySkipRevealTimer);
+  portraitOverlaySkipRevealTimer = null;
+}
+
+function hidePortraitOverlay(overlay: HTMLElement): void {
+  clearPortraitOverlaySkipRevealTimer();
+  overlay.classList.remove("is-visible", "skip-ready");
+  overlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("portrait-overlay-active");
+}
+
+function schedulePortraitOverlaySkipReveal(overlay: HTMLElement): void {
+  clearPortraitOverlaySkipRevealTimer();
+  overlay.classList.remove("skip-ready");
+
+  portraitOverlaySkipRevealTimer = window.setTimeout(() => {
+    portraitOverlaySkipRevealTimer = null;
+
+    if (portraitOverlayDismissed || !overlay.classList.contains("is-visible")) {
+      return;
+    }
+
+    overlay.classList.add("skip-ready");
+  }, PORTRAIT_OVERLAY_SKIP_DELAY_MS);
+}
+
+function dismissPortraitOverlayPermanently(): void {
+  portraitOverlayDismissed = true;
+  setStoredValue(PORTRAIT_OVERLAY_DISMISSED_STORAGE_KEY, "true");
+  syncPortraitOverlayVisibility();
+}
+
 function syncPortraitOverlayVisibility() {
   const overlay = document.getElementById("portrait-overlay");
   if (!overlay) {
@@ -756,14 +797,28 @@ function syncPortraitOverlayVisibility() {
   const hasTouchWithoutHover = navigator.maxTouchPoints > 0 && (noHoverQuery?.matches ?? false);
   const shouldShowLobbyOverlay = isLobbyLayoutStacked();
   const shouldShowOverlay =
-    shouldShowLobbyOverlay ||
-    (isPortrait &&
-      (isCompactViewport || (isNarrowViewport && (hasCoarsePointer || hasTouchWithoutHover))));
+    !portraitOverlayDismissed &&
+    (shouldShowLobbyOverlay ||
+      (isPortrait &&
+        (isCompactViewport || (isNarrowViewport && (hasCoarsePointer || hasTouchWithoutHover)))));
+  const wasVisible = overlay.classList.contains("is-visible");
 
-  overlay.classList.toggle("is-visible", shouldShowOverlay);
-  overlay.setAttribute("aria-hidden", shouldShowOverlay ? "false" : "true");
-  document.body.classList.toggle("portrait-overlay-active", shouldShowOverlay);
+  if (!shouldShowOverlay) {
+    hidePortraitOverlay(overlay);
+    return;
+  }
+
+  overlay.classList.add("is-visible");
+  overlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("portrait-overlay-active");
+
+  if (!wasVisible) {
+    schedulePortraitOverlaySkipReveal(overlay);
+  }
 }
+const portraitOverlaySkipButton = document.getElementById("portrait-overlay-skip");
+portraitOverlaySkipButton?.addEventListener("click", dismissPortraitOverlayPermanently);
+
 syncPortraitOverlayVisibility();
 for (const query of [
   portraitOrientationQuery,

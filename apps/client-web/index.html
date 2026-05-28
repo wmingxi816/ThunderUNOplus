@@ -28,7 +28,17 @@
         </p>
         <p class="portrait-text-tip">手机端可以在右上角设置处调整为合适的缩放</p>
       </div>
-      <img src="/turn-clockwise.webp" alt="" class="portrait-spin-icon" />
+      <div class="portrait-spin-shell">
+        <img src="/turn-clockwise.webp" alt="" class="portrait-spin-icon" />
+        <button
+          id="portrait-overlay-skip"
+          class="portrait-skip-button"
+          data-testid="portrait-overlay-skip"
+          type="button"
+        >
+          跳过
+        </button>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
