@@ -155,20 +155,17 @@ describe("client-web smoke", () => {
     expect(document.querySelector("#settings-contact-button")).toBeNull();
     expect(document.querySelector("#settings-contact-content")?.textContent).toBe("QQ：2753345388");
     expect(document.querySelector("[data-testid='settings-modal-body']")).not.toBeNull();
-    const adjustButton = document.querySelector("#settings-adjust-toggle-button");
     const contactRow = document.querySelector(".settings-contact-row");
-    expect(adjustButton).not.toBeNull();
     expect(contactRow).not.toBeNull();
-    if (adjustButton !== null && contactRow !== null) {
-      expect(Boolean(adjustButton.compareDocumentPosition(contactRow) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
-    }
+    expect(document.querySelector("#settings-adjust-toggle-button")).toBeNull();
   });
 
   it("keeps the settings modal at a fixed size and scrolls inside the body", async () => {
     const styleText = await readFile("src/styles.css", "utf8");
 
     expect(styleText).toContain(".settings-modal");
-    expect(styleText).toContain("height: min(50svh, 28rem);");
+    expect(styleText).toContain("width: min(15.4rem, calc(100vw - 1.3rem));");
+    expect(styleText).toContain("height: min(65svh, 36.4rem);");
     expect(styleText).toContain("overflow: hidden;");
     expect(styleText).toContain(".settings-modal-body");
     expect(styleText).toContain("overflow-y: auto;");
@@ -423,7 +420,6 @@ describe("client-web smoke", () => {
     });
 
     document.querySelector<HTMLButtonElement>("#battle-settings-button")?.click();
-    document.querySelector<HTMLButtonElement>("#settings-adjust-toggle-button")?.click();
 
     const actionButtons = Array.from(document.querySelectorAll<HTMLElement>(".settings-adjust-actions > button")).map((button) =>
       button.textContent?.trim()
@@ -432,26 +428,29 @@ describe("client-web smoke", () => {
 
     expect(actionButtons).toEqual(["显示网格", "恢复默认"]);
     expect(legends).toContain("旋转图标大小");
+    expect(legends).toContain("手牌缩放");
+    expect(document.querySelector("#settings-seat-y-slider")).toBeNull();
+    expect(document.querySelector("#settings-battle-table-y-slider")).toBeNull();
 
     document.querySelector<HTMLButtonElement>("#debug-grid-toggle-button")?.click();
     const turnOrbitSlider = document.querySelector<HTMLInputElement>("#settings-turn-orbit-scale-slider");
-    const battleTableSlider = document.querySelector<HTMLInputElement>("#settings-battle-table-y-slider");
+    const handCardScaleSlider = document.querySelector<HTMLInputElement>("#settings-hand-card-scale-slider");
     turnOrbitSlider!.value = "120";
     turnOrbitSlider!.dispatchEvent(new Event("input", { bubbles: true }));
-    battleTableSlider!.value = "18";
-    battleTableSlider!.dispatchEvent(new Event("input", { bubbles: true }));
+    handCardScaleSlider!.value = "90";
+    handCardScaleSlider!.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(document.querySelector<HTMLButtonElement>("#debug-grid-toggle-button")?.textContent).toContain("关闭网格");
     expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='turn-orbit-scale']")?.textContent).toBe("120%");
-    expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='battle-table-y']")?.textContent).toBe("18%");
-    expect(document.querySelector<HTMLElement>(".battle-immersive")?.style.getPropertyValue("--battle-center-adjust-y")).toBe("18%");
+    expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='hand-card-scale']")?.textContent).toBe("90%");
+    expect(document.querySelector<HTMLElement>(".battle-immersive")?.style.getPropertyValue("--hand-card-scale")).toBe("0.90");
 
     document.querySelector<HTMLButtonElement>("#settings-adjust-reset-button")?.click();
 
     expect(document.querySelector<HTMLButtonElement>("#debug-grid-toggle-button")?.textContent).toContain("显示网格");
     expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='turn-orbit-scale']")?.textContent).toBe("100%");
-    expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='battle-table-y']")?.textContent).toBe("0%");
-    expect(document.querySelector<HTMLElement>(".battle-immersive")?.style.getPropertyValue("--battle-center-adjust-y")).toBe("0%");
+    expect(document.querySelector<HTMLOutputElement>("[data-interface-adjust-output='hand-card-scale']")?.textContent).toBe("100%");
+    expect(document.querySelector<HTMLElement>(".battle-immersive")?.style.getPropertyValue("--hand-card-scale")).toBe("1.00");
   });
 
   it("scales lobby chrome and controls together instead of only shrinking text", async () => {
@@ -649,9 +648,10 @@ describe("client-web smoke", () => {
 
     expect(styleText).toContain("grid-template-columns: auto minmax(0, 1fr);");
     expect(styleText).toContain("width: clamp(1.76rem, 18cqi, 2.72rem);");
-    expect(styleText).toContain("font-size: calc(var(--lobby-player-name-size, clamp(0.72rem, 7.2cqi, 1.08rem)) * 0.8);");
+    expect(styleText).toContain("font-size: var(--lobby-player-name-size, clamp(0.34rem, 7.2cqi, 1.08rem));");
     expect(styleText).toContain("font-size: clamp(0.54rem, 5.6cqi, 0.82rem);");
     expect(styleText).toContain("white-space: nowrap;");
+    expect(styleText).toContain("text-overflow: clip;");
   });
 
   it("upgrades lobby title effects without changing title or title-wrap sizing rules", async () => {
@@ -814,7 +814,7 @@ describe("client-web smoke", () => {
 
     document.querySelector<HTMLButtonElement>("[data-rule-entry='challenge']")?.click();
     expect(document.querySelector<HTMLImageElement>(".rule-image-viewer img")?.getAttribute("src")).toBe(
-      "/rules/\u8d28\u7591\u73a9\u6cd5.png"
+      "/rules/\u8d28\u7591\u73a9\u6cd5.webp"
     );
 
     document.querySelector<HTMLButtonElement>("#rule-back-button")?.click();
@@ -827,13 +827,13 @@ describe("client-web smoke", () => {
     document.querySelector<HTMLButtonElement>("[data-rule-card='draw-two']")?.click();
     expect(document.querySelector("[data-testid='rule-modal']")?.textContent).toContain("2. ");
     expect(document.querySelector<HTMLImageElement>(".rule-image-viewer img")?.getAttribute("src")).toBe(
-      "/rules/卡牌规则23.png"
+      "/rules/卡牌规则23.webp"
     );
 
     document.querySelector<HTMLButtonElement>("#rule-next-card-button")?.click();
     expect(document.querySelector("[data-testid='rule-modal']")?.textContent).toContain("3. ");
     expect(document.querySelector<HTMLImageElement>(".rule-image-viewer img")?.getAttribute("src")).toBe(
-      "/rules/卡牌规则23.png"
+      "/rules/卡牌规则23.webp"
     );
     expect(document.querySelector<HTMLButtonElement>("#rule-prev-card-button")?.textContent).toBe("‹");
     expect(document.querySelector<HTMLButtonElement>("#rule-next-card-button")?.textContent).toBe("›");
@@ -1906,12 +1906,20 @@ describe("client-web smoke", () => {
     expect(styleText).toContain("--battle-seat-band-bottom");
     expect(styleText).toContain("--battle-seat-band-height");
     expect(styleText).toContain("--battle-opponent-seat-scale");
+    expect(styleText).toContain("--battle-draw-pile-center-y");
+    expect(styleText).toContain("--battle-draw-pile-scale");
+    expect(styleText).toContain("--battle-table-facts-center-y");
+    expect(styleText).toContain("--battle-table-facts-scale");
     expect(mainText).toContain('.battle-immersive .battle-action-dock .hand');
     expect(battleRoot?.style.getPropertyValue("--battle-hud-bottom-limit")).toContain("px");
     expect(battleRoot?.style.getPropertyValue("--battle-action-dock-top-limit")).toContain("px");
     expect(battleRoot?.style.getPropertyValue("--battle-seat-band-top")).toContain("px");
     expect(battleRoot?.style.getPropertyValue("--battle-seat-band-bottom")).toContain("px");
     expect(battleRoot?.style.getPropertyValue("--battle-seat-band-height")).toContain("px");
+    expect(battleRoot?.style.getPropertyValue("--battle-draw-pile-center-y")).toContain("px");
+    expect(Number.parseFloat(battleRoot?.style.getPropertyValue("--battle-draw-pile-scale") ?? "")).toBeGreaterThan(0);
+    expect(battleRoot?.style.getPropertyValue("--battle-table-facts-center-y")).toContain("px");
+    expect(Number.parseFloat(battleRoot?.style.getPropertyValue("--battle-table-facts-scale") ?? "")).toBeGreaterThan(0);
   });
 
   it("keeps the current battle seat fully lit instead of dimming it under the active overlay", async () => {

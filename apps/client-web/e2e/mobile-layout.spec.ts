@@ -208,7 +208,7 @@ test("mobile lobby stacks panels and keeps player cards compact", async ({ brows
     const controlPanel = document.querySelector<HTMLElement>("[data-testid='lobby-control-panel']");
     const chatPanel = document.querySelector<HTMLElement>("[data-testid='lobby-chat-panel']");
     const seatCards = Array.from(document.querySelectorAll<HTMLElement>(".lobby-seat-card"));
-    const seatName = document.querySelector<HTMLElement>(".lobby-seat-name");
+    const seatName = document.querySelector<HTMLElement>("[data-testid='room-player'] .lobby-seat-name");
 
     if (controlPanel === null || chatPanel === null || seatName === null || seatCards.length === 0) {
       throw new Error("Lobby panels or player cards did not render.");
@@ -224,7 +224,9 @@ test("mobile lobby stacks panels and keeps player cards compact", async ({ brows
       documentScrollHeight: document.documentElement.scrollHeight,
       viewportHeight: window.innerHeight,
       maxSeatHeight: Math.max(...seatCards.map((card) => card.getBoundingClientRect().height)),
+      seatNameInlineStyle: seatName.getAttribute("style") ?? "",
       seatNameHeight: seatName.getBoundingClientRect().height,
+      seatNameFontSize: Number.parseFloat(nameStyle.fontSize),
       nameLineHeight: Number.parseFloat(nameStyle.lineHeight),
       nameOverflow: nameStyle.overflow,
       nameTextOverflow: nameStyle.textOverflow,
@@ -235,9 +237,10 @@ test("mobile lobby stacks panels and keeps player cards compact", async ({ brows
   expect(metrics.chatTop).toBeGreaterThanOrEqual(metrics.controlBottom);
   expect(metrics.documentScrollHeight).toBeGreaterThan(metrics.viewportHeight);
   expect(metrics.maxSeatHeight).toBeLessThanOrEqual(60);
+  expect(metrics.seatNameInlineStyle).toContain("font-size:");
   expect(metrics.seatNameHeight).toBeLessThanOrEqual(metrics.nameLineHeight + 1);
   expect(metrics.nameOverflow).toBe("hidden");
-  expect(metrics.nameTextOverflow).toBe("ellipsis");
+  expect(metrics.nameTextOverflow).toBe("clip");
   expect(metrics.nameWhiteSpace).toBe("nowrap");
   await expectNoHorizontalOverflow(host);
 

@@ -49,7 +49,7 @@ const BOT_FORGET_UNO_RATE = 0.2;
 const CUSTOM_ROOM_ID_PATTERN = /^\d{6}$/;
 const ROOM_AVATAR_POOL = Array.from(
   { length: MAX_ROOM_PLAYER_COUNT },
-  (_, index) => `/avatars/avatar-${String(index + 1)}.png`
+  (_, index) => `/avatars/avatar-${String(index + 1)}.webp`
 );
 
 /**

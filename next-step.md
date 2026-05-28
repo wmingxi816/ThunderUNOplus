@@ -1,3 +1,16 @@
+## 修复记录
+
+### 2026-05-25 — wmx 前端 Bug 修复
+
+| 问题 | 文件 | 修复 |
+|------|------|------|
+| PostCSS `Unclosed string` 解析失败 | `styles.css:6518` | 删除 `background` 末尾多余逗号 |
+| 旋转图标不转 | `styles.css:6557` | `@keyframes` 改用 `transform: rotate()` |
+| 横屏后遮罩不消失 | `main.ts:627` | 新增 `matchMedia("(orientation: landscape)")` 监听 + `!important` 强制隐藏 |
+| 选中卡片无透明度 | `styles.css:5074` | 新增 `.card-button.selected img { opacity: 0.5 }` |
+
+---
+
 # 下一轮实现计划
 
 ## 总览

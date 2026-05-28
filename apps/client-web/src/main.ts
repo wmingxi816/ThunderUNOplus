@@ -73,7 +73,6 @@ interface AppState {
   eventModal: EventModalState | null;
   ruleModal: RuleModalView | null;
   settingsModalOpen: boolean;
-  settingsAdjustPanelOpen: boolean;
   addBotMenuOpen: boolean;
   updateLogOpen: boolean;
   updateLogStatus: "idle" | "loading" | "ready" | "error";
@@ -86,8 +85,6 @@ interface AppState {
   soundEffectBeforeMutePercent: UiSettingPercent | null;
   showDebugGrid: boolean;
   turnOrbitScalePercent: number;
-  seatYOffsetPercent: number;
-  battleTableYOffsetPercent: number;
   handCardScalePercent: number;
   turnOrbitAnimationStartedAtMs: number;
   turnOrbitAnimationDirection: TurnDirection | null;
@@ -102,6 +99,7 @@ interface AppState {
   battleChatDraft: string;
   battleChatComposerOpen: boolean;
   battleChatBubblesByPlayerId: Record<string, BattleChatBubbleState>;
+  showHandRuleHints: boolean;
 }
 
 interface LobbyChatEntry {
@@ -232,12 +230,18 @@ interface HandCardPresentation {
 
 type RuleEntryId = "basic" | "special" | "challenge" | "cards";
 type RuleImageGroupId = Exclude<RuleEntryId, "cards">;
+type RuleModalBackTarget = "home" | "card-list" | "close";
 
 type RuleModalView =
   | { type: "home" }
-  | { type: "image-group"; groupId: RuleImageGroupId; pageIndex: number }
+  | {
+      type: "image-group";
+      groupId: RuleImageGroupId;
+      pageIndex: number;
+      origin?: "hand-card";
+    }
   | { type: "card-list" }
-  | { type: "card-rule"; cardId: string; pageIndex: number };
+  | { type: "card-rule"; cardId: string; pageIndex: number; origin?: "hand-card" };
 
 interface RuleEntryButton {
   id: RuleEntryId;
@@ -275,8 +279,8 @@ const BACKGROUND_MUSIC_STORAGE_KEY = "thunder-uno.background-music-percent";
 const SOUND_EFFECT_STORAGE_KEY = "thunder-uno.sound-effect-percent";
 const DEBUG_GRID_STORAGE_KEY = "thunder-uno.debug-grid";
 const TURN_ORBIT_SCALE_STORAGE_KEY = "thunder-uno.turn-orbit-scale-percent";
-const SEAT_Y_OFFSET_STORAGE_KEY = "thunder-uno.seat-y-offset-percent";
-const BATTLE_TABLE_Y_OFFSET_STORAGE_KEY = "thunder-uno.battle-table-y-offset-percent";
+const LEGACY_SEAT_Y_OFFSET_STORAGE_KEY = "thunder-uno.seat-y-offset-percent";
+const LEGACY_BATTLE_TABLE_Y_OFFSET_STORAGE_KEY = "thunder-uno.battle-table-y-offset-percent";
 const HAND_CARD_SCALE_STORAGE_KEY = "thunder-uno.hand-card-scale-percent";
 const UPDATE_LOG_PATH = "/update-log.md";
 const BATTLE_UI_BASE_SCALE = 0.8;
@@ -289,8 +293,6 @@ const FALLBACK_AVATAR_COUNT = 8;
 const LOBBY_MAX_PLAYER_SLOTS = 8;
 const MAX_PLAYER_NICKNAME_LENGTH = 10;
 const DEFAULT_TURN_ORBIT_SCALE_PERCENT = 100;
-const DEFAULT_SEAT_Y_OFFSET_PERCENT = 0;
-const DEFAULT_BATTLE_TABLE_Y_OFFSET_PERCENT = 0;
 const DEFAULT_HAND_CARD_SCALE_PERCENT = 100;
 const MAX_DISCARD_LAYOUT_CARDS = 15;
 const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
@@ -362,17 +364,17 @@ const RULE_IMAGE_GROUPS: RuleImageGroup[] = [
   {
     id: "basic",
     title: "基础玩法",
-    images: ["/rules/基础规则1.png", "/rules/基础规则2.png"]
+    images: ["/rules/基础规则1.webp", "/rules/基础规则2.webp"]
   },
   {
     id: "special",
     title: "特色玩法",
-    images: ["/rules/特色玩法（顺子）.png"]
+    images: ["/rules/特色玩法（顺子）.webp"]
   },
   {
     id: "challenge",
     title: "质疑规则",
-    images: ["/rules/质疑玩法.png"],
+    images: ["/rules/质疑玩法.webp"],
     requiresChallengeMode: true
   }
 ];
@@ -382,84 +384,84 @@ const RULE_CARD_INTROS: RuleCardIntro[] = [
     index: 1,
     title: "普通牌",
     cardImage: "/cards/21_blue_1.png",
-    ruleImages: ["/rules/卡牌规则1.png"]
+    ruleImages: ["/rules/卡牌规则1.webp"]
   },
   {
     id: "draw-two",
     index: 2,
     title: "普通 +2",
     cardImage: "/cards/52_blue_plus2.png",
-    ruleImages: ["/rules/卡牌规则23.png"]
+    ruleImages: ["/rules/卡牌规则23.webp"]
   },
   {
     id: "draw-four",
     index: 3,
     title: "普通 +4",
     cardImage: "/cards/53_blue_plus4.png",
-    ruleImages: ["/rules/卡牌规则23.png"]
+    ruleImages: ["/rules/卡牌规则23.webp"]
   },
   {
     id: "skip",
     index: 4,
     title: "跳过",
     cardImage: "/cards/54_blue_skip.png",
-    ruleImages: ["/rules/卡牌规则4.png"]
+    ruleImages: ["/rules/卡牌规则4.webp"]
   },
   {
     id: "reverse",
     index: 5,
     title: "反转",
     cardImage: "/cards/57_blue_reverse.png",
-    ruleImages: ["/rules/卡牌规则5.png"]
+    ruleImages: ["/rules/卡牌规则5.webp"]
   },
   {
     id: "discard-same-color",
     index: 6,
     title: "同色丢弃",
     cardImage: "/cards/56_blue_discard.png",
-    ruleImages: ["/rules/卡牌规则6.png"]
+    ruleImages: ["/rules/卡牌规则6.webp"]
   },
   {
     id: "swap-hands",
     index: 7,
     title: "交换手牌",
     cardImage: "/cards/55_blue_swap.png",
-    ruleImages: ["/rules/卡牌规则7.png"]
+    ruleImages: ["/rules/卡牌规则7.webp"]
   },
   {
     id: "wild",
     index: 8,
     title: "变色",
     cardImage: "/cards/68_black_wild.png",
-    ruleImages: ["/rules/卡牌规则8.png"]
+    ruleImages: ["/rules/卡牌规则8.webp"]
   },
   {
     id: "penalty-draw",
     index: 9,
     title: "罚抽",
     cardImage: "/cards/64_black_faces.png",
-    ruleImages: ["/rules/卡牌规则9.png"]
+    ruleImages: ["/rules/卡牌规则9.webp"]
   },
   {
     id: "wild-reverse-draw-four",
     index: 10,
     title: "反转变色 +4",
     cardImage: "/cards/66_black_plus4_swap.png",
-    ruleImages: ["/rules/卡牌规则10.png"]
+    ruleImages: ["/rules/卡牌规则10.webp"]
   },
   {
     id: "wild-draw-six",
     index: 11,
     title: "变色 +6",
     cardImage: "/cards/65_black_plus6.png",
-    ruleImages: ["/rules/卡牌规则11.png"]
+    ruleImages: ["/rules/卡牌规则11.webp"]
   },
   {
     id: "wild-draw-ten",
     index: 12,
     title: "变色 +10",
     cardImage: "/cards/67_black_plus10.png",
-    ruleImages: ["/rules/卡牌规则12.png"]
+    ruleImages: ["/rules/卡牌规则12.webp"]
   }
 ];
 const root = document.querySelector<HTMLDivElement>("#app");
@@ -547,7 +549,6 @@ const state: AppState = {
   eventModal: null,
   ruleModal: null,
   settingsModalOpen: false,
-  settingsAdjustPanelOpen: false,
   addBotMenuOpen: false,
   updateLogOpen: false,
   updateLogStatus: "idle",
@@ -560,8 +561,6 @@ const state: AppState = {
   soundEffectBeforeMutePercent: null,
   showDebugGrid: readStoredBoolean(DEBUG_GRID_STORAGE_KEY),
   turnOrbitScalePercent: readStoredNumber(TURN_ORBIT_SCALE_STORAGE_KEY, DEFAULT_TURN_ORBIT_SCALE_PERCENT, 45, 145),
-  seatYOffsetPercent: readStoredNumber(SEAT_Y_OFFSET_STORAGE_KEY, DEFAULT_SEAT_Y_OFFSET_PERCENT, -30, 30),
-  battleTableYOffsetPercent: readStoredNumber(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, DEFAULT_BATTLE_TABLE_Y_OFFSET_PERCENT, -30, 30),
   handCardScalePercent: readStoredNumber(HAND_CARD_SCALE_STORAGE_KEY, DEFAULT_HAND_CARD_SCALE_PERCENT, 60, 140),
   turnOrbitAnimationStartedAtMs: Date.now(),
   turnOrbitAnimationDirection: null,
@@ -576,6 +575,7 @@ const state: AppState = {
   battleChatDraft: "",
   battleChatComposerOpen: false,
   battleChatBubblesByPlayerId: {},
+  showHandRuleHints: true,
 };
 
 const wsClient = new WsClient({
@@ -611,19 +611,79 @@ const wsClient = new WsClient({
   }
 });
 
+removeStoredValue(LEGACY_SEAT_Y_OFFSET_STORAGE_KEY);
+removeStoredValue(LEGACY_BATTLE_TABLE_Y_OFFSET_STORAGE_KEY);
+
 let globalLobbyInteractionsInstalled = false;
 let canSyncPortraitOverlayAfterRender = false;
+let pendingBattleLayoutSyncFrameId: number | null = null;
+let pendingBattleLayoutSettleFrameId: number | null = null;
+let battleEntryRefreshTimer: number | null = null;
+let battleEntrySettleRefreshTimer: number | null = null;
 installGlobalLobbyInteractions();
 
 render();
 installBackgroundMusicUnlock();
 connectUsingCurrentInputs();
 window.addEventListener("resize", () => {
-  window.requestAnimationFrame(() => {
+  scheduleBattleLayoutSync();
+});
+
+function scheduleBattleLayoutSync(): void {
+  if (pendingBattleLayoutSyncFrameId !== null) {
+    window.cancelAnimationFrame(pendingBattleLayoutSyncFrameId);
+  }
+
+  if (pendingBattleLayoutSettleFrameId !== null) {
+    window.cancelAnimationFrame(pendingBattleLayoutSettleFrameId);
+  }
+
+  pendingBattleLayoutSyncFrameId = window.requestAnimationFrame(() => {
+    pendingBattleLayoutSyncFrameId = null;
     syncHandOverlapLayout();
     syncBattleLayoutLimits();
+    pendingBattleLayoutSettleFrameId = window.requestAnimationFrame(() => {
+      pendingBattleLayoutSettleFrameId = null;
+      syncHandOverlapLayout();
+      syncBattleLayoutLimits();
+    });
   });
-});
+}
+
+function clearBattleEntryRefreshTimers(): void {
+  if (battleEntryRefreshTimer !== null) {
+    window.clearTimeout(battleEntryRefreshTimer);
+    battleEntryRefreshTimer = null;
+  }
+
+  if (battleEntrySettleRefreshTimer !== null) {
+    window.clearTimeout(battleEntrySettleRefreshTimer);
+    battleEntrySettleRefreshTimer = null;
+  }
+}
+
+function scheduleBattleEntryRefresh(): void {
+  clearBattleEntryRefreshTimers();
+
+  battleEntryRefreshTimer = window.setTimeout(() => {
+    battleEntryRefreshTimer = null;
+
+    if (state.snapshot === null) {
+      return;
+    }
+
+    render();
+    battleEntrySettleRefreshTimer = window.setTimeout(() => {
+      battleEntrySettleRefreshTimer = null;
+
+      if (state.snapshot === null) {
+        return;
+      }
+
+      render();
+    }, 220);
+  }, 120);
+}
 
 function getMediaQuery(query: string): MediaQueryList | null {
   if (typeof window.matchMedia !== "function") {
@@ -733,6 +793,7 @@ function handleServerMessage(message: ServerMessage): void {
       return;
     case "snapshot":
       const previousSnapshot = state.snapshot;
+      const enteringBattle = previousSnapshot === null;
       const snapshot = normalizePlayerGameSnapshot(message.snapshot);
       if (snapshot.status !== "finished") {
         state.dismissedFinishedNoticeKey = null;
@@ -753,6 +814,9 @@ function handleServerMessage(message: ServerMessage): void {
       setRoomCodeFromText(message.roomId);
       clearSelectedCards();
       setSessionStoredValue(LAST_ROOM_STORAGE_KEY, message.roomId);
+      if (enteringBattle) {
+        scheduleBattleEntryRefresh();
+      }
       syncChallengePrompt(state.snapshot);
       scheduleUnoProtectionRender(state.snapshot);
       pushLog(`收到对局快照：版本 ${message.snapshotVersion}`);
@@ -864,10 +928,7 @@ function render(): void {
 
   if (isBattleView) {
     syncBattleLayoutLimits();
-    window.requestAnimationFrame(() => {
-      syncHandOverlapLayout();
-      syncBattleLayoutLimits();
-    });
+    scheduleBattleLayoutSync();
   }
 }
 
@@ -1441,6 +1502,29 @@ function getAdjacentRuleCardId(cardId: string, direction: -1 | 1): string | null
   return RULE_CARD_INTROS[index + direction]?.id ?? null;
 }
 
+function getHandCardRuleModalView(card: Card): RuleModalView | null {
+  if (card.kind === "number") {
+    return {
+      type: "image-group",
+      groupId: "special",
+      pageIndex: 0,
+      origin: "hand-card"
+    };
+  }
+
+  const intro = getRuleCardIntro(card.kind);
+  if (intro === undefined) {
+    return null;
+  }
+
+  return {
+    type: "card-rule",
+    cardId: intro.id,
+    pageIndex: 0,
+    origin: "hand-card"
+  };
+}
+
 // UI name: rule-modal. 规则讲解弹窗外壳。
 function renderRuleModal(): string {
   const view = state.ruleModal;
@@ -1481,7 +1565,7 @@ function renderRuleModalContent(view: RuleModalView): string {
         title: group.title,
         images: group.images,
         pageIndex: view.pageIndex,
-        backTarget: "home"
+        backTarget: view.origin === "hand-card" ? "close" : "home"
       });
     }
     case "card-list":
@@ -1521,7 +1605,7 @@ function renderRuleModalContent(view: RuleModalView): string {
         title: `${String(card.index)}. ${card.title}`,
         images: card.ruleImages,
         pageIndex: view.pageIndex,
-        backTarget: "card-list",
+        backTarget: view.origin === "hand-card" ? "close" : "card-list",
         cardId: card.id
       });
     }
@@ -1537,7 +1621,7 @@ function renderRuleImageViewer(params: {
   title: string;
   images: string[];
   pageIndex: number;
-  backTarget: "home" | "card-list";
+  backTarget: RuleModalBackTarget;
   cardId?: string;
 }): string {
   const maxIndex = Math.max(0, params.images.length - 1);
@@ -1550,6 +1634,7 @@ function renderRuleImageViewer(params: {
   const nextCardId =
     params.cardId === undefined ? null : getAdjacentRuleCardId(params.cardId, 1);
   const cardNavClass = params.cardId === undefined ? "" : " rule-image-viewer-card-nav";
+  const backLabel = params.backTarget === "close" ? "返回对战" : "返回";
 
   return `
     <div class="rule-modal-header">
@@ -1558,7 +1643,7 @@ function renderRuleImageViewer(params: {
         <h2>${escapeHtml(params.title)}</h2>
       </div>
       <div class="rule-modal-header-actions">
-        <button id="rule-back-button" class="secondary" data-rule-back="${params.backTarget}">返回</button>
+        <button id="rule-back-button" class="secondary" data-rule-back="${params.backTarget}">${backLabel}</button>
         <button id="close-rule-modal-button" class="secondary">关闭</button>
       </div>
     </div>
@@ -1803,47 +1888,19 @@ function getLobbyPlayerNameStyle(
       ? getLobbySeatNameFontSizeRem(length)
       : getLobbyCompactNameFontSizeRem(length);
 
-  return `--lobby-player-name-size: ${sizeRem.toFixed(2)}rem;`;
+  return `font-size: ${sizeRem.toFixed(2)}rem;`;
 }
 
 function getLobbySeatNameFontSizeRem(length: number): number {
-  if (length <= 4) {
-    return 1.08;
-  }
+  const effectiveLength = Math.max(1, length);
 
-  if (length <= 6) {
-    return 1.00;
-  }
-
-  if (length <= 8) {
-    return 0.90;
-  }
-
-  if (length <= MAX_PLAYER_NICKNAME_LENGTH) {
-    return 0.78;
-  }
-
-  return 0.72;
+  return clampNumber(1.08 - Math.max(0, effectiveLength - 4) * 0.06, 0.34, 1.08);
 }
 
 function getLobbyCompactNameFontSizeRem(length: number): number {
-  if (length <= 4) {
-    return 0.98;
-  }
+  const effectiveLength = Math.max(1, length);
 
-  if (length <= 6) {
-    return 0.90;
-  }
-
-  if (length <= 8) {
-    return 0.82;
-  }
-
-  if (length <= MAX_PLAYER_NICKNAME_LENGTH) {
-    return 0.72;
-  }
-
-  return 0.68;
+  return clampNumber(0.98 - Math.max(0, effectiveLength - 4) * 0.055, 0.3, 0.98);
 }
 
 function focusLobbyChatInput(): void {
@@ -2360,6 +2417,13 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
     currentColor: snapshot.currentColor,
     topCard: snapshot.topCard
   });
+  const visibleRuleHintCardIds = collectVisibleHandRuleHintCardIds(
+    hand,
+    snapshot,
+    canTakeTurnAction,
+    selectedCards,
+    sequenceCandidateCardIds
+  );
   const challengePrompt = getVisibleChallengePrompt(snapshot, isConnected, isGameFinished);
   const initialDirectionModal = renderInitialDirectionChoiceModal(snapshot, isConnected);
   const battleTurnSweepActive = isBattleTurnSweepActive();
@@ -2402,17 +2466,27 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
           ${renderDrawStackBurst()}
           ${renderDrawStackExplosion()}
           ${renderPenaltyQuestionBurst()}
-          <div class="center-table">
-            <div class="draw-pile">
-              <img src="${getCardBackAssetPath()}" alt="牌堆" />
-              ${renderDrawButton(snapshot, canTakeTurnAction)}
+          <div class="center-side-shell center-draw-pile-shell">
+            <div class="center-side-box center-draw-pile-box">
+              <div class="draw-pile">
+                <img src="${getCardBackAssetPath()}" alt="牌堆" />
+                ${renderDrawButton(snapshot, canTakeTurnAction)}
+              </div>
             </div>
-            ${renderDiscardPile(snapshot)}
-            <div class="table-facts">
-              <span class="table-fact table-fact-primary">${isMyTurn ? "轮到你行动" : `当前：${escapeHtml(lookupPlayerName(snapshot, snapshot.currentPlayerId))}`}</span>
-              <span class="table-fact">颜色 ${renderCurrentColorBadge(snapshot.currentColor)}</span>
-              <span class="table-fact">方向 ${renderDirectionIndicator(snapshot.direction)}</span>
-              ${renderDrawAmountFact(snapshot)}
+          </div>
+          <div class="center-table">
+            <div class="center-discard-pile-shell">
+              ${renderDiscardPile(snapshot)}
+            </div>
+          </div>
+          <div class="center-side-shell center-table-facts-shell">
+            <div class="center-side-box center-table-facts-box">
+              <div class="table-facts">
+                <span class="table-fact table-fact-primary">${isMyTurn ? "轮到你行动" : `当前：${escapeHtml(lookupPlayerName(snapshot, snapshot.currentPlayerId))}`}</span>
+                <span class="table-fact">颜色 ${renderCurrentColorBadge(snapshot.currentColor)}</span>
+                <span class="table-fact">方向 ${renderDirectionIndicator(snapshot.direction)}</span>
+                ${renderDrawAmountFact(snapshot)}
+              </div>
             </div>
           </div>
           ${challengePrompt === null ? "" : renderChallengePrompt(snapshot, challengePrompt)}
@@ -2446,7 +2520,8 @@ function renderBattlePanel(snapshot: PlayerGameSnapshot): string {
                     snapshot,
                     canTakeTurnAction,
                     selectedCards,
-                    sequenceCandidateCardIds
+                    sequenceCandidateCardIds,
+                    visibleRuleHintCardIds.has(card.id)
                   )
                 )
                 .join("")}
@@ -2477,8 +2552,8 @@ function renderTurnDirectionOrbit(snapshot: PlayerGameSnapshot): string {
       : "turn-direction-orbit-counter";
   const directionImage =
     snapshot.direction === "clockwise"
-      ? "/turn-clockwise.png"
-      : "/%E9%80%86%E6%97%B6%E9%92%88.png";
+      ? "/turn-clockwise.webp"
+      : "/%E9%80%86%E6%97%B6%E9%92%88.webp";
   const elapsedMs = Math.max(0, Date.now() - state.turnOrbitAnimationStartedAtMs);
 
   return `
@@ -3618,8 +3693,6 @@ function renderBattleUiScaleStyle(): string {
     `--battle-ui-scale: ${scale.toFixed(2)}`,
     `--battle-ui-inverse-scale: ${inverseScale.toFixed(4)}`,
     `--turn-orbit-scale: ${(state.turnOrbitScalePercent / 100).toFixed(2)}`,
-    `--battle-seat-y-offset: ${String(state.seatYOffsetPercent)}%`,
-    `--battle-center-adjust-y: ${String(state.battleTableYOffsetPercent)}%`,
     `--hand-card-scale: ${(state.handCardScalePercent / 100).toFixed(2)}`
   ].join("; ");
 }
@@ -3659,13 +3732,7 @@ function renderSettingsModal(): string {
           ${renderUiScaleSegment("UI 缩放", state.uiScalePercent)}
           ${renderVolumeSlider("背景音乐", "background-music", state.backgroundMusicPercent)}
           ${renderVolumeSlider("音效", "sound-effect", state.soundEffectPercent)}
-          <button
-            id="settings-adjust-toggle-button"
-            ${isBattleSettings ? "" : "hidden"}
-            class="secondary settings-adjust-toggle ${state.settingsAdjustPanelOpen ? "active" : ""}"
-            aria-expanded="${state.settingsAdjustPanelOpen ? "true" : "false"}"
-          >界面调整</button>
-          ${state.settingsAdjustPanelOpen ? renderInterfaceAdjustPanel() : ""}
+          ${isBattleSettings ? renderInterfaceAdjustPanel() : ""}
           <div class="settings-contact-row">
             <div class="settings-contact-line" id="settings-contact-content">QQ：2753345388</div>
             ${renderSettingsUpdateLogBlock()}
@@ -3825,18 +3892,6 @@ function parseUpdateLogMarkdown(markdown: string): UpdateLogSection[] {
 function renderInterfaceAdjustPanel(): string {
   return `
     <div class="settings-adjust-panel">
-      <div class="settings-adjust-actions">
-        <button
-          id="debug-grid-toggle-button"
-          class="secondary settings-grid-toggle ${state.showDebugGrid ? "active" : ""}"
-          aria-pressed="${state.showDebugGrid ? "true" : "false"}"
-        >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
-        <button
-          id="settings-adjust-reset-button"
-          type="button"
-          class="secondary settings-reset-button"
-        >恢复默认</button>
-      </div>
       <fieldset class="settings-segment settings-slider-segment">
         <legend>旋转图标大小</legend>
         <label class="settings-slider-row settings-orbit-slider-row" for="settings-turn-orbit-scale-slider">
@@ -3854,28 +3909,6 @@ function renderInterfaceAdjustPanel(): string {
         </label>
       </fieldset>
       ${renderInterfaceAdjustSlider({
-        label: "玩家卡片上下",
-        id: "settings-seat-y-slider",
-        value: state.seatYOffsetPercent,
-        min: -30,
-        max: 30,
-        step: 1,
-        unit: "%",
-        icon: "↕",
-        dataName: "seat-y"
-      })}
-      ${renderInterfaceAdjustSlider({
-        label: "对战区域主体上下",
-        id: "settings-battle-table-y-slider",
-        value: state.battleTableYOffsetPercent,
-        min: -30,
-        max: 30,
-        step: 1,
-        unit: "%",
-        icon: "⇅",
-        dataName: "battle-table-y"
-      })}
-      ${renderInterfaceAdjustSlider({
         label: "手牌缩放",
         id: "settings-hand-card-scale-slider",
         value: state.handCardScalePercent,
@@ -3886,6 +3919,18 @@ function renderInterfaceAdjustPanel(): string {
         icon: "⤢",
         dataName: "hand-card-scale"
       })}
+      <div class="settings-adjust-actions">
+        <button
+          id="debug-grid-toggle-button"
+          class="secondary settings-grid-toggle ${state.showDebugGrid ? "active" : ""}"
+          aria-pressed="${state.showDebugGrid ? "true" : "false"}"
+        >${state.showDebugGrid ? "关闭网格" : "显示网格"}</button>
+        <button
+          id="settings-adjust-reset-button"
+          type="button"
+          class="secondary settings-reset-button"
+        >恢复默认</button>
+      </div>
     </div>
   `;
 }
@@ -3899,7 +3944,7 @@ function renderInterfaceAdjustSlider(params: {
   step: number;
   unit: string;
   icon: string;
-  dataName: "turn-orbit-scale" | "seat-y" | "battle-table-y" | "hand-card-scale";
+  dataName: "turn-orbit-scale" | "hand-card-scale";
 }): string {
   return `
     <fieldset class="settings-segment settings-slider-segment">
@@ -3924,9 +3969,9 @@ function renderInterfaceAdjustSlider(params: {
 function resetInterfaceAdjustSettings(): void {
   state.showDebugGrid = false;
   setStoredValue(DEBUG_GRID_STORAGE_KEY, "false");
+  removeStoredValue(LEGACY_SEAT_Y_OFFSET_STORAGE_KEY);
+  removeStoredValue(LEGACY_BATTLE_TABLE_Y_OFFSET_STORAGE_KEY);
   applyInterfaceAdjustSetting("turn-orbit-scale", DEFAULT_TURN_ORBIT_SCALE_PERCENT);
-  applyInterfaceAdjustSetting("seat-y", DEFAULT_SEAT_Y_OFFSET_PERCENT);
-  applyInterfaceAdjustSetting("battle-table-y", DEFAULT_BATTLE_TABLE_Y_OFFSET_PERCENT);
   applyInterfaceAdjustSetting("hand-card-scale", DEFAULT_HAND_CARD_SCALE_PERCENT);
   render();
 }
@@ -4390,7 +4435,8 @@ function renderCardButtonV2(
   snapshot: PlayerGameSnapshot,
   canTakeTurnAction: boolean,
   selectedCards: readonly Card[],
-  sequenceCandidateCardIds: ReadonlySet<string>
+  sequenceCandidateCardIds: ReadonlySet<string>,
+  showRuleHintButton: boolean
 ): string {
   const info = getHandCardPresentation(
     card,
@@ -4399,7 +4445,9 @@ function renderCardButtonV2(
     selectedCards,
     sequenceCandidateCardIds
   );
+  const isSelected = info.relationState === "selected";
   const classes = ["card-button", info.baseState];
+  const slotClasses = ["hand-card-slot"];
 
   if (info.sequenceCandidate) {
     classes.push("combo-candidate");
@@ -4411,34 +4459,111 @@ function renderCardButtonV2(
 
   const motion = state.handCardMotion[card.id];
   if (motion !== undefined) {
-    classes.push(`card-motion-${motion}`);
+    slotClasses.push(`card-motion-${motion}`);
   }
 
   if (state.recentDrawnCardIds.includes(card.id)) {
     classes.push("recent-drawn");
   }
 
+  if (isSelected) {
+    slotClasses.push("is-selected");
+  }
+
   const cardTooltip = getHandCardTooltip(card, info.reason);
   const tooltipAttribute =
     cardTooltip === null ? "" : `data-card-tooltip="${escapeHtml(cardTooltip)}"`;
+  const ruleButtonTarget = getHandCardRuleModalView(card);
 
   return `
-    <button
-      class="${classes.join(" ")}"
-      data-card-id="${escapeHtml(card.id)}"
-      data-card-kind="${escapeHtml(card.kind)}"
-      data-card-index="${String(index)}"
+    <div
+      class="${slotClasses.join(" ")}"
+      data-hand-card-slot
+      data-card-slot-index="${String(index)}"
       style="--card-index: ${String(index)}"
-      data-card-state="${escapeHtml(info.baseState)}"
-      data-card-relation="${escapeHtml(info.relationState ?? "")}"
-      aria-pressed="${info.relationState === "selected" ? "true" : "false"}"
-      aria-disabled="${info.canSelect ? "false" : "true"}"
-      aria-label="${escapeHtml(`${card.displayName} · ${info.reason}`)}"
-      ${tooltipAttribute}
     >
-      <img src="${getCardAssetPath(card)}" alt="${escapeHtml(card.displayName)}" />
-    </button>
+      <button
+        class="${classes.join(" ")}"
+        data-card-id="${escapeHtml(card.id)}"
+        data-card-kind="${escapeHtml(card.kind)}"
+        data-card-index="${String(index)}"
+        data-card-state="${escapeHtml(info.baseState)}"
+        data-card-relation="${escapeHtml(info.relationState ?? "")}"
+        aria-pressed="${isSelected ? "true" : "false"}"
+        aria-disabled="${info.canSelect ? "false" : "true"}"
+        aria-label="${escapeHtml(`${card.displayName} · ${info.reason}`)}"
+        ${tooltipAttribute}
+      >
+        <img src="${getCardAssetPath(card)}" alt="${escapeHtml(card.displayName)}" />
+      </button>
+      <button
+        type="button"
+        class="card-rule-help-button ${showRuleHintButton ? "is-visible" : ""}"
+        data-card-rule-button="${escapeHtml(card.id)}"
+        aria-label="${escapeHtml(`查看 ${card.displayName} 的规则图片`)}"
+        title="查看规则图片"
+        ${ruleButtonTarget === null ? "disabled" : ""}
+      >
+        <span aria-hidden="true">?</span>
+      </button>
+    </div>
   `;
+}
+
+function buildHandRuleHintGroupKey(card: Card): string {
+  if (card.kind === "number") {
+    return `number:${String(card.color ?? "unknown")}`;
+  }
+
+  if (card.isBlack) {
+    return `${card.kind}:black`;
+  }
+
+  return `${card.kind}:${String(card.color ?? "unknown")}`;
+}
+
+function collectVisibleHandRuleHintCardIds(
+  hand: readonly Card[],
+  snapshot: PlayerGameSnapshot,
+  canTakeTurnAction: boolean,
+  selectedCards: readonly Card[],
+  sequenceCandidateCardIds: ReadonlySet<string>
+): Set<string> {
+  const visibleCardIds = new Set<string>();
+
+  if (!state.showHandRuleHints) {
+    return visibleCardIds;
+  }
+
+  const seenGroups = new Set<string>();
+
+  for (const card of hand) {
+    const presentation = getHandCardPresentation(
+      card,
+      snapshot,
+      canTakeTurnAction,
+      selectedCards,
+      sequenceCandidateCardIds
+    );
+
+    if (presentation.baseState !== "playable" || presentation.relationState === "selected") {
+      continue;
+    }
+
+    if (getHandCardRuleModalView(card) === null) {
+      continue;
+    }
+
+    const groupKey = buildHandRuleHintGroupKey(card);
+    if (seenGroups.has(groupKey)) {
+      continue;
+    }
+
+    seenGroups.add(groupKey);
+    visibleCardIds.add(card.id);
+  }
+
+  return visibleCardIds;
 }
 
 function getHandCardTooltip(card: Card, fallbackReason: string): string | null {
@@ -5334,6 +5459,24 @@ function renderSelectionPanel(
         >${escapeHtml(preview.label)}</button>
         <button id="clear-selection-button" class="secondary">清空</button>
       </div>
+      <div class="selection-toggle-row ${state.showHandRuleHints ? "is-on" : "is-off"}">
+        <span class="selection-toggle-copy">
+          <strong>规则提示</strong>
+        </span>
+        <button
+          id="hand-rule-hints-toggle"
+          class="selection-toggle-switch"
+          type="button"
+          role="switch"
+          aria-checked="${state.showHandRuleHints ? "true" : "false"}"
+          aria-label="规则提示"
+          data-testid="hand-rule-hints-toggle"
+        >
+          <span class="selection-toggle-track" aria-hidden="true">
+          <span class="selection-toggle-thumb"></span>
+          </span>
+        </button>
+      </div>
     </div>
   `;
 }
@@ -5384,10 +5527,16 @@ function lookupPlayerName(snapshot: PlayerGameSnapshot, playerId: PlayerId): str
 
 function resolvePlayerAvatar(playerId: PlayerId, avatarUrl: string | null | undefined): string {
   if (avatarUrl !== undefined && avatarUrl !== null && avatarUrl.trim() !== "") {
-    return avatarUrl;
+    return normalizeBundledAvatarUrl(avatarUrl);
   }
 
-  return `/avatars/avatar-${String((hashString(playerId) % FALLBACK_AVATAR_COUNT) + 1)}.png`;
+  return `/avatars/avatar-${String((hashString(playerId) % FALLBACK_AVATAR_COUNT) + 1)}.webp`;
+}
+
+function normalizeBundledAvatarUrl(avatarUrl: string): string {
+  return /^\/avatars\/avatar-\d+\.png$/u.test(avatarUrl)
+    ? avatarUrl.replace(/\.png$/u, ".webp")
+    : avatarUrl;
 }
 
 function hashString(value: string): number {
@@ -6969,11 +7118,6 @@ function bindBattlePanel(): void {
     render();
   });
 
-  document.querySelector("#settings-adjust-toggle-button")?.addEventListener("click", () => {
-    state.settingsAdjustPanelOpen = !state.settingsAdjustPanelOpen;
-    render();
-  });
-
   document.querySelector("#debug-grid-toggle-button")?.addEventListener("click", () => {
     state.showDebugGrid = !state.showDebugGrid;
     setStoredValue(DEBUG_GRID_STORAGE_KEY, state.showDebugGrid ? "true" : "false");
@@ -7091,6 +7235,31 @@ function bindBattlePanel(): void {
     button.addEventListener("pointerleave", () => {
       hideCardHoverTooltip();
     });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-card-rule-button]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const cardId = button.dataset.cardRuleButton;
+
+      if (cardId === undefined) {
+        return;
+      }
+
+      openHandCardRule(cardId);
+    });
+  });
+
+  document.querySelectorAll<HTMLImageElement>("[data-testid='hand-area'] .card-button img").forEach((image) => {
+    if (image.complete) {
+      return;
+    }
+
+    const syncLayout = () => {
+      scheduleBattleLayoutSync();
+    };
+
+    image.addEventListener("load", syncLayout, { once: true });
+    image.addEventListener("error", syncLayout, { once: true });
   });
 
   document.querySelector("#draw-card-button")?.addEventListener("click", () => {
@@ -7225,6 +7394,11 @@ function bindBattlePanel(): void {
 
   document.querySelector("#clear-selection-button")?.addEventListener("click", () => {
     clearSelectedCards();
+    render();
+  });
+
+  document.querySelector("#hand-rule-hints-toggle")?.addEventListener("click", () => {
+    state.showHandRuleHints = !state.showHandRuleHints;
     render();
   });
 
@@ -7399,9 +7573,6 @@ function parseInterfaceAdjustValue(
   switch (setting) {
     case "turn-orbit-scale":
       return parseNumberInRange(rawValue, 45, 145);
-    case "seat-y":
-    case "battle-table-y":
-      return parseNumberInRange(rawValue, -30, 30);
     case "hand-card-scale":
       return parseNumberInRange(rawValue, 60, 140);
     default:
@@ -7416,20 +7587,10 @@ function applyInterfaceAdjustSetting(setting: string | undefined, value: number)
   );
 
   switch (setting) {
-    case "seat-y":
-      state.seatYOffsetPercent = value;
-      setStoredValue(SEAT_Y_OFFSET_STORAGE_KEY, String(value));
-      battleRoot?.style.setProperty("--battle-seat-y-offset", `${String(value)}%`);
-      break;
     case "turn-orbit-scale":
       state.turnOrbitScalePercent = value;
       setStoredValue(TURN_ORBIT_SCALE_STORAGE_KEY, String(value));
       battleRoot?.style.setProperty("--turn-orbit-scale", (value / 100).toFixed(2));
-      break;
-    case "battle-table-y":
-      state.battleTableYOffsetPercent = value;
-      setStoredValue(BATTLE_TABLE_Y_OFFSET_STORAGE_KEY, String(value));
-      battleRoot?.style.setProperty("--battle-center-adjust-y", `${String(value)}%`);
       break;
     case "hand-card-scale":
       state.handCardScalePercent = value;
@@ -7452,6 +7613,11 @@ function syncBattleLayoutLimits(): void {
   const battleRoot = document.querySelector<HTMLElement>(".battle-immersive");
   const battleHud = document.querySelector<HTMLElement>(".battle-immersive .battle-hud");
   const handPanel = document.querySelector<HTMLElement>(".battle-immersive .battle-action-dock .hand");
+  const drawPileBox = document.querySelector<HTMLElement>(".battle-immersive .center-draw-pile-box");
+  const tableFactsBox = document.querySelector<HTMLElement>(".battle-immersive .center-table-facts-box");
+  const discardPileShell = document.querySelector<HTMLElement>(
+    ".battle-immersive .center-discard-pile-shell"
+  );
 
   if (battleRoot === null || battleHud === null || handPanel === null) {
     return;
@@ -7482,6 +7648,10 @@ function syncBattleLayoutLimits(): void {
   const battleSeatScaleMax =
     Number.parseFloat(battleRootStyle.getPropertyValue("--battle-seat-scale-max")) ||
     DEFAULT_BATTLE_SEAT_SCALE_MAX;
+  const battleCenterScale = Math.max(
+    0.0001,
+    Number.parseFloat(battleRootStyle.getPropertyValue("--battle-center-scale")) || 1
+  );
   const totalOpponents = document.querySelectorAll(".battle-immersive .opponents .seat-side").length;
   const sideConstraintCount = totalOpponents === 0 ? 0 : Math.ceil(totalOpponents / 2);
   const battleOpponentSeatScale = resolveBattleOpponentSeatScale(
@@ -7494,20 +7664,79 @@ function syncBattleLayoutLimits(): void {
     battleSeatScaleMin,
     battleSeatScaleMax
   );
-  const battleOpponentSeatHeight = battleSeatBaseHeight * battleOpponentSeatScale;
   const battleOpponentSeatGap = getBattleSeatRowGapPx(
     battleOpponentSeatScale,
     battleSeatRowGap
   );
-  const centerBandTop = hudBottomLimit + seatBandPadding + battleOpponentSeatHeight * 0.5;
-  const centerBandBottom = Math.max(centerBandTop, actionDockTopLimit - battleOpponentSeatHeight);
-  const centerBandHeight = Math.max(0, centerBandBottom - centerBandTop);
+  const seatBandTop = hudBottomLimit + seatBandPadding + (battleSeatBaseHeight * battleOpponentSeatScale) * 0.5;
+  const seatBandBottom = Math.max(
+    seatBandTop,
+    actionDockTopLimit - battleSeatBaseHeight * battleOpponentSeatScale
+  );
+  const seatBandHeight = Math.max(0, seatBandBottom - seatBandTop);
+  const centerBandTop = hudBottomLimit;
+  const centerBandBottom = Math.max(centerBandTop, actionDockTopLimit);
+  const drawPileHorizontalBounds = resolveBattleCenterSideHorizontalBounds({
+    rootRect,
+    uiScale: scale,
+    discardPileShell,
+    side: "left"
+  });
+  const tableFactsHorizontalBounds = resolveBattleCenterSideHorizontalBounds({
+    rootRect,
+    uiScale: scale,
+    discardPileShell,
+    side: "right"
+  });
+  const drawPileLayout = resolveBattleCenterSideLayout(
+    drawPileBox,
+    centerBandTop,
+    centerBandBottom,
+    battleCenterScale,
+    drawPileHorizontalBounds.availableWidth
+  );
+  const tableFactsLayout = resolveBattleCenterSideLayout(
+    tableFactsBox,
+    centerBandTop,
+    centerBandBottom,
+    battleCenterScale,
+    tableFactsHorizontalBounds.availableWidth
+  );
 
   battleRoot.style.setProperty("--battle-hud-bottom-limit", `${hudBottomLimit.toFixed(2)}px`);
   battleRoot.style.setProperty("--battle-action-dock-top-limit", `${actionDockTopLimit.toFixed(2)}px`);
-  battleRoot.style.setProperty("--battle-seat-band-top", `${centerBandTop.toFixed(2)}px`);
-  battleRoot.style.setProperty("--battle-seat-band-bottom", `${centerBandBottom.toFixed(2)}px`);
-  battleRoot.style.setProperty("--battle-seat-band-height", `${centerBandHeight.toFixed(2)}px`);
+  battleRoot.style.setProperty("--battle-seat-band-top", `${seatBandTop.toFixed(2)}px`);
+  battleRoot.style.setProperty("--battle-seat-band-bottom", `${seatBandBottom.toFixed(2)}px`);
+  battleRoot.style.setProperty("--battle-seat-band-height", `${seatBandHeight.toFixed(2)}px`);
+  battleRoot.style.setProperty("--battle-center-side-top-limit", `${centerBandTop.toFixed(2)}px`);
+  battleRoot.style.setProperty(
+    "--battle-center-side-bottom-limit",
+    `${centerBandBottom.toFixed(2)}px`
+  );
+  battleRoot.style.setProperty(
+    "--battle-draw-pile-center-x",
+    `${drawPileHorizontalBounds.centerX.toFixed(2)}px`
+  );
+  battleRoot.style.setProperty(
+    "--battle-draw-pile-center-y",
+    `${drawPileLayout.centerY.toFixed(2)}px`
+  );
+  battleRoot.style.setProperty(
+    "--battle-draw-pile-scale",
+    drawPileLayout.scale.toFixed(4)
+  );
+  battleRoot.style.setProperty(
+    "--battle-table-facts-center-x",
+    `${tableFactsHorizontalBounds.centerX.toFixed(2)}px`
+  );
+  battleRoot.style.setProperty(
+    "--battle-table-facts-center-y",
+    `${tableFactsLayout.centerY.toFixed(2)}px`
+  );
+  battleRoot.style.setProperty(
+    "--battle-table-facts-scale",
+    tableFactsLayout.scale.toFixed(4)
+  );
   battleRoot.style.setProperty(
     "--battle-opponent-seat-scale",
     battleOpponentSeatScale.toFixed(4)
@@ -7516,6 +7745,119 @@ function syncBattleLayoutLimits(): void {
     "--battle-opponent-seat-gap",
     `${battleOpponentSeatGap.toFixed(2)}px`
   );
+}
+
+function resolveBattleCenterSideHorizontalBounds(params: {
+  rootRect: DOMRect;
+  uiScale: number;
+  discardPileShell: HTMLElement | null;
+  side: "left" | "right";
+}): { centerX: number; availableWidth: number } {
+  const battleWidth = params.rootRect.width / params.uiScale;
+  const discardRect =
+    params.discardPileShell === null
+      ? null
+      : getBattleRootRelativeRect(params.discardPileShell, params.rootRect, params.uiScale);
+
+  if (discardRect === null) {
+    return {
+      centerX: battleWidth / 2,
+      availableWidth: battleWidth
+    };
+  }
+
+  const leftSeatRects = [
+    ...document.querySelectorAll<HTMLElement>(".battle-immersive .seat-side-left")
+  ].map((element) => getBattleRootRelativeRect(element, params.rootRect, params.uiScale));
+  const rightSeatRects = [
+    ...document.querySelectorAll<HTMLElement>(".battle-immersive .seat-side-right")
+  ].map((element) => getBattleRootRelativeRect(element, params.rootRect, params.uiScale));
+  const leftAnchorRight =
+    leftSeatRects.length === 0
+      ? battleWidth - getBattleRightAnchorLeft(rightSeatRects, battleWidth * 0.85)
+      : Math.max(...leftSeatRects.map((rect) => rect.right));
+  const rightAnchorLeft = getBattleRightAnchorLeft(rightSeatRects, battleWidth - leftAnchorRight);
+
+  if (params.side === "left") {
+    const availableWidth = Math.max(0, discardRect.left - leftAnchorRight);
+
+    return {
+      centerX: leftAnchorRight + availableWidth / 2,
+      availableWidth
+    };
+  }
+
+  const availableWidth = Math.max(0, rightAnchorLeft - discardRect.right);
+
+  return {
+    centerX: discardRect.right + availableWidth / 2,
+    availableWidth
+  };
+}
+
+function getBattleRightAnchorLeft(
+  rects: Array<{ left: number }>,
+  fallback: number
+): number {
+  if (rects.length === 0) {
+    return fallback;
+  }
+
+  return Math.min(...rects.map((rect) => rect.left));
+}
+
+function getBattleRootRelativeRect(
+  element: HTMLElement,
+  rootRect: DOMRect,
+  uiScale: number
+): { left: number; right: number; top: number; bottom: number; width: number; height: number } {
+  const rect = element.getBoundingClientRect();
+
+  return {
+    left: (rect.left - rootRect.left) / uiScale,
+    right: (rect.right - rootRect.left) / uiScale,
+    top: (rect.top - rootRect.top) / uiScale,
+    bottom: (rect.bottom - rootRect.top) / uiScale,
+    width: rect.width / uiScale,
+    height: rect.height / uiScale
+  };
+}
+
+function resolveBattleCenterSideLayout(
+  contentBox: HTMLElement | null,
+  topLimit: number,
+  bottomLimit: number,
+  designScale: number,
+  availableWidth: number
+): { centerY: number; scale: number } {
+  const availableHeight = Math.max(0, bottomLimit - topLimit);
+  const centerY = topLimit + availableHeight / 2;
+  const naturalHeight =
+    contentBox === null
+      ? 0
+      : Math.max(contentBox.offsetHeight, contentBox.scrollHeight, contentBox.clientHeight);
+  const naturalWidth =
+    contentBox === null
+      ? 0
+      : Math.max(contentBox.offsetWidth, contentBox.scrollWidth, contentBox.clientWidth);
+
+  if (naturalHeight <= 0 || naturalWidth <= 0) {
+    return {
+      centerY,
+      scale: designScale
+    };
+  }
+
+  const fitHeightScale =
+    availableHeight <= 0 ? 0.01 : clampNumber(availableHeight / naturalHeight, 0.01, designScale);
+  const fitWidthScale =
+    availableWidth <= 0 ? 0.01 : clampNumber(availableWidth / naturalWidth, 0.01, designScale);
+  const fitScale = Math.min(fitHeightScale, fitWidthScale);
+
+  return {
+    centerY,
+    scale: clampNumber(Math.min(designScale, fitScale), 0.01, designScale)
+  };
 }
 
 function clampNumber(value: number, min: number, max: number): number {
@@ -7661,7 +8003,12 @@ function bindRuleControls(): void {
   });
 
   document.querySelector("#rule-back-button")?.addEventListener("click", () => {
-    if (state.ruleModal?.type === "card-rule") {
+    const backButton = document.querySelector<HTMLButtonElement>("#rule-back-button");
+    const backTarget = backButton?.dataset.ruleBack as RuleModalBackTarget | undefined;
+
+    if (backTarget === "close") {
+      state.ruleModal = null;
+    } else if (backTarget === "card-list") {
       state.ruleModal = { type: "card-list" };
     } else {
       state.ruleModal = { type: "home" };
@@ -7705,6 +8052,27 @@ function openRuleEntry(entryId: RuleEntryId): void {
   }
 
   state.ruleModal = { type: "image-group", groupId: entryId, pageIndex: 0 };
+  render();
+}
+
+function openHandCardRule(cardId: string): void {
+  if (state.snapshot === null) {
+    return;
+  }
+
+  const card = state.snapshot.self.hand.find((candidate) => candidate.id === cardId);
+  if (card === undefined) {
+    return;
+  }
+
+  const nextView = getHandCardRuleModalView(card);
+  if (nextView === null) {
+    showToast("这张卡牌暂时没有规则图片。", "warning");
+    return;
+  }
+
+  hideCardHoverTooltip();
+  state.ruleModal = nextView;
   render();
 }
 
@@ -8050,42 +8418,49 @@ function syncHandOverlapLayout(): void {
     return;
   }
 
-  const cardButtons = [...cards.querySelectorAll<HTMLElement>(".card-button")];
+  const cardSlots = [...cards.querySelectorAll<HTMLElement>("[data-hand-card-slot]")];
 
-  if (cardButtons.length === 0) {
+  if (cardSlots.length === 0) {
     cards.classList.remove("cards-overlap");
     cards.style.removeProperty("--hand-overlap-height");
     return;
   }
 
-  for (const cardButton of cardButtons) {
-    cardButton.style.removeProperty("left");
-    cardButton.style.removeProperty("z-index");
+  for (const cardSlot of cardSlots) {
+    cardSlot.style.removeProperty("left");
+    cardSlot.style.removeProperty("z-index");
   }
 
   const containerWidth = cards.clientWidth;
-  const firstCard = cardButtons[0]!;
-  const cardWidth = firstCard.offsetWidth;
+  const firstCardSlot = cardSlots[0]!;
+  const firstCardButton = firstCardSlot.querySelector<HTMLElement>(".card-button");
+  const cardWidth = Math.max(firstCardSlot.offsetWidth, firstCardButton?.offsetWidth ?? 0);
   const normalGap = getHandCardGapPx(cards);
   const horizontalPadding = getHorizontalPaddingPx(cards);
   const availableWidth = Math.max(cardWidth, containerWidth - horizontalPadding);
-  const normalWidth = cardWidth * cardButtons.length + normalGap * (cardButtons.length - 1);
+  const normalWidth = cardWidth * cardSlots.length + normalGap * (cardSlots.length - 1);
 
-  if (normalWidth <= availableWidth || cardButtons.length <= 1) {
+  if (containerWidth <= 0 || cardWidth <= 0) {
     cards.classList.remove("cards-overlap");
     cards.style.removeProperty("--hand-overlap-height");
     return;
   }
 
-  const step = Math.max(14, (availableWidth - cardWidth) / (cardButtons.length - 1));
-  const cardHeight = firstCard.offsetHeight;
+  if (normalWidth <= availableWidth || cardSlots.length <= 1) {
+    cards.classList.remove("cards-overlap");
+    cards.style.removeProperty("--hand-overlap-height");
+    return;
+  }
+
+  const step = Math.max(14, (availableWidth - cardWidth) / (cardSlots.length - 1));
+  const cardHeight = Math.max(firstCardSlot.offsetHeight, firstCardButton?.offsetHeight ?? 0);
 
   cards.classList.add("cards-overlap");
   cards.style.setProperty("--hand-overlap-height", `${String(Math.ceil(cardHeight + 26))}px`);
 
-  cardButtons.forEach((cardButton, index) => {
-    cardButton.style.left = `${String(Math.max(0, step * index + horizontalPadding / 2))}px`;
-    cardButton.style.zIndex = String(index + 1);
+  cardSlots.forEach((cardSlot, index) => {
+    cardSlot.style.left = `${String(Math.max(0, step * index + horizontalPadding / 2))}px`;
+    cardSlot.style.zIndex = String(index + 1);
   });
 }
 
@@ -8308,6 +8683,8 @@ function resetRoomContext(): void {
     unoProtectionRenderTimer = null;
   }
 
+  clearBattleEntryRefreshTimers();
+
   clearBattleTurnSweep(false);
   stopEliminationMusic();
   state.room = null;
@@ -8348,6 +8725,8 @@ function returnToLobbyAfterLeavingBattle(
     window.clearTimeout(unoProtectionRenderTimer);
     unoProtectionRenderTimer = null;
   }
+
+  clearBattleEntryRefreshTimers();
 
   clearBattleTurnSweep(false);
   stopEliminationMusic();
