@@ -295,6 +295,13 @@ const MAX_PLAYER_NICKNAME_LENGTH = 10;
 const DEFAULT_TURN_ORBIT_SCALE_PERCENT = 100;
 const DEFAULT_HAND_CARD_SCALE_PERCENT = 100;
 const MAX_DISCARD_LAYOUT_CARDS = 15;
+const DISCARD_HISTORY_FRAME_COLOR = "rgba(168, 174, 184, 0.92)";
+const DISCARD_TOP_FRAME_COLOR_BY_COLOR: Record<CardColor, string> = {
+  red: "#e84b4b",
+  yellow: "#f8c653",
+  blue: "#73b7ff",
+  green: "#63dd8b"
+};
 const RULE_GUIDE_SECTIONS: RuleGuideSection[] = [
   {
     kicker: "开局",
@@ -3117,13 +3124,13 @@ function renderDiscardPile(snapshot: PlayerGameSnapshot): string {
                 class="discard-card history-discard-card"
                 src="${getCardAssetPath(card)}"
                 alt="${escapeHtml(card.displayName)}"
-                style="--pile-x: ${String(offset.x)}px; --pile-y: ${String(offset.y)}px; --pile-rotate: ${String(offset.rotate)}deg; --pile-index: ${String(index)}; --pile-opacity: ${opacity.toFixed(3)};"
+                style="--pile-x: ${String(offset.x)}px; --pile-y: ${String(offset.y)}px; --pile-rotate: ${String(offset.rotate)}deg; --pile-index: ${String(index)}; --pile-opacity: ${opacity.toFixed(3)}; ${renderDiscardCardFrameStyle(card, snapshot)}"
               />
             `;
           })
           .join("")}
-        ${activeChain.length === 0 ? renderLatestPlayedGroup(latestGroup) : ""}
-        ${renderActiveDrawChain(activeChain)}
+        ${activeChain.length === 0 ? renderLatestPlayedGroup(latestGroup, snapshot) : ""}
+        ${renderActiveDrawChain(activeChain, snapshot)}
       </div>
       <strong>${escapeHtml(snapshot.topCard.displayName)}</strong>
     </div>
@@ -3347,7 +3354,10 @@ function classifyPlayedGroup(
   return "single";
 }
 
-function renderLatestPlayedGroup(group: ReturnType<typeof getLatestPlayedGroup>): string {
+function renderLatestPlayedGroup(
+  group: ReturnType<typeof getLatestPlayedGroup>,
+  snapshot: Pick<PlayerGameSnapshot, "topCard" | "currentColor">
+): string {
   if (group.cards.length === 0) {
     return "";
   }
@@ -3373,7 +3383,7 @@ function renderLatestPlayedGroup(group: ReturnType<typeof getLatestPlayedGroup>)
               class="discard-card top-discard-card latest-play-card${shouldAnimate ? " play-card-landing" : ""}"
               src="${getCardAssetPath(card)}"
               alt="${escapeHtml(card.displayName)}"
-              style="--fan-x: ${String(fan.x)}px; --fan-y: ${String(fan.y)}px; --fan-rotate: ${String(fan.rotate)}deg; --fan-index: ${String(index)};"
+              style="--fan-x: ${String(fan.x)}px; --fan-y: ${String(fan.y)}px; --fan-rotate: ${String(fan.rotate)}deg; --fan-index: ${String(index)}; ${renderDiscardCardFrameStyle(card, snapshot)}"
             />
           `;
         })
@@ -3430,7 +3440,10 @@ function isDrawChainDisplayCard(card: Card): boolean {
 }
 
 // UI name: battle-active-draw-chain. 加牌链平铺展示。
-function renderActiveDrawChain(cards: readonly Card[]): string {
+function renderActiveDrawChain(
+  cards: readonly Card[],
+  snapshot: Pick<PlayerGameSnapshot, "topCard" | "currentColor">
+): string {
   if (cards.length === 0) {
     return "";
   }
@@ -3443,12 +3456,34 @@ function renderActiveDrawChain(cards: readonly Card[]): string {
             class="draw-chain-card"
             src="${getCardAssetPath(card)}"
             alt="${escapeHtml(card.displayName)}"
-            style="--chain-index: ${String(index)};"
+            style="--chain-index: ${String(index)}; ${renderDiscardCardFrameStyle(card, snapshot)}"
           />
         `)
         .join("")}
     </div>
   `;
+}
+
+function renderDiscardCardFrameStyle(
+  card: Card,
+  snapshot: Pick<PlayerGameSnapshot, "topCard" | "currentColor">
+): string {
+  return `--discard-frame-color: ${getDiscardCardFrameColor(card, snapshot)};`;
+}
+
+function getDiscardCardFrameColor(
+  card: Card,
+  snapshot: Pick<PlayerGameSnapshot, "topCard" | "currentColor">
+): string {
+  if (card.id !== snapshot.topCard.id) {
+    return DISCARD_HISTORY_FRAME_COLOR;
+  }
+
+  return DISCARD_TOP_FRAME_COLOR_BY_COLOR[getDiscardCardEffectiveColor(card, snapshot.currentColor)];
+}
+
+function getDiscardCardEffectiveColor(card: Card, currentColor: CardColor): CardColor {
+  return card.isBlack ? currentColor : card.color ?? currentColor;
 }
 
 // UI name: battle-effects-layer. 出牌飞行动画。
@@ -8672,7 +8707,7 @@ function syncHandOverlapLayout(): void {
 
   cardSlots.forEach((cardSlot, index) => {
     cardSlot.style.left = `${String(Math.max(0, step * index + horizontalPadding / 2))}px`;
-    cardSlot.style.zIndex = String(index + 1);
+    cardSlot.style.zIndex = String(2147483646 + index);
   });
 }
 

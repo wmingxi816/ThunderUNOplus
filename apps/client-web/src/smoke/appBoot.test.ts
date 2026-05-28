@@ -2751,6 +2751,11 @@ describe("client-web smoke", () => {
       "blue 2",
       "green 3"
     ]);
+    expect(
+      [...document.querySelectorAll<HTMLImageElement>(".latest-play-card")].map((image) =>
+        image.style.getPropertyValue("--discard-frame-color")
+      )
+    ).toEqual(["rgba(168, 174, 184, 0.92)", "rgba(168, 174, 184, 0.92)", "#63dd8b"]);
 
     socket?.triggerMessage({
       protocolVersion: "0.1.0",
@@ -2775,6 +2780,16 @@ describe("client-web smoke", () => {
 
     expect(document.querySelector("[data-testid='active-draw-chain']")).not.toBeNull();
     expect(document.querySelectorAll(".draw-chain-card")).toHaveLength(2);
+    expect(
+      document
+        .querySelector<HTMLImageElement>(".history-discard-card")
+        ?.style.getPropertyValue("--discard-frame-color")
+    ).toBe("rgba(168, 174, 184, 0.92)");
+    expect(
+      [...document.querySelectorAll<HTMLImageElement>(".draw-chain-card")].map((image) =>
+        image.style.getPropertyValue("--discard-frame-color")
+      )
+    ).toEqual(["rgba(168, 174, 184, 0.92)", "#e84b4b"]);
 
     socket?.triggerMessage({
       protocolVersion: "0.1.0",
@@ -2838,6 +2853,11 @@ describe("client-web smoke", () => {
       "red +4",
       "yellow +4"
     ]);
+    expect(
+      [...document.querySelectorAll<HTMLImageElement>(".draw-chain-card")].map((image) =>
+        image.style.getPropertyValue("--discard-frame-color")
+      )
+    ).toEqual(["rgba(168, 174, 184, 0.92)", "#f8c653"]);
 
     socket?.triggerMessage({
       protocolVersion: "0.1.0",

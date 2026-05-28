@@ -4212,6 +4212,8 @@ label span {
   inset: 0;
   z-index: var(--pile-index);
   border-radius: 8px;
+  outline: 3px solid var(--discard-frame-color, rgba(168, 174, 184, 0.92));
+  outline-offset: 2px;
   transform-origin: center;
   transform: translate(var(--pile-x), var(--pile-y)) rotate(var(--pile-rotate));
   filter: drop-shadow(0 0.45rem 0.6rem rgba(0, 0, 0, 0.28));
@@ -4242,8 +4244,6 @@ label span {
   transform:
     translate(var(--fan-x), var(--fan-y))
     rotate(var(--fan-rotate));
-  outline: 3px solid #f8d64e;
-  outline-offset: 2px;
   filter: drop-shadow(0 0.6rem 0.8rem rgba(0, 0, 0, 0.34));
 }
 
@@ -4274,7 +4274,7 @@ label span {
   width: min(7.2rem, 82%);
   margin-left: -3.8rem;
   border-radius: 8px;
-  outline: 3px solid #f8d64e;
+  outline: 3px solid var(--discard-frame-color, rgba(168, 174, 184, 0.92));
   outline-offset: 2px;
   z-index: calc(35 + var(--chain-index));
   filter: drop-shadow(0 0.65rem 0.9rem rgba(0, 0, 0, 0.36));
@@ -5112,8 +5112,7 @@ label span {
   max-height: none;
   margin-top: var(--battle-hand-cards-offset-top, 4rem);
   padding: 0 0.25rem 0.95rem;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   position: relative;
@@ -5136,15 +5135,15 @@ label span {
 
 .battle-action-dock .cards.cards-overlap .hand-card-slot {
   position: absolute;
-  top: 15px;
+  top: 20px;
   bottom: auto;
   width: var(--battle-hand-slot-width);
   transform-origin: bottom center;
 }
 
 .battle-action-dock .cards .hand-card-slot {
-  margin-top: 15px;
-  z-index: 24;
+  margin-top: 20px;
+  z-index: 2147483646;
 }
 
 .battle-action-dock .cards:not(.cards-overlap) .hand-card-slot {
@@ -5157,7 +5156,7 @@ label span {
 
 .battle-action-dock .cards.cards-overlap .hand-card-slot:hover,
 .battle-action-dock .cards.cards-overlap .hand-card-slot.is-selected {
-  z-index: 99 !important;
+  z-index: 2147483647 !important;
 }
 
 .hand-card-slot {
@@ -5243,7 +5242,7 @@ label span {
 }
 
 .card-button.selected img {
-  opacity: 0.5;
+  opacity: 1;
 }
 
 .hand-card-slot.card-motion-select {
